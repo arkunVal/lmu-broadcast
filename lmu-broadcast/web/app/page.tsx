@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fmtClock, fmtGap, fmtTime, phaseName, sessionName } from "@/lib/format";
 import { useLiveData } from "@/lib/useLiveData";
@@ -63,6 +64,7 @@ export default function Home() {
     <div className="wrap">
       <div className="top">
         <h1>LMU Broadcast – Livetest</h1>
+        <Link href="/overlays" className="chip">OBS-Overlays →</Link>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <span className="chip"><span className={`dot ${connDot}`} />{connLabel}</span>
           <span className="chip">

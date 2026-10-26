@@ -117,3 +117,41 @@ Ich konnte das Spiel hier nicht laufen lassen. Alles Folgende ist deshalb gegen 
     python -m unittest discover tests
 
 Die Dateien in `reader/pylmu/` stammen unverändert von https://github.com/TinyPedal/pyLMUSharedMemory (MIT-Lizenz).
+
+---------------------------------------------------------------------
+
+# Phase 2: OBS-Overlays
+
+Die Overlays sind eigene Seiten mit **transparentem Hintergrund**. Sie nutzen dieselbe Datenleitung wie der Livetest
+(Reader → Supabase → Website), du brauchst also keine neue Einrichtung. Nach dem Hochladen der neuen Dateien baut Vercel automatisch neu.
+
+## In OBS einbinden
+
+1. Auf deiner Vercel-Seite **`/overlays`** öffnen (Link „OBS-Overlays →“ oben auf der Startseite).
+2. Raumcode eintragen. Die fertigen URLs erscheinen mit „Kopieren“-Knopf.
+3. In OBS: **Quelle hinzufügen → Browser** → URL einfügen → Breite und Höhe wie auf der Seite angegeben → OK.
+4. Die Overlays zeigen **nichts**, solange keine frischen Spieldaten ankommen (älter als 5 s). Zum Einrichten `&debug=1` an die URL hängen.
+
+Zum Testen ohne Spiel: `start_demo.bat` laufen lassen, dann zeigen alle Overlays die Demo-Autos.
+
+## Die Overlays
+
+| Overlay | Pfad | Optionen (an die URL anhängen) |
+|---|---|---|
+| Timing-Tower | `/overlay/tower` | `max=10` Zeilen je Klasse, `cls=hyper` nur eine Klasse, `gap=interval` (Abstand zum Auto davor statt zum Klassenführenden), `names=short/full/tla`, `scale=1.2` |
+| Fahrerkarte | `/overlay/driver` | `car=8` (Startnummer), `follow=leader`, `scale` |
+| Status / Flaggen | `/overlay/status` | `always=1` (auch bei Grün), `scale` |
+| Streckenkarte | `/overlay/map` | `labels=0` (ohne Nummern), `scale` |
+
+Verhalten des Towers:
+- **Immer klassenweise** sortiert (Hypercar, LMP2, LMP3, GT3, GTE, Rest).
+- **Rennen:** Reihenfolge nach Position, Abstand zum Klassenführenden bzw. zum Auto davor, „+1L“ bei Überrundung.
+- **Training/Quali:** Sortierung nach schnellster Runde, oben im Kopf die schnellste Rundenzeit der ganzen Session, je Klasse die Klassenbestzeit.
+- Die Session-Art (Training, Quali, Rennen) kommt aus den Spieldaten.
+
+Streckenkarte: Der Streckenverlauf wird aus den Positionen der Autos gelernt. Nach etwa einer Runde ist er komplett und wird pro Strecke im Browser (auch in OBS) gespeichert.
+
+## Noch nicht umgesetzt (vorgemerkt)
+
+- **Abrufraten:** aktuell kommt alles gleich schnell (5 Pakete/s). Die Trennung „Tempo, Rundenzeit, Streckenposition schnell, alles andere sekündlich“ kommt als Reader-Anpassung.
+- **Offen bis zum echten Test:** Klassennamen aus dem Spiel (die Erkennung sucht nach „hyper“, „lmp2“, „gt3“ usw.), Startnummern und Reifen fremder Autos (siehe Abschnitt „Bekannte Unsicherheiten“ oben).

@@ -38,3 +38,5 @@ tr.yellow td { background: #3a3210; }
 .tag.cls { background: var(--line); color: var(--text); }
 button { background: var(--panel); color: var(--text); border: 1px solid var(--line); padding: 6px 10px; border-radius: 6px; cursor: pointer; font: inherit; }
 pre { overflow: auto; max-height: 360px; background: #0a0d12; padding: 12px; border-radius: 6px; font-size: 12px; margin: 8px 0 0; }
+a.chip { color: var(--text); text-decoration: none; }
+a.chip:hover { border-color: var(--accent); }
