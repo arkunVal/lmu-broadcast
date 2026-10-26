@@ -1,0 +1,6 @@
+{
+  "supabase_url": "https://DEIN-PROJEKT.supabase.co",
+  "anon_key": "DEIN-ANON-PUBLIC-KEY",
+  "room": "mein-geheimer-raumcode",
+  "rate_hz": 5
+}
