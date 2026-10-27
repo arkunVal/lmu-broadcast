@@ -153,5 +153,73 @@ Streckenkarte: Der Streckenverlauf wird aus den Positionen der Autos gelernt. Na
 
 ## Noch nicht umgesetzt (vorgemerkt)
 
-- **Abrufraten:** aktuell kommt alles gleich schnell (5 Pakete/s). Die Trennung „Tempo, Rundenzeit, Streckenposition schnell, alles andere sekündlich“ kommt als Reader-Anpassung.
-- **Offen bis zum echten Test:** Klassennamen aus dem Spiel (die Erkennung sucht nach „hyper“, „lmp2“, „gt3“ usw.), Startnummern und Reifen fremder Autos (siehe Abschnitt „Bekannte Unsicherheiten“ oben).
+- **Abrufraten:** Der Reader liest jetzt 10-mal pro Sekunde (`read_hz`) und sendet 5-mal pro Sekunde (`rate_hz`). Die feinere Trennung „Tempo, Rundenzeit, Streckenposition schnell, alles andere nur sekündlich“ ist noch offen.
+- **Offen bis zum echten Test:** Klassennamen aus dem Spiel (die Erkennung sucht nach „hyper“, „lmp2“, „gt3“ usw.), Startnummern und Reifen fremder Autos (siehe „Bekannte Unsicherheiten“ oben).
+
+## Streckenkarten fest hinterlegen
+
+Das Spiel liefert **keine fertige Streckenzeichnung**. Es meldet nur die x/z-Position jedes Autos. Der Streckenverlauf entsteht, wenn man diese Positionen entlang der Runde aneinanderreiht. Damit das nicht jedes Mal neu „gelernt“ werden muss, nimmst du jede Strecke **einmal** auf und hinterlegst sie als Datei:
+
+1. LMU starten, Training/Testtag auf der Strecke laden.
+2. Im Ordner `reader`: `py lmu_reader.py --record-track`
+3. **Eine komplette Runde fahren** (ruhig, auch mit KI-Gegnern ok). Die Konsole zeigt den Fortschritt in Prozent.
+4. Bei 97 % speichert der Reader automatisch `web/public/tracks/<strecke>.json`.
+5. Datei auf GitHub hochladen, Vercel baut neu. Ab dann nutzt die Streckenkarte diese Datei sofort.
+
+Gibt es für eine Strecke noch keine Datei, lernt die Karte den Verlauf wie bisher live. `demo-circuit.json` gehört zum Demo-Modus. Karten, die du aufnimmst, kannst du auch mit anderen Ligen teilen.
+
+---------------------------------------------------------------------
+
+# Phase 3: Rennleitung (Accounts, Rollen, Vorfälle, Strafen)
+
+Die Rennleitungs-Seiten liegen in derselben Website: `/login`, `/events`, `/events/<id>`, `/admin`, `/profil`.
+
+## Was es kann
+
+- **Login** per Discord **oder** E-Mail/Passwort. Beim ersten Login ist der **In-Game-Name Pflicht** (damit Fahrer im Spiel ihrem Konto zugeordnet werden; jeder Name nur einmal).
+- **Rollen:** Admin (alles, Rollen, Events), Rennleiter/Steward (Vorfälle prüfen, Strafen vergeben, Fahrerliste), Fahrer (eigene Strafen, abgeschlossene Vorfälle), Kommentator/Broadcaster (zusätzlich Live-Ansicht).
+- **Events** mit Fahrerliste (einzeln oder als Liste einfügen), Live-Tabelle klassenweise und Auto-Hinweis-Feed.
+- **Vorfälle:** automatisch vom Reader erkannt **oder** manuell gemeldet. Rennleitung prüft, trägt Beteiligte und Entscheidung ein und schließt ab. **Fahrer sehen einen Vorfall erst, wenn er abgeschlossen ist.**
+- **Strafen:** Verwarnung, Zeitstrafe, Drive-Through, Stop-and-Go, Positions-/Startplatzstrafe, Disqualifikation, Rennsperre, Qualisperre. Status: verhängt, abgesessen, zurückgenommen.
+
+**Wichtig:** Strafen sind hier **Protokoll und Veröffentlichung**. Le Mans Ultimate lässt sich über das Shared Memory nicht steuern. Zeit- oder Positionsstrafen musst du also im Ergebnis bzw. im Server-Setup selbst anwenden.
+
+## Einrichtung (einmalig)
+
+1. **Datenbank:** Supabase → **SQL Editor → New query** → kompletten Inhalt von `supabase/schema.sql` einfügen → **Run**. (Legt Tabellen, Rollen-Regeln und Live-Updates an. Nur einmal ausführen.)
+2. **Website-Adresse eintragen:** Supabase → **Authentication → URL Configuration**: *Site URL* = deine Vercel-Adresse; unter *Redirect URLs* zusätzlich `https://DEINE-SEITE.vercel.app/**`.
+3. **Discord-Login (optional, aber empfohlen):**
+   - https://discord.com/developers/applications → *New Application* → **OAuth2**: Client ID und Client Secret notieren.
+   - Bei Discord unter *Redirects* die Callback-URL von Supabase eintragen (steht in Supabase unter **Authentication → Providers → Discord**, Form `https://xxxx.supabase.co/auth/v1/callback`).
+   - In Supabase den Discord-Provider **einschalten** und Client ID/Secret einfügen.
+   - E-Mail/Passwort funktioniert ohne diesen Schritt. Bei E-Mail-Registrierung schickt Supabase eine Bestätigungs-Mail.
+4. **Service-Schlüssel für den Reader-Eingang:** Supabase → **Project Settings → API** → `service_role`-Schlüssel kopieren. In Vercel unter **Environment Variables** als `SUPABASE_SERVICE_ROLE_KEY` eintragen (**ohne** `NEXT_PUBLIC_`!) und neu deployen. Dieser Schlüssel ist geheim, er umgeht alle Zugriffsregeln. Niemals ins Reader-Config, nie auf GitHub.
+5. **Ersten Admin festlegen:** Auf der Website registrieren/anmelden (In-Game-Namen eintragen). Dann im Supabase **SQL Editor** ausführen (E-Mail anpassen):
+
+       update public.profiles set role = 'admin'
+       where id = (select id from auth.users where email = 'DEINE@EMAIL.DE');
+
+   Danach weitere Rollen auf der Seite **/admin** vergeben.
+6. **Event anlegen:** `/events` → *Neues Event* (Admin). Im Event unter *Event-Einstellungen* den **Raumcode** des Readers setzen (für die Live-Ansicht) und **„Reader-Zugang anzeigen“**: das sind `site_url` und `ingest_token`. Beide Zeilen in die `config.json` des Readers kopieren (Vorlage: `config.example.json`).
+7. Reader normal starten (`start_reader.bat`). Die Konsole zeigt „Rennleitungs-Hinweise: AN“ und „Hinweise: n erkannt, m gespeichert“.
+
+## Automatische Hinweise: was erkannt wird
+
+| Hinweis | Erkennung | Sicherheit |
+|---|---|---|
+| Track Limits | Das Spiel zählt selbst einen Verstoß (nur Autos mit Telemetrie) | hoch |
+| Streckenverlassen | alle 4 Reifen auf Gras/Kies/Dreck (Autos mit Telemetrie), sonst Position jenseits der Streckenkante | mittel / niedrig |
+| Kontakt | Aufprallmeldung des Spiels (Telemetrie) bzw. Schleuderwinkel oder starke Beschleunigung mit anderem Auto in der Nähe | mittel / niedrig |
+| Dreher / Aufprall | starker Schlupfwinkel bzw. Aufprall ohne anderes Auto in der Nähe | niedrig |
+
+**Ehrlich dazu:** Diese Erkennung ist **nicht an echten Rennen kalibriert**. Alle Schwellen stehen in `config.json` unter `"hints"`. Mit `py lmu_reader.py --hints-debug` druckt der Reader jede Erkennung samt Messwerten. Fahr eine Testsession, sieh dir die Ausgabe an und stelle die Werte ein (bei zu vielen Fehlalarmen: Schwellen erhöhen). Es sind **Hinweise**, keine Urteile: die Rennleitung entscheidet.
+
+Zum Testen der Kette ohne Spiel: `py lmu_reader.py --demo --demo-hints` (schickt alle 30 s einen Fake-Hinweis; die Zeile `config.json` mit `site_url`/`ingest_token` muss gesetzt sein).
+
+## Sicherheit und Grenzen
+
+- **Zugriffsregeln** sitzen in der Datenbank (nicht nur in der Oberfläche) und sind gegen ein lokales Postgres geprüft: Fahrer sehen keine offenen Vorfälle, nur Admins sehen den Reader-Token, Rollen kann nur ein Admin ändern, Fahrer können keine Strafen vergeben.
+- **In-Game-Namen:** Jeder Name kann nur einmal einem Konto gehören. Wer sich einen fremden Namen zuerst sichert, blockiert ihn; ein Admin kann das auf `/admin` bzw. in der Datenbank korrigieren.
+- Der Reader-Token gilt für ein Event. Über „Token neu erzeugen“ wird er ungültig gemacht.
+- **Noch nicht enthalten:** Einsprüche von Fahrern, automatische Punkte/Meisterschaftswertung, Anwenden von Strafen im Spiel.
+- **Nicht getestet:** Login mit echtem Supabase/Discord und die Seiten mit echten Daten. Geprüft sind Datenbank-Regeln (lokales Postgres), die Reader-Schnittstelle (Testserver) und die Oberfläche mit simulierten Daten (Admin- und Fahrer-Ansicht).

@@ -19,10 +19,13 @@ import sys
 import time
 from pathlib import Path
 
-from demo import demo_payload
+from demo import demo_hint, demo_payload
+from hint_sender import HintSender
+from hints import HintDetector
 from payload import build_payload
 from pylmu.lmu_data import LMUConstants, LMUObjectOut
 from sender import Sender
+from track_recorder import TrackRecorder
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_CONFIG = HERE / "config.json"
@@ -81,6 +84,35 @@ def load_config(path: Path) -> dict:
         return json.load(fh)
 
 
+def record_track(args) -> int:
+    """Nimmt den Streckenverlauf auf und legt ihn als Datei ab (kein Versand ins Internet)."""
+    if sys.platform != "win32" and not args.from_file:
+        print("Die Aufnahme funktioniert nur unter Windows mit laufendem Spiel.")
+        return 1
+    source = FileSource(args.from_file) if args.from_file else WindowsSource()
+    recorder = TrackRecorder()
+    web_tracks = HERE.parent / "web" / "public" / "tracks"
+    target = web_tracks if web_tracks.parent.exists() else HERE / "tracks"
+    print("Streckenaufnahme gestartet. Fahre im Spiel EINE komplette Runde (Training genuegt). Strg+C bricht ab.")
+    last = 0.0
+    try:
+        while not recorder.done:
+            status = recorder.update(source.read())
+            now = time.perf_counter()
+            if now - last >= 2.0:
+                last = now
+                print(" ", status)
+            time.sleep(0.1)
+        path = recorder.save(target)
+        print(f"FERTIG: {path}")
+        print("Lade diese Datei in dein GitHub-Projekt hoch (web/public/tracks/). Vercel baut danach neu.")
+    except KeyboardInterrupt:
+        print("\nAbgebrochen, nichts gespeichert.")
+    finally:
+        source.close()
+    return 0
+
+
 def parse_args():
     p = argparse.ArgumentParser(description="LMU Broadcast Reader")
     p.add_argument("--demo", action="store_true", help="Fake-Daten statt Spieldaten senden")
@@ -88,6 +120,9 @@ def parse_args():
     p.add_argument("--config", default=str(DEFAULT_CONFIG), help="Pfad zur config.json")
     p.add_argument("--room", help="Raumcode (ueberschreibt config.json)")
     p.add_argument("--rate", type=float, help="Sendungen pro Sekunde (ueberschreibt config.json)")
+    p.add_argument("--record-track", action="store_true", help="Streckenverlauf fuer die Streckenkarte aufnehmen (eine Runde fahren)")
+    p.add_argument("--hints-debug", action="store_true", help="Vorfall-Hinweise samt Rohwerten in der Konsole zeigen")
+    p.add_argument("--demo-hints", action="store_true", help="im Demo-Modus gelegentlich einen Fake-Hinweis erzeugen")
     p.add_argument("--from-file", help="(Entwickler) Speicherabzug aus Datei lesen")
     return p.parse_args()
 
@@ -96,10 +131,16 @@ def main() -> int:
     args = parse_args()
     cfg = load_config(Path(args.config))
 
+    if args.record_track:
+        return record_track(args)
+
     room = args.room or cfg.get("room")
-    rate = args.rate or cfg.get("rate_hz") or 5
+    send_hz = max(0.5, min(float(args.rate or cfg.get("rate_hz") or 5), 20.0))
+    read_hz = max(send_hz, min(float(cfg.get("read_hz") or 10), 20.0))
     url = cfg.get("supabase_url")
     key = cfg.get("anon_key")
+    site_url = cfg.get("site_url")
+    ingest_token = cfg.get("ingest_token")
 
     if not args.dry_run and not (url and key and room):
         print("FEHLER: config.json fehlt oder ist unvollstaendig.")
@@ -122,33 +163,66 @@ def main() -> int:
     sender = Sender(url or "https://example.invalid", key or "", topic, dry_run=args.dry_run)
     sender.start()
 
-    interval = 1.0 / max(0.5, min(float(rate), 20.0))
-    print(f"Reader gestartet | Raum: {room} | {1 / interval:.1f} Pakete/s | Strg+C zum Beenden")
+    # Vorfall-Hinweise (Rennleitung): nur mit site_url + ingest_token, oder zum Kalibrieren mit --hints-debug
+    detector = None
+    hint_sender = None
+    if (site_url and ingest_token) or args.hints_debug:
+        detector = HintDetector(cfg.get("hints"), debug=args.hints_debug)
+    if site_url and ingest_token and not args.dry_run:
+        hint_sender = HintSender(site_url, ingest_token)
+        hint_sender.start()
+    elif detector is not None and not args.hints_debug:
+        print("Hinweis: Vorfall-Hinweise werden erkannt, aber nicht gesendet (dry-run).")
+
+    interval = 1.0 / read_hz
+    send_interval = 1.0 / send_hz
+    print(
+        f"Reader gestartet | Raum: {room} | lesen {read_hz:.0f}/s, senden {send_hz:.1f}/s | "
+        f"Rennleitungs-Hinweise: {'AN' if hint_sender else ('nur Debug' if detector else 'aus')} | Strg+C zum Beenden"
+    )
 
     demo_start = time.time()
     idle_ticks = 0
     last_status = 0.0
+    last_send = 0.0
+    last_idle_send = 0.0
+    last_demo_hint = time.time()
     next_tick = time.perf_counter()
+    payload = None
 
     try:
         while True:
+            now = time.perf_counter()
+            data = None
             if args.demo:
                 payload = demo_payload(demo_start)
             else:
-                payload = build_payload(source.read())
+                data = source.read()
+                payload = build_payload(data) if now - last_send >= send_interval or payload is None else payload
 
-            # Solange kein Spiel laeuft, nur selten senden (spart Nachrichten)
+            # Vorfall-Hinweise: bei jedem Lese-Takt
+            if detector is not None and data is not None:
+                hints = detector.update(data)
+                if hints and hint_sender is not None:
+                    hint_sender.submit(hints)
+            if args.demo and args.demo_hints and hint_sender is not None and time.time() - last_demo_hint > 30:
+                last_demo_hint = time.time()
+                hint_sender.submit([demo_hint(payload)])
+
             if payload["status"] == "idle":
                 idle_ticks += 1
-                if idle_ticks % int(max(1, 1.0 / interval) * 2) == 1:
+                # Solange kein Spiel laeuft, nur alle 2 s senden (spart Nachrichten)
+                if now - last_idle_send >= 2.0:
+                    last_idle_send = now
                     sender.submit(payload)
-                if idle_ticks % int(max(1, 1.0 / interval) * 10) == 0:
+                if idle_ticks % int(read_hz * 10) == 0:
                     source.open()  # Verbindung erneuern, falls das Spiel inzwischen gestartet ist
             else:
                 idle_ticks = 0
-                sender.submit(payload)
+                if now - last_send >= send_interval:
+                    last_send = now
+                    sender.submit(payload)
 
-            now = time.perf_counter()
             if now - last_status >= 2.0:
                 last_status = now
                 s = payload["session"]
@@ -157,12 +231,19 @@ def main() -> int:
                     f"OK {sender.last_ms} ms" if sender.last_error is None and sender.sent else
                     (sender.last_error or "...")
                 )
+                hint_info = ""
+                if detector is not None:
+                    hint_info = f" | Hinweise: {detector.detected} erkannt"
+                    if hint_sender is not None:
+                        hint_info += f", {hint_sender.inserted} gespeichert"
+                        if hint_sender.last_error:
+                            hint_info += f" (FEHLER: {hint_sender.last_error})"
                 print(
                     f"[{state}] {s['track'] or '-'} | Autos: {s['cars']} | "
                     f"Paket: {sender.last_bytes / 1024:.1f} KB | gesendet: {sender.sent} | "
-                    f"Fehler: {sender.failed} | Netz: {net}"
+                    f"Fehler: {sender.failed} | Netz: {net}{hint_info}"
                 )
-                if args.dry_run and payload["cars"]:
+                if args.dry_run and payload["cars"] and not args.hints_debug:
                     c = payload["cars"][0]
                     print("  Beispiel Auto 1:", json.dumps(c, ensure_ascii=False))
 

@@ -2,14 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { classColor } from "@/lib/classes";
+import { loadStoredTrack } from "@/lib/tracks";
 import { num, useOverlayData } from "@/lib/useOverlayData";
 
 const BINS = 500;
 type Pt = [number, number] | null;
 
 /**
- * Streckenkarte fuer OBS. Der Streckenverlauf wird aus den Positionen der Autos
- * "gelernt" (nach einer Runde ist er vollstaendig) und pro Strecke im Browser gespeichert.
+ * Streckenkarte fuer OBS. Bevorzugt wird die hinterlegte Datei /tracks/<strecke>.json
+ * (aufgenommen mit "py lmu_reader.py --record-track"). Gibt es keine, wird der Verlauf
+ * ersatzweise aus den Positionen der Autos "gelernt" und im Browser gespeichert.
  * Optionen: room=CODE, scale=1, labels=1 (Startnummern anzeigen), debug=1
  */
 export default function TrackMap() {
@@ -18,6 +20,7 @@ export default function TrackMap() {
   const labels = params?.get("labels") !== "0";
   const outline = useRef<Pt[]>(Array(BINS).fill(null));
   const loadedTrack = useRef("");
+  const fixed = useRef(false); // true = hinterlegte Karte, nicht mehr lernen
   const [version, setVersion] = useState(0);
 
   const track = snapshot?.session.track ?? "";
@@ -25,16 +28,26 @@ export default function TrackMap() {
   useEffect(() => {
     if (!track || loadedTrack.current === track) return;
     loadedTrack.current = track;
+    fixed.current = false;
     outline.current = Array(BINS).fill(null);
-    try {
-      const saved = localStorage.getItem(`lmu-map-${track}`);
-      if (saved) outline.current = JSON.parse(saved);
-    } catch {}
-    setVersion((v) => v + 1);
+    loadStoredTrack(track).then((stored) => {
+      if (loadedTrack.current !== track) return; // Strecke hat inzwischen gewechselt
+      if (stored) {
+        const step = stored.points.length / BINS;
+        outline.current = Array.from({ length: BINS }, (_, i) => stored.points[Math.floor(i * step)] ?? null);
+        fixed.current = true;
+      } else {
+        try {
+          const saved = localStorage.getItem(`lmu-map-${track}`);
+          if (saved) outline.current = JSON.parse(saved);
+        } catch {}
+      }
+      setVersion((v) => v + 1);
+    });
   }, [track]);
 
   useEffect(() => {
-    if (!snapshot) return;
+    if (!snapshot || fixed.current) return;
     let changed = false;
     for (const c of snapshot.cars) {
       if (c.lapFrac == null || c.inPits || c.speedKmh < 40) continue;

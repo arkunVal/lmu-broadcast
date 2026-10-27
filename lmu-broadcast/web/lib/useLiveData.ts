@@ -1,7 +1,8 @@
 "use client";
 
-import { createClient, type RealtimeChannel, type SupabaseClient } from "@supabase/supabase-js";
-import { useEffect, useRef, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useEffect, useState } from "react";
+import { getSupabase } from "./supabase";
 import type { Snapshot } from "./types";
 
 export type ConnectionState = "missing-config" | "connecting" | "subscribed" | "error";
@@ -11,12 +12,10 @@ export function useLiveData(room: string) {
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [receivedAt, setReceivedAt] = useState<number | null>(null);
   const [packets, setPackets] = useState(0);
-  const clientRef = useRef<SupabaseClient | null>(null);
 
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url || !key) {
+    const client = getSupabase();
+    if (!client) {
       setConnection("missing-config");
       return;
     }
@@ -28,9 +27,6 @@ export function useLiveData(room: string) {
     setSnapshot(null);
     setPackets(0);
     setConnection("connecting");
-
-    const client = clientRef.current ?? createClient(url, key);
-    clientRef.current = client;
 
     const channel: RealtimeChannel = client
       .channel(`lmu-${room}`)

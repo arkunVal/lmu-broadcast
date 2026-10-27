@@ -65,6 +65,7 @@ export default function Home() {
       <div className="top">
         <h1>LMU Broadcast – Livetest</h1>
         <Link href="/overlays" className="chip">OBS-Overlays →</Link>
+        <Link href="/events" className="chip">Rennleitung →</Link>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <span className="chip"><span className={`dot ${connDot}`} />{connLabel}</span>
           <span className="chip">

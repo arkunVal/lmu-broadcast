@@ -112,3 +112,20 @@ def demo_payload(start_time: float) -> dict:
         },
         "cars": cars,
     }
+
+
+def demo_hint(payload: dict) -> dict:
+    """Fake-Vorfall-Hinweis fuer Tests der Rennleitungs-Kette (--demo-hints)."""
+    car = payload["cars"][6]
+    t = payload["session"]["time"]
+    return {
+        "key": f"demo|{int(payload['t'])}",
+        "kind": "offtrack",
+        "confidence": "low",
+        "sessionType": payload["session"]["type"],
+        "sessionTime": t,
+        "lap": car["laps"] + 1,
+        "lapDist": car["lapDist"],
+        "drivers": [{"name": car["driver"], "num": car["num"], "cls": car["cls"], "role": "involved"}],
+        "details": {"durationS": 2.1, "maxSpeedKmh": 148.0, "source": "demo"},
+    }
