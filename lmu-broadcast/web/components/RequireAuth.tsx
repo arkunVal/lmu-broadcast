@@ -23,7 +23,7 @@ export default function RequireAuth({ roles, children }: { roles?: Role[]; child
   if (!configured) {
     return <div className="notice">Supabase ist nicht konfiguriert (NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY fehlen).</div>;
   }
-  if (loading || !session || !profile) return <div className="notice">Lade …</div>;
+  if (loading || !session || !profile) return <div className="notice loading">Lade …</div>;
   if (needsRole && path !== "/willkommen") return <div className="notice">Weiterleitung …</div>;
   if (roles && (!profile.role || !roles.includes(profile.role))) {
     return (

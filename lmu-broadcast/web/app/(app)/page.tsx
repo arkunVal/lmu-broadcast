@@ -32,7 +32,7 @@ export default function Landing() {
     <>
       <section className="hero">
         <div>
-          <h1>Live-Daten und Rennleitung für Le Mans Ultimate</h1>
+          <h1>Live-Daten und <em>Rennleitung</em> für Le Mans Ultimate</h1>
           <p className="lead">
             Dein Reader schickt die Daten aus dem Spiel ins Netz. Daraus werden OBS-Overlays für den Stream und ein Rennleitungs-Bereich für Vorfälle und Strafen.
           </p>

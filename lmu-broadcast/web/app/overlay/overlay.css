@@ -12,7 +12,7 @@
 .tw-brand { display: flex; align-items: center; padding: 0 1.4em 0 1em; background: var(--navy); clip-path: polygon(0 0, 100% 0, calc(100% - .9em) 100%, 0 100%); font-size: .8em; }
 .tw-slash { width: .55em; margin: 0 .5em 0 -.3em; background: #b6f23a; transform: skewX(-22deg); }
 .tw-title { flex: 1; display: flex; align-items: center; padding: 0 1.2em 0 .6em; background: var(--navy); font-weight: 800; letter-spacing: .05em; font-size: .85em; clip-path: polygon(0 0, 100% 0, calc(100% - .9em) 100%, 0 100%); }
-.tw-clock { margin-left: -.5em; display: flex; align-items: center; padding: 0 1.2em; background: var(--navy2); border-bottom: .18em solid #2f7bff; font-weight: 800; font-size: 1em; clip-path: polygon(.9em 0, 100% 0, calc(100% - .9em) 100%, 0 100%); }
+.tw-clock { margin-left: -.5em; display: flex; align-items: center; padding: 0 1.2em; background: var(--navy2); border-bottom: .18em solid #fffc40; font-weight: 800; font-size: 1em; clip-path: polygon(.9em 0, 100% 0, calc(100% - .9em) 100%, 0 100%); }
 .tw-clock.fl { color: #d9b8ff; border-bottom-color: #b46cff; font-size: .8em; }
 .tw-list { width: 22em; background: var(--navy); }
 .tw-class { display: flex; align-items: center; gap: .8em; height: 2.3em; padding-right: .8em; background: var(--navy2); position: relative; overflow: hidden; }
@@ -33,12 +33,12 @@
 .tw-tires i.none { opacity: .3; }
 .tw-pit { background: #f5a524; color: #1c1300; font-size: .62em; font-weight: 800; padding: .15em .45em; border-radius: .3em; letter-spacing: .05em; }
 .tw-yel { background: #f5c542; color: #000; font-size: .62em; font-weight: 800; padding: .15em .45em; border-radius: .3em; animation: ov-blink 1s steps(2) infinite; margin-left: .3em; }
-.tw-foot { display: flex; align-items: center; gap: .6em; padding: .6em 1em; background: var(--navy2); font-weight: 700; letter-spacing: .06em; font-size: .85em; text-transform: uppercase; border-top: 2px solid rgba(47,123,255,.7); }
+.tw-foot { display: flex; align-items: center; gap: .6em; padding: .6em 1em; background: var(--navy2); font-weight: 700; letter-spacing: .06em; font-size: .85em; text-transform: uppercase; border-top: 2px solid rgba(255,252,64,.8); }
 @keyframes ov-blink { 50% { opacity: .35; } }
 
 /* Fahrerkarte: schraeg, dunkelblau, Sektorbalken */
 .dc { width: 25em; background: linear-gradient(100deg, rgba(9, 20, 52, .96), rgba(6, 12, 30, .94)); clip-path: polygon(1.4em 0, 100% 0, calc(100% - 1.4em) 100%, 0 100%); padding: .7em 2.2em .6em 2.4em; filter: drop-shadow(0 2px 8px rgba(0,0,0,.5)); position: relative; }
-.dc::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 1.2em; background: var(--c, #2f7bff); clip-path: polygon(1.4em 0, 100% 0, 0 100%, 0 100%); opacity: .95; }
+.dc::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 1.2em; background: var(--c, #fffc40); clip-path: polygon(1.4em 0, 100% 0, 0 100%, 0 100%); opacity: .95; }
 .dc-top { display: flex; align-items: center; gap: .7em; }
 .dc-no { font-size: 1.35em; font-weight: 900; font-style: italic; min-width: 1.6em; }
 .dc-name { margin-left: auto; font-size: 1.05em; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
@@ -52,7 +52,7 @@
 .dc-sec { font-size: .6em; color: #8ea0be; font-weight: 700; }
 .dc-sec i { display: block; height: .3em; margin-top: .2em; background: #3b4863; border-radius: .15em; }
 .dc-sec.done { color: #fff; } .dc-sec.done i { background: #3ddc84; }
-.dc-sec.cur { color: #fff; } .dc-sec.cur i { background: #2f7bff; }
+.dc-sec.cur { color: #fff; } .dc-sec.cur i { background: #fffc40; }
 
 /* Status / Flaggen */
 .st { width: 34em; display: grid; gap: .4em; }
@@ -64,6 +64,6 @@
 .st-info { padding: .35em 1.2em; background: var(--navy2); font-size: .78em; color: #cfd6e0; display: flex; gap: 1.2em; flex-wrap: wrap; }
 
 /* Streckenkarte */
-.mp { width: 22em; height: 16em; background: var(--navy); border-radius: .4em; padding: .5em; border-bottom: 2px solid rgba(47,123,255,.7); }
+.mp { width: 22em; height: 16em; background: var(--navy); border-radius: .4em; padding: .5em; border-bottom: 2px solid rgba(255,252,64,.8); }
 .mp svg { width: 100%; height: 100%; display: block; }
 .mp-note { font-size: .75em; color: #aab3c0; padding: 1em; }
