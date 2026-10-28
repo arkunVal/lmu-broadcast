@@ -2,7 +2,8 @@
 
 import { classColor, classLabel } from "@/lib/classes";
 import { fmtTime } from "@/lib/format";
-import { buildGroups, sessionKind, tireLetter } from "@/lib/standings";
+import Tires from "@/components/Tires";
+import { buildGroups, sessionKind } from "@/lib/standings";
 import { num, useOverlayData } from "@/lib/useOverlayData";
 
 /**
@@ -31,7 +32,6 @@ export default function DriverCard() {
   const group = buildGroups(cars, kind).find((g) => g.cls === (car.cls || "–"));
   const classPos = group?.rows.find((r) => r.car.id === car.id)?.classPos;
   const color = classColor(car.cls);
-  const tire = tireLetter(car.tire);
 
   const secs: [string, number | null, boolean][] = [
     ["S1", car.lastS1, car.sector === 1],
@@ -49,9 +49,7 @@ export default function DriverCard() {
             {classLabel(car.cls)} · P{classPos ?? "–"} in Klasse · {car.vehicle}
           </div>
         </div>
-        {tire && (
-          <div className="tw-tire" style={{ borderColor: tire.color, color: tire.color, fontSize: "1.1em" }}>{tire.letter}</div>
-        )}
+        {car.tire && <span style={{ fontSize: "1.3em" }}><Tires tire={car.tire} overlay /></span>}
         {car.inPits && <span className="tw-pit">BOX</span>}
         {car.yellowCause && <span className="tw-yel">GELB</span>}
       </div>

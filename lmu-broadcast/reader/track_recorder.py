@@ -2,10 +2,10 @@
 Streckenkarte aufnehmen
 =======================
 Fuer die Streckenkarte im OBS-Overlay braucht jede Strecke eine Datei mit dem Streckenverlauf.
-Der Reader kann sie selbst aufnehmen: Strecke im Spiel EINMAL komplett abfahren (Training, ein Auto genuegt,
-auch eine ruhige Runde mit KI). Danach liegt eine Datei <strecke>.json vor, die du auf GitHub hochlaedst.
+Normalfall (automatisch): Kennt die Website die Strecke noch nicht, nimmt der Reader sie waehrend der
+ersten gefahrenen Runde im Hintergrund auf und laedt sie hoch. Beim naechsten Mal ist sie sofort da.
 
-Aufruf:   py lmu_reader.py --record-track
+Handbetrieb (nur Datei, ohne Internet):   py lmu_reader.py --record-track
 
 Der Streckenverlauf entsteht aus den Positionen deines Autos (x/z-Koordinaten), sortiert nach der
 Strecken-Distanz. Das Spiel liefert keine fertige Streckenzeichnung im Shared Memory.
@@ -60,14 +60,15 @@ class TrackRecorder:
         if self.done:
             return "fertig"
 
-        # eigenes Auto bevorzugen, sonst das erste fahrende
+        # eigenes Auto bevorzugen; sonst jedes Auto, das gerade faehrt (nicht in der Box)
         cars = [data.scoring.vehScoringInfo[i] for i in range(count)]
-        car = next((c for c in cars if c.mIsPlayer), None) or cars[0]
-        vel = car.mLocalVel
-        kmh = math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z) * 3.6
-        if not bool(car.mInPits) and kmh >= MIN_KMH:
-            index = int(float(car.mLapDist) / length * BINS) % BINS
-            self.bins[index] = (float(car.mPos.x), float(car.mPos.z))
+        player = next((c for c in cars if c.mIsPlayer), None)
+        for car in ([player] if player is not None else cars):
+            vel = car.mLocalVel
+            kmh = math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z) * 3.6
+            if not bool(car.mInPits) and kmh >= MIN_KMH:
+                index = int(float(car.mLapDist) / length * BINS) % BINS
+                self.bins[index] = (float(car.mPos.x), float(car.mPos.z))
 
         if self.filled >= MIN_FILL:
             self.done = True
@@ -89,6 +90,15 @@ class TrackRecorder:
                     t = step / gap
                     out[(i + step) % BINS] = (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
         return [[round(x, 1), round(z, 1)] for x, z in out]
+
+    def payload(self) -> dict:
+        """Fertige Aufnahme fuer den Upload auf die Website (POST /api/tracks)."""
+        return {
+            "name": self.track,
+            "length": round(self.length, 1),
+            "coverage": round(self.filled, 3),
+            "points": self.points(),
+        }
 
     def save(self, folder: Path) -> Path:
         folder.mkdir(parents=True, exist_ok=True)

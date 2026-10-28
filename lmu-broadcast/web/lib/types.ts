@@ -1,4 +1,5 @@
-export type Tire = { front: string; rear: string; compound: string | null };
+/** wheels: Reihenfolge VL, VR, HL, HR (Mischbereifung moeglich). */
+export type Tire = { wheels?: (string | null)[]; front: string; rear: string; compound: string | null };
 
 export type Car = {
   id: number;

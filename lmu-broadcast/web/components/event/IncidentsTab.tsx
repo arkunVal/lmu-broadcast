@@ -289,7 +289,7 @@ export default function IncidentsTab({
             <tbody>
               {shown.length === 0 && <tr><td colSpan={4} className="muted">Keine Vorfälle.</td></tr>}
               {shown.map((i) => (
-                <tr key={i.id} onClick={() => setSelectedId(i.id)} style={{ cursor: "pointer", background: i.id === selectedId ? "#12202f" : undefined }}>
+                <tr key={i.id} onClick={() => setSelectedId(i.id)} style={{ cursor: "pointer", background: i.id === selectedId ? "var(--sel)" : undefined }}>
                   <td>{i.session_time != null ? fmtClock(i.session_time) : "–"}{i.lap != null && <span className="muted"> · R{i.lap}</span>}</td>
                   <td>
                     {INCIDENT_KINDS[i.kind] ?? i.kind}{" "}

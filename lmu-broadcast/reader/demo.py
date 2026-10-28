@@ -50,6 +50,10 @@ def demo_payload(start_time: float) -> dict:
         lap_time = frac * LAP_TIME / speed_factor
         base_lap = LAP_TIME / speed_factor
 
+        # Auto 2 faehrt links Medium, rechts Soft (zum Testen der Einzelrad-Anzeige)
+        wheels = [compound] * 4
+        if i == 1:
+            wheels = ["Medium", "Soft", "Medium", "Soft"]
         cars.append(
             {
                 "id": i,
@@ -84,7 +88,7 @@ def demo_payload(start_time: float) -> dict:
                 "underFcy": False,
                 "yellowCause": stopped,
                 "finish": 0,
-                "tire": {"front": compound, "rear": compound, "compound": compound},
+                "tire": {"wheels": wheels, "front": compound, "rear": compound, "compound": compound},
             }
         )
 

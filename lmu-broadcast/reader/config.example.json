@@ -1,23 +1,5 @@
 {
-  "supabase_url": "https://DEIN-PROJEKT.supabase.co",
-  "anon_key": "DEIN-ANON-PUBLIC-KEY",
-  "room": "mein-geheimer-raumcode",
+  "reader_key": "LMU1.HIER-DEN-KEY-AUS-DER-WEBSITE-EINFUEGEN",
   "rate_hz": 5,
-  "read_hz": 10,
-  "site_url": "https://DEINE-SEITE.vercel.app",
-  "ingest_token": "WIRD-IM-ADMIN-BEREICH-DES-EVENTS-ANGEZEIGT",
-  "hints": {
-    "cooldown_s": 5.0,
-    "lateral_margin_m": 1.0,
-    "offtrack_min_s": 0.8,
-    "offtrack_min_kmh": 40.0,
-    "offtrack_max_s": 6.0,
-    "slide_min_kmh": 30.0,
-    "slide_angle_deg": 35.0,
-    "slide_frames": 2,
-    "contact_radius_m": 12.0,
-    "impact_min": 100.0,
-    "accel_spike": 80.0,
-    "accel_radius_factor": 0.6
-  }
+  "read_hz": 10
 }

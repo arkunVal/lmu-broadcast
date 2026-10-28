@@ -6,10 +6,8 @@ import Nav from "@/components/Nav";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <div className="wrap">
-        <Nav />
-        {children}
-      </div>
+      <Nav />
+      <div className="wrap">{children}</div>
     </AuthProvider>
   );
 }

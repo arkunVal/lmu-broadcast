@@ -18,6 +18,10 @@ export default function Login() {
   const [info, setInfo] = useState("");
 
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("neu") === "1") setMode("up");
+  }, []);
+
+  useEffect(() => {
     if (!loading && session) router.replace("/events");
   }, [loading, session, router]);
 
@@ -41,7 +45,7 @@ export default function Login() {
         options: { data: { full_name: name }, emailRedirectTo: `${window.location.origin}/events` },
       });
       if (error) setError(error.message);
-      else if (!data.session) setInfo("Fast geschafft: Wir haben dir eine Bestätigungs-E-Mail geschickt. Klicke den Link darin und melde dich dann an.");
+      else if (!data.session) setInfo("Fast geschafft: Wir haben dir eine Bestätigungs-E-Mail geschickt. Klicke den Link darin, dann geht es weiter mit der Rollenwahl.");
     }
     setBusy(false);
   }
@@ -57,10 +61,13 @@ export default function Login() {
   }
 
   return (
-    <div className="panel" style={{ maxWidth: 420, margin: "24px auto" }}>
-      <h2 style={{ marginTop: 0 }}>{mode === "in" ? "Anmelden" : "Konto erstellen"}</h2>
-      <button className="primary" style={{ width: "100%" }} onClick={discord}>Mit Discord fortfahren</button>
-      <div className="muted" style={{ textAlign: "center", margin: "12px 0" }}>oder mit E-Mail</div>
+    <div className="panel auth-box">
+      <h2>{mode === "in" ? "Anmelden" : "Konto erstellen"}</h2>
+      <p className="muted" style={{ margin: "4px 0 14px" }}>
+        {mode === "in" ? "Willkommen zurück." : "Danach wählst du deine Rolle und gibst deinen Code ein."}
+      </p>
+      <button className="primary" style={{ width: "100%", padding: 10 }} onClick={discord}>Mit Discord fortfahren</button>
+      <div className="muted" style={{ textAlign: "center", margin: "14px 0 0" }}>oder mit E-Mail</div>
       <form onSubmit={submit}>
         {mode === "up" && (
           <>
@@ -74,16 +81,13 @@ export default function Login() {
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} style={{ width: "100%" }} />
         {error && <div className="err">{error}</div>}
         {info && <div className="okmsg">{info}</div>}
-        <div className="row" style={{ marginTop: 12, justifyContent: "space-between" }}>
+        <div className="row" style={{ marginTop: 16, justifyContent: "space-between" }}>
           <button className="primary" disabled={busy}>{mode === "in" ? "Anmelden" : "Registrieren"}</button>
           <button type="button" onClick={() => { setMode(mode === "in" ? "up" : "in"); setError(""); setInfo(""); }}>
             {mode === "in" ? "Neues Konto" : "Ich habe schon ein Konto"}
           </button>
         </div>
       </form>
-      <p className="muted" style={{ fontSize: 12 }}>
-        Nach der Anmeldung gibst du deinen In-Game-Namen an. Damit ordnet die Rennleitung dich im Spiel zu.
-      </p>
     </div>
   );
 }

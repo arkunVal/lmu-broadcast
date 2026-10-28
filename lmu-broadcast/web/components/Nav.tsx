@@ -1,40 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { ROLES } from "@/lib/labels";
 
 export default function Nav() {
   const { session, profile, signOut } = useAuth();
   const router = useRouter();
+  const path = usePathname();
+  const ready = !!session && !!profile?.role;
   return (
-    <div className="top">
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <h1>LMU Rennleitung</h1>
-        {session && <Link className="chip" href="/events">Events</Link>}
-        {profile?.role === "admin" && <Link className="chip" href="/admin">Admin</Link>}
-        <Link className="chip" href="/overlays">OBS-Overlays</Link>
-        <Link className="chip" href="/">Livetest</Link>
+    <header>
+      <div className="bar">
+        <div className="bar-in">
+          <Link className="brand" href={ready ? "/events" : "/"}>LMU <i>Rennleitung</i></Link>
+          <nav>
+            {ready && <Link href="/events" className={path.startsWith("/events") ? "on" : ""}>Events</Link>}
+            {profile?.role === "admin" && <Link href="/admin" className={path.startsWith("/admin") ? "on" : ""}>Admin</Link>}
+            {ready && (
+              <>
+                <Link href="/profil" className={`who ${path === "/profil" ? "on" : ""}`} style={{ padding: "6px 10px" }}>
+                  {profile?.ingame_name || profile?.display_name} · {profile?.role ? ROLES[profile.role] : ""}
+                </Link>
+                <button
+                  onClick={async () => {
+                    await signOut();
+                    router.replace("/");
+                  }}
+                >
+                  Abmelden
+                </button>
+              </>
+            )}
+            {!session && <Link href="/login">Anmelden</Link>}
+          </nav>
+        </div>
       </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        {session && profile && (
-          <>
-            <Link className="chip" href="/profil">
-              {profile.display_name || "Profil"}
-              {profile.ingame_name ? ` · ${profile.ingame_name}` : ""} · {ROLES[profile.role]}
-            </Link>
-            <button
-              onClick={async () => {
-                await signOut();
-                router.replace("/login");
-              }}
-            >
-              Abmelden
-            </button>
-          </>
-        )}
-      </div>
-    </div>
+      <div className="kerb" />
+    </header>
   );
 }

@@ -104,12 +104,23 @@ export function shortName(full: string, mode: "full" | "short" | "tla"): string 
   return parts.length > 1 ? `${parts[0][0]}. ${last}` : full;
 }
 
-export function tireLetter(tire: Car["tire"]): { letter: string; color: string } | null {
+export type TireInfo = { letter: string; color: string };
+
+export function compoundInfo(name: string | null | undefined): TireInfo | null {
+  const n = (name ?? "").toLowerCase();
+  if (!n) return null;
+  if (n.startsWith("soft")) return { letter: "S", color: "#e5373d" };
+  if (n.startsWith("med")) return { letter: "M", color: "#f5c542" };
+  if (n.startsWith("hard")) return { letter: "H", color: "#e8ecf1" };
+  if (n.startsWith("wet")) return { letter: "W", color: "#2f7be8" };
+  return { letter: n[0].toUpperCase(), color: "#8b95a5" };
+}
+
+/** Vier Raeder in der Reihenfolge VL, VR, HL, HR. Aeltere Pakete ohne Einzelraeder: alle gleich. */
+export function wheelInfos(tire: Car["tire"]): (TireInfo | null)[] | null {
   if (!tire) return null;
-  const name = (tire.compound ?? tire.front ?? "").toLowerCase();
-  if (name.startsWith("soft")) return { letter: "S", color: "#e5373d" };
-  if (name.startsWith("med")) return { letter: "M", color: "#f5c542" };
-  if (name.startsWith("hard")) return { letter: "H", color: "#e8ecf1" };
-  if (name.startsWith("wet")) return { letter: "W", color: "#2f7be8" };
-  return name ? { letter: name[0].toUpperCase(), color: "#8b95a5" } : null;
+  const wheels = tire.wheels && tire.wheels.length === 4 ? tire.wheels : null;
+  const list = wheels ?? [tire.compound ?? tire.front, tire.compound ?? tire.front, tire.compound ?? tire.rear, tire.compound ?? tire.rear];
+  const infos = list.map(compoundInfo);
+  return infos.every((i) => i === null) ? null : infos;
 }

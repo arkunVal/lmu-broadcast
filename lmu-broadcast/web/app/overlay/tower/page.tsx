@@ -1,8 +1,9 @@
 "use client";
 
 import { classColor, classLabel } from "@/lib/classes";
+import Tires from "@/components/Tires";
 import { fmtClock, fmtTime } from "@/lib/format";
-import { buildGroups, overallFastest, sessionKind, sessionLabel, shortName, tireLetter } from "@/lib/standings";
+import { buildGroups, overallFastest, sessionKind, sessionLabel, shortName } from "@/lib/standings";
 import { num, useOverlayData } from "@/lib/useOverlayData";
 
 /**
@@ -55,7 +56,6 @@ export default function Tower() {
           </div>
           {g.rows.slice(0, max).map((r) => {
             const c = r.car;
-            const tire = tireLetter(c.tire);
             let right: string;
             if (kind === "race") {
               right = r.classPos === 1 ? "LEADER" : gapMode === "interval" ? r.gapInterval : r.gapLeader;
@@ -73,11 +73,7 @@ export default function Tower() {
                 <div className="tw-gap ov-num">
                   {c.inPits ? <span className="tw-pit">BOX</span> : right}
                 </div>
-                {tire ? (
-                  <div className="tw-tire" style={{ borderColor: tire.color, color: tire.color }}>{tire.letter}</div>
-                ) : (
-                  <div />
-                )}
+                {c.tire ? <Tires tire={c.tire} overlay /> : <div />}
               </div>
             );
           })}

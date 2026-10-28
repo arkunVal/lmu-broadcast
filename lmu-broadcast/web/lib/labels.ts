@@ -58,18 +58,30 @@ export const SESSION_TYPES: { value: number; label: string }[] = [
   { value: 10, label: "Rennen" },
 ];
 
+export type Role = "admin" | "steward" | "driver" | "broadcaster";
+
+/** role ist null, solange die Anmeldung (Rolle + Code) noch nicht abgeschlossen ist. */
 export type Profile = {
   id: string;
   display_name: string;
   ingame_name: string | null;
-  role: "admin" | "steward" | "driver" | "broadcaster";
+  role: Role | null;
 };
+
+export const ROLE_INFO: { role: Role; title: string; text: string; codeLabel: string; codeHint: string }[] = [
+  { role: "driver", title: "Fahrer", text: "Du fährst mit. Du siehst abgeschlossene Vorfälle und Strafen deiner Events.", codeLabel: "Event-Code", codeHint: "z. B. EVT-7K3F-92AB, den bekommst du von der Rennleitung" },
+  { role: "broadcaster", title: "Broadcast", text: "Du kommentierst oder streamst. Du siehst Live-Daten und bekommst die OBS-Overlays.", codeLabel: "Broadcast-Key", codeHint: "beginnt mit BRC-, den gibt dir ein Admin" },
+  { role: "steward", title: "Rennleitung", text: "Du prüfst Vorfälle und vergibst Strafen.", codeLabel: "Steward-Key", codeHint: "beginnt mit STW-, den gibt dir ein Admin" },
+  { role: "admin", title: "Admin", text: "Du legst Events an und verwaltest Rollen, Keys und Strecken.", codeLabel: "Admin-Key", codeHint: "beginnt mit ADM-, steht im Admin-Bereich" },
+];
 
 export type EventRow = {
   id: string;
   name: string;
   track: string | null;
-  room: string | null;
+  track_slug: string | null;
+  code: string;
+  room: string;
   starts_at: string | null;
   status: "planned" | "live" | "finished";
 };

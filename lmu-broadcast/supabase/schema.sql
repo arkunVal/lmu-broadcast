@@ -1,37 +1,41 @@
 -- =====================================================================
--- LMU Broadcast: Rennleitung (Phase 3)
--- Im Supabase-Dashboard: SQL Editor -> New query -> alles einfügen -> Run.
--- Ist idempotent genug für einen ersten Lauf; bei Wiederholung erst die
--- Tabellen löschen (siehe README).
+-- LMU Broadcast: Datenbank (Phase 4)
+-- Supabase-Dashboard: SQL Editor -> New query -> alles einfügen -> Run.
+-- Update von Phase 3? Erst reset.sql ausführen, dann diese Datei.
 -- =====================================================================
 
 create type public.app_role as enum ('admin', 'steward', 'driver', 'broadcaster');
 create type public.incident_kind as enum ('offtrack', 'track_limits', 'contact', 'spin', 'impact', 'other');
 create type public.incident_status as enum ('open', 'reviewing', 'closed');
 create type public.penalty_kind as enum (
-  'warning',        -- Verwarnung
-  'time',           -- Zeitstrafe, amount = Sekunden
-  'drive_through',  -- Drive-Through
-  'stop_go',        -- Stop-and-Go, amount = Sekunden Standzeit
-  'grid',           -- Positions-/Startplatzstrafe, amount = Plätze
-  'dq',             -- Disqualifikation
-  'race_ban',       -- Rennsperre, amount = Anzahl Rennen
-  'quali_ban'       -- Qualisperre, amount = Anzahl Qualis
+  'warning', 'time', 'drive_through', 'stop_go', 'grid', 'dq', 'race_ban', 'quali_ban'
 );
 create type public.penalty_status as enum ('issued', 'served', 'revoked');
 
+-- Zufälliger, gut tippbarer Code, z. B. EVT-7K3F-92AB
+create function public.gen_code(prefix text, groups int, size int) returns text
+language plpgsql volatile as $$
+declare
+  out text := prefix;
+  g int;
+begin
+  for g in 1..groups loop
+    out := out || '-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, size));
+  end loop;
+  return out;
+end $$;
+
 -- ---------------------------------------------------------------- Profile
+-- role ist NULL, bis jemand beim Anmelden eine Rolle mit Code/Key bestätigt hat.
 create table public.profiles (
   id           uuid primary key references auth.users (id) on delete cascade,
   display_name text not null default '',
   ingame_name  text,
-  role         public.app_role not null default 'driver',
+  role         public.app_role,
   created_at   timestamptz not null default now()
 );
--- Der In-Game-Name darf nur einmal vergeben sein (Groß/Kleinschreibung egal)
 create unique index profiles_ingame_name_uniq on public.profiles (lower(ingame_name)) where ingame_name is not null;
 
--- ------------------------------------------------------------ Hilfsfunktionen
 create function public.my_role() returns public.app_role
 language sql stable security definer set search_path = public as $$
   select role from public.profiles where id = auth.uid()
@@ -47,7 +51,11 @@ language sql stable security definer set search_path = public as $$
   select coalesce(public.my_role() in ('admin', 'steward'), false)
 $$;
 
--- Neues Konto -> Profil anlegen (Name aus Discord/E-Mail)
+create function public.role_rank(r public.app_role) returns int
+language sql immutable as $$
+  select case r when 'admin' then 4 when 'steward' then 3 when 'broadcaster' then 2 when 'driver' then 1 else 0 end
+$$;
+
 create function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -66,12 +74,14 @@ end $$;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Nur Admins dürfen Rollen ändern (RLS kann keine einzelnen Spalten schützen)
+-- Rollen ändert nur ein Admin oder eine Datenbankfunktion (redeem_access) / der SQL Editor.
+-- Bewusst KEIN security definer: current_user ist hier die Rolle des Aufrufers.
 create function public.protect_role() returns trigger
-language plpgsql security definer set search_path = public as $$
+language plpgsql set search_path = public as $$
 begin
-  -- auth.uid() ist leer bei direktem Zugriff (SQL Editor, Service-Key): dort erlaubt.
-  if new.role is distinct from old.role and auth.uid() is not null and not public.is_admin() then
+  if new.role is distinct from old.role
+     and current_user in ('authenticated', 'anon')
+     and not public.is_admin() then
     raise exception 'Nur Admins dürfen Rollen ändern';
   end if;
   return new;
@@ -80,19 +90,41 @@ end $$;
 create trigger profiles_protect_role before update on public.profiles
   for each row execute function public.protect_role();
 
+-- ------------------------------------------------- Zugangs-Keys (je Rolle einer)
+create table public.access_codes (
+  role text primary key check (role in ('admin', 'steward', 'broadcaster')),
+  code text not null unique
+);
+insert into public.access_codes (role, code) values
+  ('admin',       public.gen_code('ADM', 4, 4)),
+  ('steward',     public.gen_code('STW', 4, 4)),
+  ('broadcaster', public.gen_code('BRC', 4, 4));
+
+-- ----------------------------------------------------------------- Strecken
+-- Wird vom Reader automatisch befüllt (Streckenkarte, einmal aufgezeichnet).
+create table public.tracks (
+  slug       text primary key,
+  name       text not null,
+  length     double precision,
+  coverage   double precision not null default 0,
+  points     jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 -- ----------------------------------------------------------------- Events
 create table public.events (
   id         uuid primary key default gen_random_uuid(),
   name       text not null,
   track      text,
-  room       text,                       -- Raumcode des Readers (für die Live-Ansicht)
+  track_slug text,
+  code       text not null unique default public.gen_code('EVT', 2, 4),   -- Fahrer-Beitrittscode
+  room       text not null default substr(replace(gen_random_uuid()::text, '-', ''), 1, 12), -- intern, Live-Kanal
   starts_at  timestamptz,
   status     text not null default 'planned' check (status in ('planned', 'live', 'finished')),
   created_by uuid references public.profiles (id) default auth.uid(),
   created_at timestamptz not null default now()
 );
 
--- Reader-Token getrennt, damit nur Admins ihn sehen
 create table public.event_secrets (
   event_id     uuid primary key references public.events (id) on delete cascade,
   ingest_token text not null unique
@@ -108,6 +140,29 @@ end $$;
 
 create trigger events_create_secret after insert on public.events
   for each row execute function public.create_event_secret();
+
+-- Wer hat sich per Event-Code einem Event angeschlossen
+create table public.event_members (
+  event_id   uuid not null references public.events (id) on delete cascade,
+  profile_id uuid not null references public.profiles (id) on delete cascade,
+  joined_at  timestamptz not null default now(),
+  primary key (event_id, profile_id)
+);
+
+create function public.is_member(e uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.event_members where event_id = e and profile_id = auth.uid())
+$$;
+
+-- Team (Admin, Steward, Broadcaster) sieht alle Events, Fahrer nur ihre beigetretenen
+create function public.can_see_event(e uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select case
+    when public.my_role() in ('admin', 'steward', 'broadcaster') then true
+    when public.my_role() = 'driver' then public.is_member(e)
+    else false
+  end
+$$;
 
 -- ---------------------------------------------------------- Event-Fahrer
 create table public.event_drivers (
@@ -126,7 +181,7 @@ create table public.incidents (
   id           uuid primary key default gen_random_uuid(),
   event_id     uuid not null references public.events (id) on delete cascade,
   source       text not null default 'manual' check (source in ('manual', 'auto')),
-  hint_key     text,                       -- Dedupe-Schlüssel der Reader-Hinweise
+  hint_key     text,
   kind         public.incident_kind not null default 'other',
   confidence   text check (confidence in ('low', 'medium', 'high')),
   status       public.incident_status not null default 'open',
@@ -136,13 +191,12 @@ create table public.incidents (
   lap_dist     double precision,
   description  text not null default '',
   details      jsonb not null default '{}'::jsonb,
-  decision     text,                       -- Begründung der Rennleitung
+  decision     text,
   created_by   uuid references public.profiles (id) default auth.uid(),
   created_at   timestamptz not null default now(),
   closed_at    timestamptz
 );
--- Kein Teilindex, damit der Reader-Import per ON CONFLICT Doppelte überspringen kann.
--- Handgemachte Vorfälle haben hint_key = NULL und kollidieren nie.
+-- Kein Teilindex (ON CONFLICT braucht einen normalen). NULL kollidiert nie.
 create unique index incidents_hint_uniq on public.incidents (event_id, hint_key);
 create index incidents_event_idx on public.incidents (event_id, created_at desc);
 
@@ -163,7 +217,7 @@ create table public.penalties (
   ingame_name text not null,
   car_number  int,
   kind        public.penalty_kind not null,
-  amount      int,                         -- Sekunden / Plätze / Rennen, je nach Art
+  amount      int,
   reason      text not null default '',
   status      public.penalty_status not null default 'issued',
   issued_by   uuid references public.profiles (id) default auth.uid(),
@@ -171,67 +225,172 @@ create table public.penalties (
 );
 create index penalties_event_idx on public.penalties (event_id, created_at desc);
 
+-- ============================== Funktionen für die Website ==============================
+
+-- Anmeldung abschließen: Rolle wählen + Code/Key + In-Game-Name.
+-- Fahrer: Event-Code. Admin/Steward/Broadcaster: der Key der Rolle.
+create function public.redeem_access(p_role text, p_code text, p_ingame_name text, p_display_name text default null)
+returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := auth.uid();
+  v_code text := upper(trim(coalesce(p_code, '')));
+  v_name text := trim(coalesce(p_ingame_name, ''));
+  target public.app_role;
+  ev uuid;
+  cur public.app_role;
+begin
+  if uid is null then raise exception 'Nicht angemeldet'; end if;
+  if v_name = '' then raise exception 'Bitte deinen In-Game-Namen eintragen'; end if;
+  if p_role not in ('driver', 'admin', 'steward', 'broadcaster') then raise exception 'Unbekannte Rolle'; end if;
+  target := p_role::public.app_role;
+
+  if target = 'driver' then
+    select id into ev from public.events where code = v_code;
+    if ev is null then raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
+  else
+    if not exists (select 1 from public.access_codes a where a.role = p_role and a.code = v_code) then
+      raise exception 'Key stimmt nicht';
+    end if;
+  end if;
+
+  select role into cur from public.profiles where id = uid;
+  begin
+    update public.profiles
+       set ingame_name  = v_name,
+           display_name = coalesce(nullif(trim(coalesce(p_display_name, '')), ''), display_name),
+           role         = case when cur is null or public.role_rank(target) > public.role_rank(cur) then target else cur end
+     where id = uid;
+  exception when unique_violation then
+    raise exception 'Dieser In-Game-Name ist schon vergeben';
+  end;
+
+  if target = 'driver' then
+    insert into public.event_members (event_id, profile_id) values (ev, uid) on conflict do nothing;
+  end if;
+
+  return (select role::text from public.profiles where id = uid);
+end $$;
+
+-- Einem weiteren Event per Event-Code beitreten (Fahrer)
+create function public.join_event(p_code text) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := auth.uid();
+  ev uuid;
+begin
+  if uid is null then raise exception 'Nicht angemeldet'; end if;
+  if public.my_role() is null then raise exception 'Bitte zuerst die Anmeldung abschließen'; end if;
+  select id into ev from public.events where code = upper(trim(coalesce(p_code, '')));
+  if ev is null then raise exception 'Event-Code unbekannt'; end if;
+  insert into public.event_members (event_id, profile_id) values (ev, uid) on conflict do nothing;
+  return ev;
+end $$;
+
+create function public.regenerate_access_code(p_role text) returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  c text;
+begin
+  if not public.is_admin() then raise exception 'Nur Admins'; end if;
+  c := public.gen_code(case p_role when 'admin' then 'ADM' when 'steward' then 'STW' else 'BRC' end, 4, 4);
+  update public.access_codes set code = c where role = p_role;
+  if not found then raise exception 'Unbekannte Rolle'; end if;
+  return c;
+end $$;
+
+create function public.regenerate_event_code(p_event uuid) returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  c text := public.gen_code('EVT', 2, 4);
+begin
+  if not public.is_admin() then raise exception 'Nur Admins'; end if;
+  update public.events set code = c where id = p_event;
+  if not found then raise exception 'Event nicht gefunden'; end if;
+  return c;
+end $$;
+
+revoke execute on function public.redeem_access(text, text, text, text) from public, anon;
+revoke execute on function public.join_event(text) from public, anon;
+revoke execute on function public.regenerate_access_code(text) from public, anon;
+revoke execute on function public.regenerate_event_code(uuid) from public, anon;
+grant execute on function public.redeem_access(text, text, text, text) to authenticated;
+grant execute on function public.join_event(text) to authenticated;
+grant execute on function public.regenerate_access_code(text) to authenticated;
+grant execute on function public.regenerate_event_code(uuid) to authenticated;
+
 -- ============================== Zugriffsregeln (RLS) ==============================
 alter table public.profiles         enable row level security;
+alter table public.access_codes     enable row level security;
+alter table public.tracks           enable row level security;
 alter table public.events           enable row level security;
 alter table public.event_secrets    enable row level security;
+alter table public.event_members    enable row level security;
 alter table public.event_drivers    enable row level security;
 alter table public.incidents        enable row level security;
 alter table public.incident_drivers enable row level security;
 alter table public.penalties        enable row level security;
 
--- Profile: Angemeldete sehen Namen/Rollen; jeder ändert nur sich selbst, Admins alle
-create policy profiles_select on public.profiles for select to authenticated using (true);
+-- Profile: eigenes immer; andere nur, wenn man selbst eine Rolle hat
+create policy profiles_select on public.profiles for select to authenticated
+  using (id = auth.uid() or public.my_role() is not null);
 create policy profiles_update_self on public.profiles for update to authenticated
   using (id = auth.uid()) with check (id = auth.uid());
 create policy profiles_update_admin on public.profiles for update to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
--- Events: alle Angemeldeten lesen; Admin legt an/löscht; Admin+Steward ändern
-create policy events_select on public.events for select to authenticated using (true);
+-- Keys: nur Admins lesen (ändern nur über regenerate_access_code)
+create policy access_codes_select on public.access_codes for select to authenticated using (public.is_admin());
+
+-- Strecken: öffentlich lesbar (Overlays laufen ohne Login), löschen nur Admin.
+-- Schreiben macht die Website serverseitig (Service-Key) auf Anfrage des Readers.
+create policy tracks_select on public.tracks for select to anon, authenticated using (true);
+create policy tracks_delete on public.tracks for delete to authenticated using (public.is_admin());
+
+-- Events
+create policy events_select on public.events for select to authenticated using (public.can_see_event(id));
 create policy events_insert on public.events for insert to authenticated with check (public.is_admin());
 create policy events_update on public.events for update to authenticated
   using (public.is_staff()) with check (public.is_staff());
 create policy events_delete on public.events for delete to authenticated using (public.is_admin());
 
--- Reader-Token: nur Admins
 create policy secrets_select on public.event_secrets for select to authenticated using (public.is_admin());
 create policy secrets_update on public.event_secrets for update to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
--- Event-Fahrer: alle lesen, Rennleitung pflegt
-create policy event_drivers_select on public.event_drivers for select to authenticated using (true);
+create policy members_select on public.event_members for select to authenticated
+  using (profile_id = auth.uid() or public.is_staff());
+create policy members_delete on public.event_members for delete to authenticated using (public.is_staff());
+
+create policy event_drivers_select on public.event_drivers for select to authenticated using (public.can_see_event(event_id));
 create policy event_drivers_write on public.event_drivers for all to authenticated
   using (public.is_staff()) with check (public.is_staff());
 
--- Vorfälle: Rennleitung sieht alle, alle anderen nur abgeschlossene (veröffentlichte)
 create policy incidents_select on public.incidents for select to authenticated
-  using (public.is_staff() or status = 'closed');
+  using (public.is_staff() or (status = 'closed' and public.can_see_event(event_id)));
 create policy incidents_insert on public.incidents for insert to authenticated with check (public.is_staff());
 create policy incidents_update on public.incidents for update to authenticated
   using (public.is_staff()) with check (public.is_staff());
 create policy incidents_delete on public.incidents for delete to authenticated using (public.is_admin());
 
--- Beteiligte: sichtbar genau dann, wenn der Vorfall sichtbar ist
 create policy incident_drivers_select on public.incident_drivers for select to authenticated
   using (exists (select 1 from public.incidents i where i.id = incident_id));
 create policy incident_drivers_write on public.incident_drivers for all to authenticated
   using (public.is_staff()) with check (public.is_staff());
 
--- Strafen: Rennleitung sieht alle, andere nur nicht zurückgenommene
 create policy penalties_select on public.penalties for select to authenticated
-  using (public.is_staff() or status <> 'revoked');
+  using (public.is_staff() or (status <> 'revoked' and public.can_see_event(event_id)));
 create policy penalties_insert on public.penalties for insert to authenticated with check (public.is_staff());
 create policy penalties_update on public.penalties for update to authenticated
   using (public.is_staff()) with check (public.is_staff());
 create policy penalties_delete on public.penalties for delete to authenticated using (public.is_admin());
 
--- Live-Updates im Browser (Realtime) für Vorfälle und Strafen
 alter publication supabase_realtime add table public.incidents, public.penalties;
 
 -- ============================ Ersten Admin festlegen =============================
--- 1) Auf der Website einmal registrieren (E-Mail oder Discord).
--- 2) Dann hier deine E-Mail eintragen und diese Zeile einzeln ausführen:
---
+-- 1) Auf der Website registrieren (E-Mail oder Discord).
+-- 2) Hier den Admin-Key holen:   select code from public.access_codes where role = 'admin';
+-- 3) Auf der Website bei der Rollenwahl "Admin" + diesen Key eingeben.
+-- Alternativ direkt per SQL:
 --   update public.profiles set role = 'admin'
 --   where id = (select id from auth.users where email = 'DEINE@EMAIL.DE');

@@ -19,11 +19,13 @@ import sys
 import time
 from pathlib import Path
 
+from auto_track import AutoTrack
 from demo import demo_hint, demo_payload
 from hint_sender import HintSender
 from hints import HintDetector
 from payload import build_payload
 from pylmu.lmu_data import LMUConstants, LMUObjectOut
+from reader_key import decode_key
 from sender import Sender
 from track_recorder import TrackRecorder
 
@@ -84,6 +86,36 @@ def load_config(path: Path) -> dict:
         return json.load(fh)
 
 
+def ask_for_key(path: Path) -> dict:
+    """Erster Start: Reader-Key der Website abfragen und in config.json merken."""
+    print("Einrichtung: Oeffne dein Event auf der Website, Reiter 'Einstellungen', kopiere den Reader-Key")
+    print("und fuege ihn hier ein (Rechtsklick = einfuegen), dann Enter.")
+    while True:
+        try:
+            text = input("Reader-Key: ")
+        except (EOFError, KeyboardInterrupt):
+            return {}
+        try:
+            values = decode_key(text)
+            break
+        except ValueError as exc:
+            print("  ->", exc)
+    with path.open("w", encoding="utf-8") as fh:
+        json.dump({"reader_key": text.strip().strip('"')}, fh, indent=2)
+    print("Gespeichert in", path.name, "- beim naechsten Start kein Einfuegen mehr noetig.\n")
+    return values
+
+
+def resolve_config(cfg: dict) -> dict:
+    """reader_key aus config.json auspacken. Einzelne Felder in config.json haben Vorrang."""
+    key = cfg.get("reader_key")
+    if not key:
+        return cfg
+    merged = dict(decode_key(key))
+    merged.update({k: v for k, v in cfg.items() if k != "reader_key" and v not in (None, "")})
+    return merged
+
+
 def record_track(args) -> int:
     """Nimmt den Streckenverlauf auf und legt ihn als Datei ab (kein Versand ins Internet)."""
     if sys.platform != "win32" and not args.from_file:
@@ -129,10 +161,18 @@ def parse_args():
 
 def main() -> int:
     args = parse_args()
-    cfg = load_config(Path(args.config))
-
     if args.record_track:
         return record_track(args)
+
+    cfg_path = Path(args.config)
+    cfg = load_config(cfg_path)
+    if not cfg and not args.dry_run and not args.demo:
+        cfg = ask_for_key(cfg_path) and load_config(cfg_path)
+    try:
+        cfg = resolve_config(cfg)
+    except ValueError as exc:
+        print("FEHLER in config.json:", exc)
+        return 1
 
     room = args.room or cfg.get("room")
     send_hz = max(0.5, min(float(args.rate or cfg.get("rate_hz") or 5), 20.0))
@@ -143,8 +183,7 @@ def main() -> int:
     ingest_token = cfg.get("ingest_token")
 
     if not args.dry_run and not (url and key and room):
-        print("FEHLER: config.json fehlt oder ist unvollstaendig.")
-        print("Kopiere config.example.json nach config.json und trage supabase_url, anon_key und room ein.")
+        print("FEHLER: Einstellungen fehlen. Loesche config.json und starte neu, dann fragt der Reader nach dem Reader-Key.")
         print("Zum Ausprobieren ohne Internet: py lmu_reader.py --dry-run")
         return 1
 
@@ -173,6 +212,11 @@ def main() -> int:
         hint_sender.start()
     elif detector is not None and not args.hints_debug:
         print("Hinweis: Vorfall-Hinweise werden erkannt, aber nicht gesendet (dry-run).")
+
+    # Streckenkarte automatisch aufnehmen und hochladen (nur mit site_url + ingest_token)
+    auto_track = None
+    if site_url and ingest_token and not args.dry_run and not args.demo and not args.from_file:
+        auto_track = AutoTrack(site_url, ingest_token)
 
     interval = 1.0 / read_hz
     send_interval = 1.0 / send_hz
@@ -205,6 +249,8 @@ def main() -> int:
                 hints = detector.update(data)
                 if hints and hint_sender is not None:
                     hint_sender.submit(hints)
+            if auto_track is not None and data is not None:
+                auto_track.update(data)
             if args.demo and args.demo_hints and hint_sender is not None and time.time() - last_demo_hint > 30:
                 last_demo_hint = time.time()
                 hint_sender.submit([demo_hint(payload)])
@@ -243,6 +289,8 @@ def main() -> int:
                     f"Paket: {sender.last_bytes / 1024:.1f} KB | gesendet: {sender.sent} | "
                     f"Fehler: {sender.failed} | Netz: {net}{hint_info}"
                 )
+                if auto_track is not None and payload["status"] == "live":
+                    print("  " + auto_track.summary())
                 if args.dry_run and payload["cars"] and not args.hints_debug:
                     c = payload["cars"][0]
                     print("  Beispiel Auto 1:", json.dumps(c, ensure_ascii=False))

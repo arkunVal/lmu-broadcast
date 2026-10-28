@@ -76,10 +76,13 @@ def _tires_by_id(telemetry) -> dict:
         rear = _txt(t.mRearTireCompoundName)
         if not (front or rear):
             continue
+        # Reihenfolge der Raeder im Spiel: VL, VR, HL, HR (vorne links/rechts, hinten links/rechts)
+        wheels = [_COMPOUNDS.get(int(t.mWheels[k].mCompoundType)) for k in range(4)]
         tires[int(t.mID)] = {
+            "wheels": wheels,
             "front": front,
             "rear": rear,
-            "compound": _COMPOUNDS.get(int(t.mWheels[0].mCompoundType)),
+            "compound": wheels[0],
         }
     return tires
 

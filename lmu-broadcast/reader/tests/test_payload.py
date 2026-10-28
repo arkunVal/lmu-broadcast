@@ -43,7 +43,9 @@ def make_data():
     t.mID = 7
     t.mFrontTireCompoundName = b"Medium"
     t.mRearTireCompoundName = b"Medium"
-    t.mWheels[0].mCompoundType = 1
+    # links Medium, rechts Soft (VL, VR, HL, HR)
+    for k, c in enumerate((1, 0, 1, 0)):
+        t.mWheels[k].mCompoundType = c
     return d
 
 
@@ -64,6 +66,7 @@ class PayloadTest(unittest.TestCase):
         self.assertEqual(c["lastS3"], 75.5)
         self.assertIsNone(c["bestLap"])
         self.assertEqual(c["tire"]["compound"], "Medium")
+        self.assertEqual(c["tire"]["wheels"], ["Medium", "Soft", "Medium", "Soft"])
 
     def test_yellow_cause(self):
         cars = build_payload(make_data(), now_ms=1)["cars"]
