@@ -17,7 +17,7 @@ export function useEventData(eventId: string) {
   const load = useCallback(async () => {
     if (!supabase) return;
     const [ev, dr, inc, pen] = await Promise.all([
-      supabase.from("events").select("id, name, track, track_slug, code, room, starts_at, status").eq("id", eventId).maybeSingle(),
+      supabase.from("events").select("id, name, track, track_slug, code, room, starts_at, status, replay_offset").eq("id", eventId).maybeSingle(),
       supabase.from("event_drivers").select("*").eq("event_id", eventId).order("car_number", { nullsFirst: false }),
       supabase
         .from("incidents")

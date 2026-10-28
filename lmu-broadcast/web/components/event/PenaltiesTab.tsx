@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PENALTY_STATUS, penaltyText, sameName, type EventDriver, type EventRow, type Penalty } from "@/lib/labels";
 import { getSupabase } from "@/lib/supabase";
 import PenaltyForm from "./PenaltyForm";
+import ReplayLink from "./ReplayLink";
 
 export default function PenaltiesTab({
   event, penalties, drivers, isStaff, myIngameName, reload,
@@ -55,7 +56,7 @@ export default function PenaltiesTab({
                 <td>{p.car_number != null && `#${p.car_number} `}{p.ingame_name}</td>
                 <td><b>{penaltyText(p.kind, p.amount)}</b></td>
                 <td className="brk">{p.reason || "–"}</td>
-                <td className="num">{p.lap ?? "–"}</td>
+                <td className="num">{p.lap ?? "–"}{p.session_time != null && <> <ReplayLink event={event} sessionTime={p.session_time} small /></>}</td>
                 <td><span className={`badge ${p.status === "issued" ? "open" : ""}`}>{PENALTY_STATUS[p.status]}</span></td>
                 {isStaff && (
                   <td>

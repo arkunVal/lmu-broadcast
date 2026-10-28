@@ -16,5 +16,8 @@ create policy profiles_insert_self on public.profiles for insert to authenticate
 alter table public.penalties add column if not exists lap int;
 alter table public.penalties add column if not exists session_time double precision;
 
+alter table public.events add column if not exists replay_url text;
+alter table public.events add column if not exists replay_offset int not null default 0;
+
 -- Kontrolle: du solltest hier dein Konto sehen (role leer = noch keine Rolle gewählt)
 select u.email, p.role from auth.users u left join public.profiles p on p.id = u.id;

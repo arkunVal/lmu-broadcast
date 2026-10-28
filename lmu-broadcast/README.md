@@ -29,7 +29,7 @@ Alles läuft kostenlos auf Supabase, GitHub und Vercel.
 
 ## 3. Erster Admin
 
-1. Auf der Website **Konto erstellen**.
+1. Die Website-Adresse öffnen: du landest direkt im Anmelde-Fenster. **Konto erstellen** wählen.
 2. In Supabase, SQL Editor: `select code from public.access_codes where role = 'admin';` Den Key kopieren.
 3. Auf der Website bei der Rollenwahl **Admin** wählen, Key und deinen In-Game-Namen eintragen.
 
@@ -64,6 +64,14 @@ Beim ersten Anmelden wählt jeder seine Rolle und gibt einen Code ein:
 ## 6. Overlays in OBS
 
 Im Event den Reiter **Overlays** öffnen. Die Links sind schon fertig (richtiger Kanal). In OBS: Quelle, *Browser*, Link einfügen, Größe wie angegeben. Hintergrund ist transparent.
+
+## Replay in Le Mans Ultimate
+
+Der Reader liest bei jedem Vorfall die Session-Uhr des Spiels und schickt sie mit. Das Replay von Le Mans Ultimate nutzt dieselbe Uhr. Bei jedem Vorfall und jeder Strafe steht deshalb „LMU-Replay ab 1:23:37“ (8 Sekunden vor dem Ereignis) mit Knopf *Kopieren*. Im Spiel: Replay öffnen, diese Zeit anspringen. Läuft die Replay-Uhr bei dir anders, trägst du im Event unter *Einstellungen* einmal den Unterschied in Sekunden ein (normal 0). Das beim ersten echten Test prüfen. Nur wer von Phase 4 (frühe Version) kommt, führt `supabase/repair.sql` einmal aus.
+
+## Live-Seite
+
+Links die Streckenkarte (Autos, die Gelb auslösen, pulsieren gelb), rechts das Live-Timing. Sektorzeiten erscheinen, sobald ein Auto den Sektor beendet hat (hell), ältere Zeiten der letzten Runde sind gedimmt.
 
 ## Reifen
 

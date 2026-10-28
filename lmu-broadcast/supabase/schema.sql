@@ -121,6 +121,8 @@ create table public.events (
   room       text not null default substr(replace(gen_random_uuid()::text, '-', ''), 1, 12), -- intern, Live-Kanal
   starts_at  timestamptz,
   status     text not null default 'planned' check (status in ('planned', 'live', 'finished')),
+  replay_url    text,                      -- Link zum Replay/VOD (YouTube, Twitch ...)
+  replay_offset int not null default 0,    -- Sekunden im Video, bei denen die Session-Zeit 0 liegt
   created_by uuid references public.profiles (id) default auth.uid(),
   created_at timestamptz not null default now()
 );

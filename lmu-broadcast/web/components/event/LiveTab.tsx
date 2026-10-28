@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Tires from "@/components/Tires";
+import TrackMap from "@/components/TrackMap";
 import { classColor, classLabel } from "@/lib/classes";
 import { fmtClock, fmtGap, fmtTime } from "@/lib/format";
 import { INCIDENT_KINDS, type EventRow, type Incident } from "@/lib/labels";
 import { buildGroups, sessionKind, sessionLabel } from "@/lib/standings";
+import type { Car } from "@/lib/types";
 import { useLiveData } from "@/lib/useLiveData";
 
 export default function LiveTab({
@@ -51,7 +53,28 @@ export default function LiveTab({
           : "Spiel läuft";
 
   return (
-    <div className="grid2" style={{ gridTemplateColumns: "minmax(0,3fr) minmax(0,1fr)", alignItems: "start", gap: 16 }}>
+    <div className="live-grid">
+      <div className="live-left">
+        <TrackMap snapshot={live ? snapshot : null} panel />
+      <div className="panel">
+        <h3>Neue Auto-Hinweise</h3>
+        <p className="muted" style={{ margin: "2px 0 8px", fontSize: 13 }}>Automatisch erkannt, nicht bestätigt. Bitte prüfen.</p>
+        {hints.length === 0 && <div className="muted">Keine offenen Hinweise.</div>}
+        {hints.map((h) => (
+          <div key={h.id} className="row" style={{ justifyContent: "space-between", padding: "8px 0", borderTop: "1px solid var(--line)" }}>
+            <span>
+              <b>{INCIDENT_KINDS[h.kind] ?? h.kind}</b>{" "}
+              <span className="muted">{h.session_time != null && fmtClock(h.session_time)}{h.lap != null && `, Runde ${h.lap}`}</span>
+              <br />
+              <span style={{ fontSize: 13 }}>
+                {h.incident_drivers.map((d) => `${d.car_number != null ? `#${d.car_number} ` : ""}${d.ingame_name}${d.role === "possible" ? " (?)" : ""}`).join(", ") || "–"}
+              </span>
+            </span>
+            <button onClick={() => openIncident(h.id)}>Prüfen</button>
+          </div>
+        ))}
+      </div>
+      </div>
       <div>
         <div className="row" style={{ marginBottom: 12 }}>
           <span className="chip"><span className={`dot ${connection === "subscribed" ? "ok" : connection === "error" ? "bad" : "warn"}`} />{connText}</span>
@@ -85,13 +108,25 @@ export default function LiveTab({
 
         {groups.map((g) => {
           const col = classColor(g.cls);
-          const best = [1, 2, 3].map((n) => {
-            const key = `lastS${n}` as "lastS1" | "lastS2" | "lastS3";
-            return g.rows.reduce<number | null>((m, r) => (r.car[key] != null && (m == null || (r.car[key] as number) < m) ? (r.car[key] as number) : m), null);
-          });
-          const sec = (v: number | null, i: number) => (
-            <td className={`num sec${v != null && best[i] === v ? " best" : ""}`}>{fmtTime(v)}</td>
+          const shown = (c: Car) => {
+            const done = c.sector === 1 && c.lapTime != null && c.lapTime < 10; // gerade ueber die Linie
+            const sec = c.sector ?? 1;
+            return [
+              { v: done ? c.lastS1 : sec >= 2 ? c.curS1 : c.lastS1, fresh: done || sec >= 2 },
+              { v: done ? c.lastS2 : sec === 3 ? c.curS2 : c.lastS2, fresh: done || sec === 3 },
+              { v: c.lastS3, fresh: done },
+            ];
+          };
+          const best = [0, 1, 2].map((n) =>
+            g.rows.reduce<number | null>((m, r) => {
+              const v = shown(r.car)[n].v;
+              return v != null && (m == null || v < m) ? v : m;
+            }, null),
           );
+          const secCell = (c: Car, n: number) => {
+            const { v, fresh } = shown(c)[n];
+            return <td className={`num sec${fresh ? (v != null && best[n] === v ? " best" : "") : " old"}`} title={fresh ? "Sektor in dieser Runde beendet" : "Zeit der letzten Runde"}>{fmtTime(v)}</td>;
+          };
           return (
             <div key={g.cls} className="cls-card">
               <div className="cls-head">
@@ -116,7 +151,7 @@ export default function LiveTab({
                         <td className="ctr"><span className="carno">{r.car.num ?? "–"}</span></td>
                         <td>{r.car.driver}</td>
                         <td className="num">{r.car.laps}</td>
-                        {sec(r.car.lastS1, 0)}{sec(r.car.lastS2, 1)}{sec(r.car.lastS3, 2)}
+                        {secCell(r.car, 0)}{secCell(r.car, 1)}{secCell(r.car, 2)}
                         <td className="num">{fmtTime(r.car.bestLap)}</td>
                         <td className="num">{fmtTime(r.car.lastLap)}</td>
                         <td className="num gapred">{r.classPos === 1 ? "–" : r.gapLeader || fmtGap(r.car.gapLeader)}</td>
@@ -144,24 +179,6 @@ export default function LiveTab({
         )}
       </div>
 
-      <div className="panel">
-        <h3>Neue Auto-Hinweise</h3>
-        <p className="muted" style={{ margin: "2px 0 8px", fontSize: 13 }}>Automatisch erkannt, nicht bestätigt. Bitte prüfen.</p>
-        {hints.length === 0 && <div className="muted">Keine offenen Hinweise.</div>}
-        {hints.map((h) => (
-          <div key={h.id} className="row" style={{ justifyContent: "space-between", padding: "8px 0", borderTop: "1px solid var(--line)" }}>
-            <span>
-              <b>{INCIDENT_KINDS[h.kind] ?? h.kind}</b>{" "}
-              <span className="muted">{h.session_time != null && fmtClock(h.session_time)}{h.lap != null && `, Runde ${h.lap}`}</span>
-              <br />
-              <span style={{ fontSize: 13 }}>
-                {h.incident_drivers.map((d) => `${d.car_number != null ? `#${d.car_number} ` : ""}${d.ingame_name}${d.role === "possible" ? " (?)" : ""}`).join(", ") || "–"}
-              </span>
-            </span>
-            <button onClick={() => openIncident(h.id)}>Prüfen</button>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

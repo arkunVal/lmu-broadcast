@@ -17,6 +17,7 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
   const known = (slug: string | null) => !slug || tracks.some((t) => t.slug === slug);
   const [track, setTrack] = useState(event.track_slug ?? "");
   const [other, setOther] = useState("");
+  const [replayOffset, setReplayOffset] = useState(String(event.replay_offset ?? 0));
   const [token, setToken] = useState<string | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [msg, setMsg] = useState("");
@@ -50,7 +51,7 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
       name = t?.name ?? event.track;
       slug = t?.slug ?? track;
     }
-    const { error } = await supabase.from("events").update({ status, track: name, track_slug: slug }).eq("id", event.id);
+    const { error } = await supabase.from("events").update({ status, track: name, track_slug: slug, replay_offset: Math.round(Number(replayOffset) || 0) }).eq("id", event.id);
     if (error) setErr(error.message);
     else setMsg("Gespeichert.");
     onSaved();
@@ -105,6 +106,13 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
             </select>
           </div>
         </div>
+        <div style={{ marginTop: 4, maxWidth: 320 }}>
+          <label>Replay-Uhr Versatz (Sekunden, normal 0)</label>
+          <input type="number" value={replayOffset} onChange={(e) => setReplayOffset(e.target.value)} />
+        </div>
+        <p className="muted" style={{ fontSize: 13, margin: "6px 0 0" }}>
+          Der Reader liest bei jedem Vorfall die Session-Uhr des Spiels. Im Replay von Le Mans Ultimate springst du diese Zeit an (8 Sekunden vorher). Läuft die Replay-Uhr bei dir anders, trägst du hier einmal den Unterschied in Sekunden ein.
+        </p>
         <div className="row" style={{ marginTop: 12 }}>
           <button className="primary" onClick={save}>Speichern</button>
           {msg && <span className="okmsg" style={{ margin: 0 }}>{msg}</span>}

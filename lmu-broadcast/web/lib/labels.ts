@@ -99,6 +99,7 @@ export type EventRow = {
   room: string;
   starts_at: string | null;
   status: "planned" | "live" | "finished";
+  replay_offset?: number;
 };
 
 export type EventDriver = {

@@ -9,6 +9,7 @@ import {
 import { sessionLabel } from "@/lib/standings";
 import { getSupabase } from "@/lib/supabase";
 import PenaltyForm from "./PenaltyForm";
+import ReplayLink from "./ReplayLink";
 
 function driversText(i: Incident): string {
   if (!i.incident_drivers.length) return "–";
@@ -159,6 +160,7 @@ function Detail({
         {incident.lap != null && ` · Runde ${incident.lap}`}
         {incident.lap_dist != null && ` · ${Math.round(incident.lap_dist)} m`}
       </div>
+      <div style={{ margin: "0 0 8px" }}><ReplayLink event={event} sessionTime={incident.session_time} /></div>
 
       {isStaff ? (
         <>
