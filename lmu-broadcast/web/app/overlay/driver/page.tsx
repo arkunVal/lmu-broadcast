@@ -33,49 +33,39 @@ export default function DriverCard() {
   const classPos = group?.rows.find((r) => r.car.id === car.id)?.classPos;
   const color = classColor(car.cls);
 
-  const secs: [string, number | null, boolean][] = [
-    ["S1", car.lastS1, car.sector === 1],
-    ["S2", car.lastS2, car.sector === 2],
-    ["S3", car.lastS3, car.sector === 3],
+  const ord = (n: number | undefined) => (n == null ? "–" : `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th"}`);
+  const lastName = car.driver.trim().split(/\s+/).slice(-1)[0] ?? car.driver;
+  const initial = car.driver.trim()[0] ?? "";
+  const secs: [string, boolean, boolean][] = [
+    ["S1", car.sector !== null && car.sector > 1, car.sector === 1],
+    ["S2", car.sector === 3, car.sector === 2],
+    ["S3", false, car.sector === 3],
   ];
 
   return (
     <div className="ov dc" style={{ fontSize: 16 * scale, ["--c" as string]: color }}>
       <div className="dc-top">
         <div className="dc-no ov-num">{car.num ?? "–"}</div>
-        <div style={{ flex: 1 }}>
-          <div className="dc-name">{car.driver}</div>
-          <div className="dc-sub">
-            {classLabel(car.cls)} · P{classPos ?? "–"} in Klasse · {car.vehicle}
-          </div>
-        </div>
-        {car.tire && <span style={{ fontSize: "1.3em" }}><Tires tire={car.tire} overlay /></span>}
+        <div className="dc-sub">{classLabel(car.cls)}</div>
+        {car.tire && <span style={{ fontSize: "1.2em" }}><Tires tire={car.tire} overlay /></span>}
         {car.inPits && <span className="tw-pit">BOX</span>}
         {car.yellowCause && <span className="tw-yel">GELB</span>}
+        <div className="dc-name">{initial}. {lastName}</div>
       </div>
       <div className="dc-main">
-        <div>
-          <div className="dc-big ov-num">{Math.round(car.speedKmh)}</div>
-          <div className="dc-lbl">km/h</div>
-        </div>
-        <div>
-          <div className="dc-big ov-num">{fmtTime(car.lapTime)}</div>
-          <div className="dc-lbl">aktuelle Runde · Runde {car.laps + 1}</div>
-        </div>
-        <div>
-          <b className="ov-num">{fmtTime(car.lastLap)}</b>
-          <div className="dc-lbl">letzte Runde</div>
-        </div>
-        <div>
-          <b className="ov-num">{fmtTime(car.bestLap)}</b>
-          <div className="dc-lbl">beste Runde</div>
-        </div>
+        <div className="dc-pos ov-num">{ord(classPos)}</div>
+        <div className="dc-time">{fmtTime(car.lapTime)}</div>
+      </div>
+      <div className="dc-stats ov-num">
+        <span>Letzte <b>{fmtTime(car.lastLap)}</b></span>
+        <span>Beste <b>{fmtTime(car.bestLap)}</b></span>
+        <span><b>{Math.round(car.speedKmh)}</b> km/h</span>
       </div>
       <div className="dc-secs">
-        {secs.map(([label, value, current]) => (
-          <div key={label} className={`dc-sec${current ? " cur" : ""}`}>
-            <div className="dc-lbl">{label}</div>
-            <b className="ov-num">{fmtTime(value)}</b>
+        {secs.map(([label, done, current]) => (
+          <div key={label} className={`dc-sec${done ? " done" : current ? " cur" : ""}`}>
+            {label}
+            <i />
           </div>
         ))}
       </div>

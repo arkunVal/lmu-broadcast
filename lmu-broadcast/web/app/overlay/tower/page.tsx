@@ -37,48 +37,51 @@ export default function Tower() {
 
   return (
     <div className="ov tw" style={{ fontSize: 16 * scale }}>
-      <div className="tw-head">
-        <span>{sessionLabel(snapshot.session.type)}</span>
+      <div className="tw-top">
+        <div className="tw-brand"><span className="ov-logo"><b>FLM</b><small>Broadcast</small></span></div>
+        <div className="tw-slash" />
+        <div className="tw-title">{sessionLabel(snapshot.session.type)}</div>
         {kind === "race" ? (
-          <span className="ov-num">{snapshot.session.remaining > 0 ? fmtClock(snapshot.session.remaining) : ""}</span>
+          <div className="tw-clock ov-num">{snapshot.session.remaining > 0 ? fmtClock(snapshot.session.remaining) : "--"}</div>
         ) : (
-          <span className="fl ov-num">
-            {fastest ? `⏱ ${fmtTime(fastest.bestLap)}  #${fastest.num ?? "–"} ${shortName(fastest.driver, "tla")}` : "⏱ –"}
-          </span>
+          <div className="tw-clock fl ov-num">
+            {fastest ? `${fmtTime(fastest.bestLap)}  #${fastest.num ?? "–"} ${shortName(fastest.driver, "tla")}` : "–"}
+          </div>
         )}
       </div>
-
-      {groups.map((g) => (
-        <div key={g.cls}>
-          <div className="tw-class" style={{ background: classColor(g.cls) }}>
-            <span>{classLabel(g.cls)}</span>
-            {kind !== "race" && <span className="ov-num">{g.bestLap != null ? fmtTime(g.bestLap) : ""}</span>}
+      <div className="tw-list">
+        {groups.map((g) => (
+          <div key={g.cls}>
+            <div className="tw-class" style={{ ["--c" as string]: classColor(g.cls) }}>
+              <div className="tw-stripes"><i /><i /></div>
+              <b>{classLabel(g.cls)}</b>
+              {kind !== "race" && g.bestLap != null && <span className="best ov-num">{fmtTime(g.bestLap)}</span>}
+            </div>
+            {g.rows.slice(0, max).map((r) => {
+              const c = r.car;
+              let right: string;
+              if (kind === "race") {
+                right = r.classPos === 1 ? "LEADER" : gapMode === "interval" ? r.gapInterval : r.gapLeader;
+              } else {
+                right = r.classPos === 1 ? fmtTime(c.bestLap) : r.gapLeader;
+              }
+              return (
+                <div className={`tw-row${r.classPos === 1 && kind !== "race" ? " lead" : ""}`} key={c.id}>
+                  <div className="tw-pos ov-num">{r.classPos}</div>
+                  <div className="tw-no ov-num">{c.num ?? "–"}</div>
+                  <div className="tw-name">{shortName(c.driver, nameMode)}</div>
+                  <div className="tw-gap ov-num">
+                    {c.inPits ? <span className="tw-pit">BOX</span> : right}
+                    {c.yellowCause && <span className="tw-yel">GELB</span>}
+                  </div>
+                  {c.tire ? <Tires tire={c.tire} overlay /> : <div />}
+                </div>
+              );
+            })}
           </div>
-          {g.rows.slice(0, max).map((r) => {
-            const c = r.car;
-            let right: string;
-            if (kind === "race") {
-              right = r.classPos === 1 ? "LEADER" : gapMode === "interval" ? r.gapInterval : r.gapLeader;
-            } else {
-              right = r.classPos === 1 ? fmtTime(c.bestLap) : r.gapLeader;
-            }
-            return (
-              <div className="tw-row" key={c.id}>
-                <div className="tw-bar" style={{ background: classColor(c.cls) }} />
-                <div className="tw-pos ov-num">{r.classPos}</div>
-                <div className="tw-no ov-num">{c.num ?? "–"}</div>
-                <div className="tw-name">
-                  {shortName(c.driver, nameMode)} {c.yellowCause && <span className="tw-yel">GELB</span>}
-                </div>
-                <div className="tw-gap ov-num">
-                  {c.inPits ? <span className="tw-pit">BOX</span> : right}
-                </div>
-                {c.tire ? <Tires tire={c.tire} overlay /> : <div />}
-              </div>
-            );
-          })}
-        </div>
-      ))}
+        ))}
+        <div className="tw-foot">{snapshot.session.track}</div>
+      </div>
     </div>
   );
 }

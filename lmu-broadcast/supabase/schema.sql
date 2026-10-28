@@ -219,6 +219,8 @@ create table public.penalties (
   kind        public.penalty_kind not null,
   amount      int,
   reason      text not null default '',
+  lap         int,
+  session_time double precision,
   status      public.penalty_status not null default 'issued',
   issued_by   uuid references public.profiles (id) default auth.uid(),
   created_at  timestamptz not null default now()
@@ -334,6 +336,9 @@ alter table public.penalties        enable row level security;
 -- Profile: eigenes immer; andere nur, wenn man selbst eine Rolle hat
 create policy profiles_select on public.profiles for select to authenticated
   using (id = auth.uid() or public.my_role() is not null);
+-- Fehlt ein Profil (z. B. Konto vor dem Einrichten angelegt), legt die Website es selbst an. Rolle bleibt leer.
+create policy profiles_insert_self on public.profiles for insert to authenticated
+  with check (id = auth.uid() and role is null);
 create policy profiles_update_self on public.profiles for update to authenticated
   using (id = auth.uid()) with check (id = auth.uid());
 create policy profiles_update_admin on public.profiles for update to authenticated
@@ -386,6 +391,12 @@ create policy penalties_update on public.penalties for update to authenticated
 create policy penalties_delete on public.penalties for delete to authenticated using (public.is_admin());
 
 alter publication supabase_realtime add table public.incidents, public.penalties;
+
+-- Schon vorhandene Konten (vor diesem Skript registriert) bekommen ein Profil ohne Rolle
+insert into public.profiles (id, display_name)
+select u.id, coalesce(nullif(u.raw_user_meta_data ->> 'full_name', ''), nullif(u.raw_user_meta_data ->> 'name', ''), split_part(coalesce(u.email, ''), '@', 1))
+from auth.users u
+on conflict (id) do nothing;
 
 -- ============================ Ersten Admin festlegen =============================
 -- 1) Auf der Website registrieren (E-Mail oder Discord).

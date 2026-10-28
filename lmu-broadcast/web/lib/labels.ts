@@ -52,6 +52,21 @@ export function penaltyText(kind: string, amount: number | null): string {
   return k.label;
 }
 
+/** Begründungen für Strafen, gruppiert wie in der Rennleitungs-Auswahl. */
+export const PENALTY_REASONS: { group: string; items: string[] }[] = [
+  { group: "General", items: ["Causing a collision", "Unsafe rejoin", "Pit lane infringement", "FCY infringement", "SC infringement"] },
+  { group: "Overtaking", items: ["Overtaking under SC", "Overtaking before green flag", "Overtaking same-class car during SC phase", "Overtaking before S/F line at restart"] },
+  { group: "Track limits", items: ["Track limits violation"] },
+  { group: "Defending", items: ["Excessive defensive move", "Reactionary / blocking move", "Moving under braking"] },
+  { group: "Contact", items: ["Causing contact – minor", "Causing contact – significant", "Causing contact – major"] },
+  { group: "Flags", items: ["Blue flag violation – within class", "Blue flag violation – outside class", "Overtaking under yellow flag", "Causing collision under yellow flag"] },
+  { group: "SC specific", items: ["Speeding under SC", "Exceeding 120 km/h during pass-around", "Exceeding 60 km/h during SC deployment", "Overtaking SC without RC instruction", "Weaving before SC in this lap call"] },
+  { group: "FCY specific", items: ["Speeding under FCY", "Overtaking under FCY", "Driving below 40 km/h during FCY", "Pitting during FCY – sufficient fuel", "Pitting during FCY – fuel emergency", "Side by side at FCY – not falling back"] },
+  { group: "Pitlane", items: ["Crossing pit entry line", "Crossing pit exit line", "Overtaking in slow lane", "Unsafe release", "Leaving pits too early"] },
+  { group: "Qualifying", items: ["Bumpdrafting in qualifying", "Impeding / blocking in qualifying", "Entering Hyperpole without Top 10"] },
+  { group: "Misc", items: ["In-game chat during session", "Driver Control not connected", "Flag overlays inactive", "Race start violation", "Not holding brakes after incident", "Inter-class teaming"] },
+];
+
 export const SESSION_TYPES: { value: number; label: string }[] = [
   { value: 1, label: "Training" },
   { value: 5, label: "Qualifying" },
@@ -125,6 +140,8 @@ export type Penalty = {
   kind: PenaltyKind;
   amount: number | null;
   reason: string;
+  lap: number | null;
+  session_time: number | null;
   status: "issued" | "served" | "revoked";
   created_at: string;
 };

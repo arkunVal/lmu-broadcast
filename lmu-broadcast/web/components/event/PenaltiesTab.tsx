@@ -25,7 +25,7 @@ export default function PenaltiesTab({
   return (
     <>
       {mine.length > 0 && (
-        <div className="panel" style={{ borderColor: "var(--warn)" }}>
+        <div className="panel pen">
           <b>Deine Strafen in diesem Event</b>
           {mine.map((p) => (
             <div key={p.id}>{penaltyText(p.kind, p.amount)} <span className="muted">{p.reason && `– ${p.reason}`} ({PENALTY_STATUS[p.status]})</span></div>
@@ -46,15 +46,16 @@ export default function PenaltiesTab({
       <div className="tablewrap">
         <table className="plain">
           <thead>
-            <tr><th>Fahrer</th><th>Strafe</th><th>Begründung</th><th>Status</th>{isStaff && <th />}</tr>
+            <tr><th>Fahrer</th><th>Strafe</th><th>Begründung</th><th className="num">Runde</th><th>Status</th>{isStaff && <th />}</tr>
           </thead>
           <tbody>
-            {penalties.length === 0 && <tr><td colSpan={5} className="muted">Noch keine Strafen.</td></tr>}
+            {penalties.length === 0 && <tr><td colSpan={6} className="muted">Noch keine Strafen.</td></tr>}
             {penalties.map((p) => (
               <tr key={p.id} style={p.status === "revoked" ? { opacity: 0.5 } : undefined}>
                 <td>{p.car_number != null && `#${p.car_number} `}{p.ingame_name}</td>
                 <td><b>{penaltyText(p.kind, p.amount)}</b></td>
                 <td className="brk">{p.reason || "–"}</td>
+                <td className="num">{p.lap ?? "–"}</td>
                 <td><span className={`badge ${p.status === "issued" ? "open" : ""}`}>{PENALTY_STATUS[p.status]}</span></td>
                 {isStaff && (
                   <td>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import "../overlay/overlay.css";
 import Tires from "@/components/Tires";
 import { useAuth } from "@/lib/auth";
 import { classColor } from "@/lib/classes";
@@ -40,23 +41,33 @@ export default function Landing() {
             <Link href="/login?neu=1" className="btn">Konto erstellen</Link>
           </div>
         </div>
-        <div className="mini-tower" aria-hidden>
-          <div className="mt-head"><span>RENNEN</span><span>2:41:07</span></div>
-          {ROWS.map((g) => (
-            <div key={g.cls}>
-              <div className="mt-cls" style={{ background: classColor(g.cls) }}>{g.label}</div>
-              {g.cars.map((c) => (
-                <div className="mt-row" key={c.no}>
-                  <span style={{ background: classColor(g.cls), height: "100%" }} />
-                  <b style={{ textAlign: "right" }}>{c.pos}</b>
-                  <span className="mt-no">{c.no}</span>
-                  <span>{c.name}</span>
-                  <span style={{ fontSize: 13 }}>{c.gap}</span>
-                  <Tires tire={c.tire} />
+        <div className="ov tw" aria-hidden style={{ width: "26em", fontSize: 16, margin: "0 auto" }}>
+          <div className="tw-top">
+            <div className="tw-brand"><span className="ov-logo"><b>FLM</b><small>Broadcast</small></span></div>
+            <div className="tw-slash" />
+            <div className="tw-title">RENNEN</div>
+            <div className="tw-clock ov-num">2:41:07</div>
+          </div>
+          <div className="tw-list" style={{ width: "100%" }}>
+            {ROWS.map((g) => (
+              <div key={g.cls}>
+                <div className="tw-class" style={{ ["--c" as string]: classColor(g.cls) }}>
+                  <div className="tw-stripes"><i /><i /></div>
+                  <b>{g.label}</b>
                 </div>
-              ))}
-            </div>
-          ))}
+                {g.cars.map((c) => (
+                  <div className="tw-row" key={c.no}>
+                    <div className="tw-pos">{c.pos}</div>
+                    <div className="tw-no">{c.no}</div>
+                    <div className="tw-name">{c.name}</div>
+                    <div className="tw-gap">{c.gap}</div>
+                    <Tires tire={c.tire} overlay />
+                  </div>
+                ))}
+              </div>
+            ))}
+            <div className="tw-foot">Circuit de la Sarthe</div>
+          </div>
         </div>
       </section>
 

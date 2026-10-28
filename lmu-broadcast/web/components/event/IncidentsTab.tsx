@@ -224,6 +224,8 @@ function Detail({
                 eventId={event.id}
                 drivers={drivers}
                 incidentId={incident.id}
+                lap={incident.lap}
+                sessionTime={incident.session_time}
                 names={incident.incident_drivers.map((d) => d.ingame_name)}
                 onDone={() => { setShowPenalty(false); reload(); }}
               />

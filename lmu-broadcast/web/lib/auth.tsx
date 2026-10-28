@@ -40,7 +40,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .select("id, display_name, ingame_name, role")
         .eq("id", userId)
         .maybeSingle();
-      setProfile((data as Profile | null) ?? null);
+      if (data) {
+        setProfile(data as Profile);
+        return;
+      }
+      // Profil fehlt (z. B. Konto aus der Zeit vor dem Datenbank-Neuaufbau): selbst anlegen, Rolle bleibt leer
+      const { data: u } = await supabase.auth.getUser();
+      const meta = (u.user?.user_metadata ?? {}) as Record<string, string>;
+      const fallback = meta.full_name || meta.name || (u.user?.email ?? "").split("@")[0] || "";
+      await supabase.from("profiles").insert({ id: userId, display_name: fallback });
+      const again = await supabase
+        .from("profiles")
+        .select("id, display_name, ingame_name, role")
+        .eq("id", userId)
+        .maybeSingle();
+      setProfile((again.data as Profile | null) ?? null);
     },
     [supabase],
   );

@@ -5,8 +5,8 @@ import CopyButton from "@/components/CopyButton";
 import type { EventRow } from "@/lib/labels";
 
 const ITEMS = [
-  { path: "tower", title: "Timing-Tower", size: "360 × 900", extra: "&max=10&names=tla&gap=interval", note: "Klassenweise Rangliste mit allen vier Reifen. Im Training und Quali steht die schnellste Runde oben." },
-  { path: "driver", title: "Fahrerkarte", size: "460 × 260", extra: "&car=8", note: "Tempo, Rundenzeiten, Sektoren. Mit car= die Startnummer wählen, ohne folgt sie deinem Auto, follow=leader folgt dem Führenden." },
+  { path: "tower", title: "Timing-Tower", size: "480 × 900", extra: "&max=10&names=tla&gap=interval", note: "Klassenweise Rangliste mit allen vier Reifen. Im Training und Quali steht die schnellste Runde oben." },
+  { path: "driver", title: "Fahrerkarte", size: "420 × 200", extra: "&car=8", note: "Tempo, Rundenzeiten, Sektoren. Mit car= die Startnummer wählen, ohne folgt sie deinem Auto, follow=leader folgt dem Führenden." },
   { path: "status", title: "Status und Flaggen", size: "620 × 200", extra: "", note: "Erscheint nur bei Gelb, Full Course Yellow oder Session-Stopp (always=1 zeigt sie immer)." },
   { path: "map", title: "Streckenkarte", size: "420 × 300", extra: "", note: "Zeigt die gespeicherte Streckenkarte mit allen Autos." },
 ];

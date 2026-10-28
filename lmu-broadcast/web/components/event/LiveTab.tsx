@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Tires from "@/components/Tires";
 import { classColor, classLabel } from "@/lib/classes";
-import { fmtClock, fmtGap, fmtTime, phaseName } from "@/lib/format";
+import { fmtClock, fmtGap, fmtTime } from "@/lib/format";
 import { INCIDENT_KINDS, type EventRow, type Incident } from "@/lib/labels";
 import { buildGroups, sessionKind, sessionLabel } from "@/lib/standings";
 import { useLiveData } from "@/lib/useLiveData";
@@ -28,6 +28,16 @@ export default function LiveTab({
   const kind = s ? sessionKind(s.type) : "race";
   const groups = snapshot && live ? buildGroups(snapshot.cars, kind) : [];
   const anyYellow = !!snapshot && live && snapshot.cars.some((c) => c.yellowCause);
+
+  const flag = !s
+    ? { cls: "", text: "" }
+    : s.phase === 7
+      ? { cls: "red", text: "SESSION GESTOPPT" }
+      : s.phase === 6
+        ? { cls: "yellow", text: "FULL COURSE YELLOW" }
+        : s.sectorFlags.some(Boolean)
+          ? { cls: "yellow", text: "GELB" }
+          : { cls: "", text: "GRÜNE FLAGGE" };
 
   const connText = connection === "subscribed" ? "Verbunden" : connection === "error" ? "Verbindungsfehler" : connection === "missing-config" ? "Konfiguration fehlt" : "Verbinde …";
   const dataText = !snapshot
@@ -58,51 +68,73 @@ export default function LiveTab({
         )}
 
         {s && live && (
-          <div className="screen">
-            <div className="facts">
-              <div className="fact"><span>Strecke</span>{s.track || "–"}</div>
-              <div className="fact"><span>Session</span>{sessionLabel(s.type)}</div>
-              <div className="fact"><span>Phase</span>{phaseName(s.phase)}</div>
-              <div className="fact"><span>Restzeit</span>{fmtClock(s.remaining)}</div>
-              <div className="fact"><span>Strecke / Luft</span>{s.trackTemp.toFixed(0)}° / {s.airTemp.toFixed(0)}°C</div>
-              <div className="fact"><span>Gelb</span>{s.sectorFlags.some(Boolean) ? s.sectorFlags.map((f, i) => (f ? `S${i + 1}` : null)).filter(Boolean).join(" ") : "–"}</div>
+          <div className="live-bar">
+            <div>
+              <div className="k">Strecke</div>
+              <div style={{ fontWeight: 700 }}>{s.track || "–"}</div>
             </div>
+            <div>
+              <div className="k">{sessionLabel(s.type)}</div>
+              <span className={`flagpill ${flag.cls}`}><i />{flag.text}</span>
+            </div>
+            <div><div className="k">Restzeit</div><div className="v">{fmtClock(s.remaining)}</div></div>
+            <div><div className="k">Luft / Strecke</div><div className="v">{s.airTemp.toFixed(0)}° / {s.trackTemp.toFixed(0)}°C</div></div>
+            <div><div className="k">Wetter</div><div className="v">{s.rain > 0.05 ? "Regen" : "Trocken"}</div></div>
           </div>
         )}
 
-        {groups.map((g) => (
-          <div key={g.cls} className="screen" style={{ padding: 0, overflow: "hidden" }}>
-            <div style={{ background: classColor(g.cls), color: "#fff", padding: "5px 14px", fontWeight: 800, letterSpacing: ".08em", fontSize: 12 }}>{classLabel(g.cls)}</div>
-            <div className="tablewrap" style={{ border: 0, borderRadius: 0, background: "transparent" }}>
-              <table className="plain">
-                <thead>
-                  <tr>
-                    <th className="num">Pos</th><th className="num">Nr</th><th>Fahrer</th><th className="num">km/h</th>
-                    <th>Reifen</th><th className="num">Letzte</th><th className="num">Beste</th><th className="num">{kind === "race" ? "Abstand" : "Rückstand"}</th><th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {g.rows.map((r) => (
-                    <tr key={r.car.id} className={r.car.yellowCause ? "yellow" : r.car.player ? "player" : ""}>
-                      <td className="num">{r.classPos}</td>
-                      <td className="num">{r.car.num ?? "–"}</td>
-                      <td>{r.car.driver}</td>
-                      <td className="num">{Math.round(r.car.speedKmh)}</td>
-                      <td><Tires tire={r.car.tire} /></td>
-                      <td className="num">{fmtTime(r.car.lastLap)}</td>
-                      <td className="num">{fmtTime(r.car.bestLap)}</td>
-                      <td className="num">{r.classPos === 1 ? "" : r.gapLeader || fmtGap(r.car.gapLeader)}</td>
-                      <td>
-                        {r.car.inPits && <span className="tag pit">BOX</span>} {r.car.yellowCause && <span className="tag yel">GELB</span>}
-                        {r.car.penalties > 0 && <span className="tag cls"> {r.car.penalties} Str.</span>}
-                      </td>
+        {groups.map((g) => {
+          const col = classColor(g.cls);
+          const best = [1, 2, 3].map((n) => {
+            const key = `lastS${n}` as "lastS1" | "lastS2" | "lastS3";
+            return g.rows.reduce<number | null>((m, r) => (r.car[key] != null && (m == null || (r.car[key] as number) < m) ? (r.car[key] as number) : m), null);
+          });
+          const sec = (v: number | null, i: number) => (
+            <td className={`num sec${v != null && best[i] === v ? " best" : ""}`}>{fmtTime(v)}</td>
+          );
+          return (
+            <div key={g.cls} className="cls-card">
+              <div className="cls-head">
+                <div className="cls-tab" style={{ background: col }}>{classLabel(g.cls)}</div>
+                <span>{g.rows.length} {g.rows.length === 1 ? "Auto" : "Autos"}</span>
+              </div>
+              <div className="tablewrap" style={{ border: 0, borderRadius: 0, background: "transparent" }}>
+                <table className="plain">
+                  <thead>
+                    <tr>
+                      <th className="num">#</th><th className="ctr">Auto</th><th>Fahrer</th><th className="num">Runden</th>
+                      <th className="num">S1</th><th className="num">S2</th><th className="num">S3</th>
+                      <th className="num">Beste</th><th className="num">Letzte</th>
+                      <th className="num">{kind === "race" ? "Abstand" : "Rückstand"}</th>{kind === "race" && <th className="num">Intervall</th>}
+                      <th className="ctr">Reifen</th><th className="num">Stopps</th><th className="ctr">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {g.rows.map((r) => (
+                      <tr key={r.car.id} className={r.car.yellowCause ? "yellow" : r.car.player ? "player" : ""}>
+                        <td className="num">{r.classPos}</td>
+                        <td className="ctr"><span className="carno">{r.car.num ?? "–"}</span></td>
+                        <td>{r.car.driver}</td>
+                        <td className="num">{r.car.laps}</td>
+                        {sec(r.car.lastS1, 0)}{sec(r.car.lastS2, 1)}{sec(r.car.lastS3, 2)}
+                        <td className="num">{fmtTime(r.car.bestLap)}</td>
+                        <td className="num">{fmtTime(r.car.lastLap)}</td>
+                        <td className="num gapred">{r.classPos === 1 ? "–" : r.gapLeader || fmtGap(r.car.gapLeader)}</td>
+                        {kind === "race" && <td className="num gapred">{r.classPos === 1 ? "–" : r.gapInterval}</td>}
+                        <td className="ctr"><Tires tire={r.car.tire} /></td>
+                        <td className="num">{r.car.pitStops}</td>
+                        <td className="ctr">
+                          {r.car.finish === 3 ? <span className="pill dq">DQ</span> : r.car.inPits ? <span className="pill pit">PIT</span> : r.car.yellowCause ? <span className="pill yel">GELB</span> : <span className="pill run">RUN</span>}
+                          {r.car.penalties > 0 && <span className="tag cls" style={{ marginLeft: 6 }}>{r.car.penalties} Str.</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {snapshot && (
           <div style={{ marginTop: 4 }}>

@@ -12,7 +12,8 @@ Alles läuft kostenlos auf Supabase, GitHub und Vercel.
 
 1. Neues Projekt anlegen (am besten ein eigenes, nicht das alte).
 2. **SQL Editor, New query**: Inhalt von `supabase/schema.sql` einfügen, Run.
-   Kommst du von Phase 3? Erst `supabase/reset.sql` ausführen (löscht die alten LMU-Tabellen), dann `schema.sql`.
+   Kommst du von Phase 3 oder Phase 4 (erste Version)? Erst `supabase/reset.sql` ausführen (löscht die alten LMU-Tabellen), dann `schema.sql`. Die Reihenfolge ist richtig so.
+   **Rennleitungs-Seite zeigt nur „Lade …“ oder Fehler nach dem Neuaufbau?** Dann `supabase/repair.sql` ausführen (gefahrlos, löscht nichts). Danach neu laden und bei der Rollenwahl den Admin-Key eingeben.
 3. **Project Settings, API**: kopiere *Project URL*, *anon public key* und *service_role key*.
 4. **Authentication, Providers**: E-Mail ist an. Für Discord: Provider einschalten, Client-ID und Secret aus dem Discord Developer Portal eintragen. Unter *URL Configuration* die Vercel-Adresse als Site URL und Redirect eintragen.
 
