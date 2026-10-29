@@ -136,40 +136,50 @@ function EventList() {
   }, [load]);
 
   const isAdmin = profile?.role === "admin";
+  const isDriver = profile?.role === "driver";
   return (
     <>
-      <div className="page-title"><h1>Events</h1></div>
-      {isAdmin && <NewEvent onCreated={load} />}
-      {profile?.role === "driver" && <JoinEvent onJoined={load} />}
+      <div className="page-title">
+        <div>
+          <h1>Events</h1>
+          <p>{isAdmin ? "Events anlegen, öffnen und verwalten" : isDriver ? "Deine Events" : "Alle Events"}</p>
+        </div>
+      </div>
       {error && <div className="err">{error}</div>}
-      {loaded && events.length === 0 ? (
-        <div className="notice">
-          {isAdmin
-            ? "Noch keine Events. Lege oben das erste an."
-            : profile?.role === "driver"
-              ? "Du bist noch bei keinem Event dabei. Gib oben den Event-Code ein."
-              : "Noch keine Events. Ein Admin legt Events an."}
+      <div className="tabbody">
+        <div className={isAdmin || isDriver ? "split evs" : "split full"}>
+          {isAdmin && <NewEvent onCreated={load} />}
+          {isDriver && <JoinEvent onJoined={load} />}
+          <div className="scrollarea">
+            {loaded && events.length === 0 ? (
+              <div className="notice">
+                {isAdmin
+                  ? "Noch keine Events. Lege links das erste an."
+                  : isDriver
+                    ? "Du bist noch bei keinem Event dabei. Gib links den Event-Code ein."
+                    : "Noch keine Events. Ein Admin legt Events an."}
+              </div>
+            ) : (
+              <div className="evgrid">
+                {events.map((ev) => (
+                  <div className="evcard" key={ev.id}>
+                    <div className="evtop">
+                      <span className={`badge ${ev.status === "live" ? "live" : ""}`}>{STATUS[ev.status]}</span>
+                      <span>{ev.starts_at ? new Date(ev.starts_at).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "ohne Termin"}</span>
+                    </div>
+                    <Link href={`/events/${ev.id}`} className="evname">{ev.name}</Link>
+                    <div className="muted">{ev.track ?? "Strecke noch offen"}</div>
+                    <div className="evfoot">
+                      <Link href={`/events/${ev.id}`} className="btn primary">Öffnen</Link>
+                      {isAdmin && <DeleteEvent id={ev.id} name={ev.name} compact onDeleted={load} />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      ) : (
-        <div className="tablewrap">
-          <table className="plain">
-            <thead>
-              <tr><th>Event</th><th>Strecke</th><th>Start</th><th>Status</th>{isAdmin && <th />}</tr>
-            </thead>
-            <tbody>
-              {events.map((ev) => (
-                <tr key={ev.id}>
-                  <td><Link href={`/events/${ev.id}`}><b>{ev.name}</b></Link></td>
-                  <td>{ev.track ?? "–"}</td>
-                  <td>{ev.starts_at ? new Date(ev.starts_at).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–"}</td>
-                  <td><span className={`badge ${ev.status === "live" ? "live" : ""}`}>{STATUS[ev.status]}</span></td>
-                  {isAdmin && <td style={{ textAlign: "right" }}><DeleteEvent id={ev.id} name={ev.name} compact onDeleted={load} /></td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      </div>
     </>
   );
 }

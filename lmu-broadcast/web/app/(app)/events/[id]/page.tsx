@@ -32,10 +32,10 @@ function EventView() {
   const isHint = (i: (typeof incidents)[number]) => i.source === "auto" && i.status === "open";
   const openCount = incidents.filter((i) => i.status !== "closed" && !isHint(i)).length;
   const hintCount = incidents.filter(isHint).length;
-  const tabs: [Tab, string][] = [
+  const tabs: [Tab, string, number?][] = [
     ["overview", "Übersicht"],
     ...(isTeam ? ([["live", "Live"]] as [Tab, string][]) : []),
-    ["incidents", `Vorfälle${isStaff && (openCount || hintCount) ? ` (${openCount}${hintCount ? ` + ${hintCount} Hinweise` : ""})` : ""}`],
+    ["incidents", "Vorfälle", isStaff ? openCount + hintCount : 0],
     ["penalties", "Strafen"],
     ["drivers", "Fahrer"],
     ...(isTeam ? ([["overlays", "Overlays"]] as [Tab, string][]) : []),
@@ -53,10 +53,14 @@ function EventView() {
       </div>
       {error && <div className="err">{error}</div>}
       <div className="tabs">
-        {tabs.map(([key, label]) => (
-          <div key={key} className={`tab ${tab === key ? "active" : ""}`} onClick={() => setTab(key)}>{label}</div>
+        {tabs.map(([key, label, count]) => (
+          <div key={key} className={`tab ${tab === key ? "active" : ""}`} onClick={() => setTab(key)}>
+            {label}
+            {!!count && <span className="cnt" title={`${openCount} offen, ${hintCount} Auto-Hinweise`}>{count}</span>}
+          </div>
         ))}
       </div>
+      <div className="tabbody">
       {tab === "overview" && (
         <OverviewTab event={event} incidents={incidents} penalties={penalties} drivers={drivers} isStaff={isStaff} isAdmin={isAdmin} go={(t) => setTab(t as Tab)} />
       )}
@@ -72,6 +76,7 @@ function EventView() {
       {tab === "drivers" && <DriversTab event={event} drivers={drivers} isStaff={isStaff} reload={reload} />}
       {tab === "overlays" && isTeam && <OverlaysTab event={event} />}
       {tab === "settings" && isAdmin && <SettingsTab event={event} onSaved={reload} />}
+      </div>
     </>
   );
 }

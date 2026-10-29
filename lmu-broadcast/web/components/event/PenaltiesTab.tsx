@@ -34,13 +34,13 @@ export default function PenaltiesTab({
         </div>
       )}
       {isStaff && (
-        <div style={{ marginBottom: 12 }}>
+        <div className="toolbar">
           <button className="primary" onClick={() => setCreating((v) => !v)}>{creating ? "Abbrechen" : "Strafe vergeben"}</button>
-          {creating && (
-            <div className="panel" style={{ marginTop: 12 }}>
-              <PenaltyForm eventId={event.id} drivers={drivers} onDone={() => { setCreating(false); reload(); }} />
-            </div>
-          )}
+        </div>
+      )}
+      {isStaff && creating && (
+        <div className="panel">
+          <PenaltyForm eventId={event.id} drivers={drivers} onDone={() => { setCreating(false); reload(); }} />
         </div>
       )}
       {error && <div className="err">{error}</div>}

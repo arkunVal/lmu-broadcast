@@ -16,10 +16,11 @@ export default function OverlaysTab({ event }: { event: EventRow }) {
   useEffect(() => setOrigin(window.location.origin), []);
 
   return (
-    <>
-      <div className="notice">
+    <div className="scrollarea">
+      <div className="notice" style={{ marginBottom: 16 }}>
         In OBS: Quelle hinzufügen, „Browser“ wählen, den Link einfügen und die Größe wie angegeben setzen. Der Hintergrund ist transparent.
       </div>
+      <div className="cardgrid">
       {ITEMS.map((it) => {
         const url = `${origin}/overlay/${it.path}?room=${encodeURIComponent(event.room)}${it.extra}`;
         return (
@@ -37,6 +38,7 @@ export default function OverlaysTab({ event }: { event: EventRow }) {
           </div>
         );
       })}
-    </>
+      </div>
+    </div>
   );
 }

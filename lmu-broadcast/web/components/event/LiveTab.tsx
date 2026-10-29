@@ -80,7 +80,7 @@ export default function LiveTab({
         ))}
       </div>
       </div>
-      <div>
+      <div className="live-right">
         <div className="row" style={{ marginBottom: 12 }}>
           <span className="chip"><span className={`dot ${connection === "subscribed" ? "ok" : connection === "error" ? "bad" : "warn"}`} />{connText}</span>
           <span className="chip"><span className={`dot ${live ? "ok" : snapshot ? "warn" : ""}`} />{dataText}{age !== null && `, ${age.toFixed(1)} s alt, ${packets} Pakete`}</span>
@@ -111,6 +111,7 @@ export default function LiveTab({
           </div>
         )}
 
+        <div className="live-classes">
         {groups.map((g) => {
           const col = classColor(g.cls);
           const shown = (c: Car) => {
@@ -183,6 +184,7 @@ export default function LiveTab({
             {raw && <pre>{JSON.stringify({ ...snapshot, cars: snapshot.cars.slice(0, 2) }, null, 2)}</pre>}
           </div>
         )}
+        </div>
       </div>
 
     </div>

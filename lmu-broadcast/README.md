@@ -90,6 +90,10 @@ Admins: im Event unter *Einstellungen, Event löschen* oder in der Event-Liste *
 
 Einmal `supabase/repair.sql` im SQL Editor ausführen (gefahrlos, löscht nichts). Sonst funktionieren Hinweis-Löschen und der Replay-Knopf nicht.
 
+## Bedienung der Website
+
+Kopf, Titel und Reiter bleiben immer an derselben Stelle. Die Seite selbst scrollt nicht, es scrollen nur die Boxen (Hinweise, Tabellen, Details). Auf Handy und kleinen Fenstern scrollt die Seite normal.
+
 ## Live-Seite
 
 Links schmal die Streckenkarte (Autos, die Gelb auslösen, pulsieren gelb) mit den Auto-Hinweisen, rechts über die volle Breite das Live-Timing, ganz rechts die aktuelle Geschwindigkeit. Sektorzeiten erscheinen, sobald ein Auto den Sektor beendet hat (hell), ältere Zeiten der letzten Runde sind gedimmt.

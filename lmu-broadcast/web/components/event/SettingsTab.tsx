@@ -87,8 +87,9 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
       : "";
 
   return (
-    <>
-      <div className="panel">
+    <div className="scrollarea">
+     <div className="cardgrid c3">
+      <div className="panel wide">
         <h3>Event</h3>
         <div className="grid2">
           <div>
@@ -147,6 +148,7 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
         <p className="muted" style={{ margin: "2px 0 10px" }}>Entfernt das Event mit allen Vorfällen, Strafen, Fahrern und dem Reader-Key. Das kann nicht rückgängig gemacht werden.</p>
         <DeleteEvent id={event.id} name={event.name} onDeleted={() => router.replace("/events")} />
       </div>
-    </>
+     </div>
+    </div>
   );
 }

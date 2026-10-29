@@ -36,7 +36,7 @@ function Users() {
   const shown = users.filter((u) => `${u.display_name} ${u.ingame_name ?? ""}`.toLowerCase().includes(filter.toLowerCase()));
   return (
     <>
-      <div className="row" style={{ marginBottom: 12 }}>
+      <div className="toolbar">
         <input placeholder="Suchen …" value={filter} onChange={(e) => setFilter(e.target.value)} />
         <span className="muted">Rollen bekommen Nutzer normalerweise selbst bei der Anmeldung. Hier kannst du sie nachträglich ändern.</span>
       </div>
@@ -184,9 +184,11 @@ function AdminArea() {
           <div key={key} className={`tab ${tab === key ? "active" : ""}`} onClick={() => setTab(key)}>{label}</div>
         ))}
       </div>
-      {tab === "users" && <Users />}
-      {tab === "keys" && <Keys />}
-      {tab === "tracks" && <Tracks />}
+      <div className="tabbody">
+        {tab === "users" && <Users />}
+        {tab === "keys" && <Keys />}
+        {tab === "tracks" && <Tracks />}
+      </div>
     </>
   );
 }

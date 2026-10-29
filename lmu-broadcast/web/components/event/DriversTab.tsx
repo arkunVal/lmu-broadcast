@@ -76,10 +76,10 @@ export default function DriversTab({
   }
 
   return (
-    <>
+    <div className={isStaff ? "split b" : "split full"}>
       {isStaff && (
         <div className="panel">
-          <b>Fahrer eintragen</b>
+          <h3>Fahrer eintragen</h3>
           <form onSubmit={add}>
             <div className="grid2">
               <div><label>In-Game-Name</label><input required value={form.ingame_name} onChange={(e) => setForm({ ...form, ingame_name: e.target.value })} style={{ width: "100%" }} /></div>
@@ -122,6 +122,6 @@ export default function DriversTab({
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }

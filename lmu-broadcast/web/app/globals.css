@@ -268,6 +268,98 @@ tr.player:hover td { background: rgba(255,252,64,.12); }
 
 /* Live-Seite: kompakte Tabelle, damit alle Spalten (bis km/h) ohne Abschneiden passen; sonst seitlich scrollen */
 .cls-card .tablewrap { overflow-x: auto !important; }
-.cls-card table.plain th, .cls-card table.plain td { padding: 9px 8px; white-space: nowrap; }
-.cls-card table.plain { font-size: 14px; }
+.cls-card table.plain th, .cls-card table.plain td { padding: 8px 6px; white-space: nowrap; }
+.cls-card table.plain { font-size: 13px; }
+.cls-card .carno { min-width: 28px; padding: 1px 4px; }
+.cls-card th { font-size: 10px; letter-spacing: .04em; }
 .live-left button { padding: 6px 10px; font-size: 13px; }
+
+/* =====================================================================
+   Layout v3: Die Seite selbst scrollt nicht, nur die Boxen darin.
+   Kopf, Titel und Reiter bleiben immer an derselben Stelle.
+   Unter 1100 px Breite oder 640 px Höhe scrollt die Seite normal (Handy, kleines Fenster).
+   ===================================================================== */
+.tabbody { display: flex; flex-direction: column; gap: 16px; }
+.tabbody > .panel, .tabbody > .notice, .tabbody > .tablewrap, .tabbody > .live-bar { margin-bottom: 0; }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.split.a { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.split.b { grid-template-columns: minmax(300px, 2fr) minmax(0, 3fr); }
+.split.evs { grid-template-columns: 340px minmax(0, 1fr); }
+.split.full { grid-template-columns: minmax(0, 1fr); }
+.split > .panel, .split > .notice { margin-bottom: 0; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.col > .panel, .col > .tablewrap, .col > .notice { margin-bottom: 0; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 44px; }
+.cardgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; align-items: start; }
+.cardgrid > .panel, .cardgrid > .notice { margin-bottom: 0; }
+.cardgrid > .wide { grid-column: 1 / -1; }
+.scrollarea { min-width: 0; }
+.panel > h3:first-child::before, .box-h h3::before { content: ""; display: inline-block; width: 3px; height: 12px; background: var(--accent); border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
+.box { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.box-h { padding: 14px 18px; border-bottom: 1px solid var(--line); flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.box-b { overflow: auto; min-height: 0; flex: 1 1 auto; }
+.box-b .tablewrap { border: 0; border-radius: 0; background: transparent; }
+.tablewrap thead th { position: sticky; top: 0; z-index: 2; background: var(--panel2); }
+.tab { position: relative; }
+.tab .cnt { position: absolute; top: -7px; right: -4px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; line-height: 1; pointer-events: none; }
+.tab.active .cnt { background: #000; color: var(--accent); }
+.tabs { padding-top: 8px; margin-bottom: 12px; }
+.page-title { min-height: 58px; }
+.statrow { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; }
+.statcard { display: block; text-align: left; width: 100%; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); }
+.statcard .stat-lbl { margin-top: 6px; }
+.statcard:hover { border-color: var(--accent); color: inherit; }
+.evgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; align-content: start; }
+.evcard { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; transition: border-color .2s, transform .2s var(--ease); }
+.evcard:hover { border-color: var(--accent); transform: translateY(-2px); }
+.evcard .evname { font-family: var(--display); font-size: 22px; font-weight: 800; line-height: 1.15; color: #fff; text-decoration: none; }
+.evcard .evname:hover { color: var(--accent); }
+.evcard .evfoot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.evcard .evtop { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+* { scrollbar-width: thin; scrollbar-color: #3a3e45 transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #3a3e45; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #545962; background-clip: content-box; border: 2px solid transparent; }
+
+@media (max-width: 1100px) {
+  .split, .split.a, .split.b, .split.evs { grid-template-columns: minmax(0, 1fr); }
+  .cardgrid { grid-template-columns: minmax(0, 1fr); }
+  .statrow { grid-auto-flow: row; grid-auto-columns: auto; }
+}
+
+@media (min-width: 1101px) and (min-height: 640px) {
+  html, body { height: 100%; overflow: hidden; }
+  .shell { height: 100vh; min-height: 0; }
+  .main { display: flex; flex-direction: column; height: 100vh; min-height: 0; }
+  .hdr { position: static; flex: none; }
+  .wrap { flex: 1 1 auto; min-height: 0; width: 100%; overflow: auto; display: flex; flex-direction: column; padding-bottom: 20px; }
+  .wrap > * { flex: none; }
+  .wrap:has(> .tabbody) { overflow: hidden; }
+  .wrap > .tabbody { flex: 1 1 0; min-height: 0; overflow: hidden; }
+
+  .tabbody > * { min-height: 0; flex: 0 1 auto; }
+  .tabbody > .panel, .tabbody > .tablewrap, .tabbody > .notice, .tabbody > .grid3, .tabbody > .cardgrid { overflow: auto; }
+  .tabbody > .split, .tabbody > .live-grid, .tabbody > .scrollarea { flex: 1 1 0; }
+  .scrollarea { overflow: auto; padding-right: 4px; }
+  .panel.cap { max-height: 38%; }
+
+  .split { min-height: 0; grid-template-rows: minmax(0, 1fr); }
+  .split > .panel, .split > .tablewrap, .split > .notice, .split > .scrollarea { overflow: auto; min-height: 0; }
+  .col { min-height: 0; overflow: hidden; }
+  .col > * { min-height: 0; flex: 0 1 auto; }
+  .col > .panel, .col > .tablewrap { overflow: auto; }
+  .col > .grow, .split > .grow { flex: 1 1 0; }
+  .col > .box, .split > .box { overflow: hidden; }
+
+  /* Live-Seite: links schmal Karte + Hinweise, rechts Live-Timing, jeweils eigene Scroll-Bereiche */
+  .live-grid { min-height: 0; align-items: stretch; grid-template-rows: minmax(0, 1fr); }
+  .live-left { position: static; display: flex; flex-direction: column; gap: 16px; min-height: 0; }
+  .live-left > .mpanel { flex: none; margin-bottom: 0; }
+  .live-left > .panel { flex: 1 1 0; min-height: 0; overflow: auto; margin-bottom: 0; }
+  .live-right { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .live-right > * { flex: none; }
+  .live-right > .live-classes { flex: 1 1 0; min-height: 0; overflow: auto; padding-right: 4px; }
+}
+
+.cardgrid.c3 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+@media (min-width: 1101px) and (min-height: 640px) { .live-grid { grid-template-columns: 280px minmax(0, 1fr); } }

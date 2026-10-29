@@ -272,7 +272,7 @@ export default function IncidentsTab({
 
   return (
     <>
-      <div className="row" style={{ marginBottom: 12 }}>
+      <div className="toolbar">
         {isStaff && (
           <>
             <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: "auto" }}>
@@ -296,7 +296,7 @@ export default function IncidentsTab({
       )}
 
       {isStaff && hints.length > 0 && (
-        <div className="panel">
+        <div className="panel cap">
           <h3>Auto-Hinweise ({hints.length})</h3>
           <p className="muted" style={{ margin: "2px 0 8px", fontSize: 13 }}>Noch keine Vorfälle. „Ist Vorfall“ setzt den Hinweis auf „In Bearbeitung“, „Kein Vorfall“ löscht ihn.</p>
           {hints.map((h) => (
@@ -318,7 +318,7 @@ export default function IncidentsTab({
         </div>
       )}
 
-      <div className="grid2" style={{ gridTemplateColumns: "minmax(0,3fr) minmax(0,2fr)", alignItems: "start", gap: 16 }}>
+      <div className="split a">
         <div className="tablewrap">
           <table className="plain">
             <thead>
@@ -340,13 +340,11 @@ export default function IncidentsTab({
             </tbody>
           </table>
         </div>
-        <div>
-          {selected ? (
+        {selected ? (
             <Detail key={selected.id + selected.status + selected.incident_drivers.length} incident={selected} event={event} drivers={drivers} penalties={penalties} isStaff={isStaff} reload={reload} onGone={() => setSelectedId(null)} />
           ) : (
             <div className="notice">Wähle links einen Vorfall aus.</div>
           )}
-        </div>
       </div>
     </>
   );
