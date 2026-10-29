@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
@@ -46,6 +47,7 @@ function EventView() {
     <>
       <div className="page-title">
         <div>
+          <Link href="/events" className="btn back">← Alle Events</Link>
           <h1>{event.name}</h1>
           <p>{event.track ?? "Strecke noch offen"}</p>
         </div>

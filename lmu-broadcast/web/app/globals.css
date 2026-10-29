@@ -363,3 +363,15 @@ tr.player:hover td { background: rgba(255,252,64,.12); }
 
 .cardgrid.c3 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
 @media (min-width: 1101px) and (min-height: 640px) { .live-grid { grid-template-columns: 280px minmax(0, 1fr); } }
+
+/* Event-Seiten immer ueber die volle Breite, damit Reiter und Inhalt auf jedem Reiter links an derselben Stelle stehen */
+.wrap:has(.tabbody) { max-width: none; margin: 0; }
+a.btn.back { padding: 5px 12px; font-size: 13px; margin-bottom: 8px; color: var(--muted); }
+a.btn.back:hover { color: var(--accent); }
+.ovhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px 32px; flex-wrap: wrap; }
+.ovcode { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.ovcode .lbl { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+@media (min-width: 1101px) and (min-height: 640px) {
+  .tabbody > .grow { flex: 1 1 0; }
+  .tabbody > .box { overflow: hidden; }
+}
