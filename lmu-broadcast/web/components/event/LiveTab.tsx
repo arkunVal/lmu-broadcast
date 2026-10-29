@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth";
+import HintButtons from "./HintButtons";
+import ReplayLink from "./ReplayLink";
 import Tires from "@/components/Tires";
 import TrackMap from "@/components/TrackMap";
 import { classColor, classLabel } from "@/lib/classes";
@@ -11,10 +14,12 @@ import type { Car } from "@/lib/types";
 import { useLiveData } from "@/lib/useLiveData";
 
 export default function LiveTab({
-  event, incidents, openIncident,
+  event, incidents, openIncident, reload,
 }: {
-  event: EventRow; incidents: Incident[]; openIncident: (id: string) => void;
+  event: EventRow; incidents: Incident[]; openIncident: (id: string) => void; reload: () => void;
 }) {
+  const { profile } = useAuth();
+  const isStaff = profile?.role === "admin" || profile?.role === "steward";
   const { snapshot, connection, receivedAt, packets } = useLiveData(event.room);
   const [now, setNow] = useState(() => Date.now());
   const [raw, setRaw] = useState(false);
@@ -57,20 +62,20 @@ export default function LiveTab({
       <div className="live-left">
         <TrackMap snapshot={live ? snapshot : null} panel />
       <div className="panel">
-        <h3>Neue Auto-Hinweise</h3>
-        <p className="muted" style={{ margin: "2px 0 8px", fontSize: 13 }}>Automatisch erkannt, nicht bestätigt. Bitte prüfen.</p>
+        <h3>Auto-Hinweise</h3>
+        <p className="muted" style={{ margin: "2px 0 8px", fontSize: 13 }}>Noch keine Vorfälle. {isStaff ? "„Ist Vorfall“ übernimmt den Hinweis in Bearbeitung, „Kein Vorfall“ löscht ihn." : "Die Rennleitung prüft sie."}</p>
         {hints.length === 0 && <div className="muted">Keine offenen Hinweise.</div>}
         {hints.map((h) => (
-          <div key={h.id} className="row" style={{ justifyContent: "space-between", padding: "8px 0", borderTop: "1px solid var(--line)" }}>
-            <span>
+          <div key={h.id} className="hint-item">
+            <div>
               <b>{INCIDENT_KINDS[h.kind] ?? h.kind}</b>{" "}
-              <span className="muted">{h.session_time != null && fmtClock(h.session_time)}{h.lap != null && `, Runde ${h.lap}`}</span>
-              <br />
-              <span style={{ fontSize: 13 }}>
+              <span className="muted">{h.session_time != null && fmtClock(h.session_time)}{h.lap != null && `, R${h.lap}`}</span>
+              <div style={{ fontSize: 13 }}>
                 {h.incident_drivers.map((d) => `${d.car_number != null ? `#${d.car_number} ` : ""}${d.ingame_name}${d.role === "possible" ? " (?)" : ""}`).join(", ") || "–"}
-              </span>
-            </span>
-            <button onClick={() => openIncident(h.id)}>Prüfen</button>
+              </div>
+            </div>
+            <div style={{ marginTop: 6 }}><ReplayLink event={event} sessionTime={h.session_time} small /></div>
+            {isStaff && <div style={{ marginTop: 6 }}><HintButtons id={h.id} reload={reload} /></div>}
           </div>
         ))}
       </div>
@@ -141,7 +146,7 @@ export default function LiveTab({
                       <th className="num">S1</th><th className="num">S2</th><th className="num">S3</th>
                       <th className="num">Beste</th><th className="num">Letzte</th>
                       <th className="num">{kind === "race" ? "Abstand" : "Rückstand"}</th>{kind === "race" && <th className="num">Intervall</th>}
-                      <th className="ctr">Reifen</th><th className="num">Stopps</th><th className="ctr">Status</th>
+                      <th className="ctr">Reifen</th><th className="num">Stopps</th><th className="ctr">Status</th><th className="num">km/h</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -162,6 +167,7 @@ export default function LiveTab({
                           {r.car.finish === 3 ? <span className="pill dq">DQ</span> : r.car.inPits ? <span className="pill pit">PIT</span> : r.car.yellowCause ? <span className="pill yel">GELB</span> : <span className="pill run">RUN</span>}
                           {r.car.penalties > 0 && <span className="tag cls" style={{ marginLeft: 6 }}>{r.car.penalties} Str.</span>}
                         </td>
+                        <td className="num">{r.car.speedKmh != null ? Math.round(r.car.speedKmh) : "–"}</td>
                       </tr>
                     ))}
                   </tbody>

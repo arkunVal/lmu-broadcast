@@ -29,11 +29,13 @@ function EventView() {
   if (!loaded) return <div className="notice">Lade …</div>;
   if (!event) return <div className="notice">Event nicht gefunden. Du bist eventuell noch nicht beigetreten. {error}</div>;
 
-  const openCount = incidents.filter((i) => i.status !== "closed").length;
+  const isHint = (i: (typeof incidents)[number]) => i.source === "auto" && i.status === "open";
+  const openCount = incidents.filter((i) => i.status !== "closed" && !isHint(i)).length;
+  const hintCount = incidents.filter(isHint).length;
   const tabs: [Tab, string][] = [
     ["overview", "Übersicht"],
     ...(isTeam ? ([["live", "Live"]] as [Tab, string][]) : []),
-    ["incidents", `Vorfälle${isStaff && openCount ? ` (${openCount})` : ""}`],
+    ["incidents", `Vorfälle${isStaff && (openCount || hintCount) ? ` (${openCount}${hintCount ? ` + ${hintCount} Hinweise` : ""})` : ""}`],
     ["penalties", "Strafen"],
     ["drivers", "Fahrer"],
     ...(isTeam ? ([["overlays", "Overlays"]] as [Tab, string][]) : []),
@@ -59,7 +61,7 @@ function EventView() {
         <OverviewTab event={event} incidents={incidents} penalties={penalties} drivers={drivers} isStaff={isStaff} isAdmin={isAdmin} go={(t) => setTab(t as Tab)} />
       )}
       {tab === "live" && isTeam && (
-        <LiveTab event={event} incidents={incidents} openIncident={(id) => { setSelected(id); setTab("incidents"); }} />
+        <LiveTab event={event} incidents={incidents} openIncident={(id) => { setSelected(id); setTab("incidents"); }} reload={reload} />
       )}
       {tab === "incidents" && (
         <IncidentsTab event={event} incidents={incidents} drivers={drivers} penalties={penalties} isStaff={isStaff} selectedId={selected} setSelectedId={setSelected} reload={reload} />

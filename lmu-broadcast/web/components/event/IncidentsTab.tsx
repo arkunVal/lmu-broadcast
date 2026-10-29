@@ -9,6 +9,7 @@ import {
 import { sessionLabel } from "@/lib/standings";
 import { getSupabase } from "@/lib/supabase";
 import PenaltyForm from "./PenaltyForm";
+import HintButtons from "./HintButtons";
 import ReplayLink from "./ReplayLink";
 
 function driversText(i: Incident): string {
@@ -99,10 +100,11 @@ function NewIncident({ event, drivers, onDone }: { event: EventRow; drivers: Eve
 }
 
 function Detail({
-  incident, event, drivers, penalties, isStaff, reload,
+  incident, event, drivers, penalties, isStaff, reload, onGone,
 }: {
-  incident: Incident; event: EventRow; drivers: EventDriver[]; penalties: Penalty[]; isStaff: boolean; reload: () => void;
+  incident: Incident; event: EventRow; drivers: EventDriver[]; penalties: Penalty[]; isStaff: boolean; reload: () => void; onGone: () => void;
 }) {
+  const isHint = incident.source === "auto" && incident.status === "open";
   const supabase = getSupabase()!;
   const [decision, setDecision] = useState(incident.decision ?? "");
   const [description, setDescription] = useState(incident.description);
@@ -211,10 +213,16 @@ function Detail({
       )}
 
       {error && <div className="err">{error}</div>}
-      {isStaff && (
+      {isStaff && isHint && (
+        <div className="notice" style={{ marginTop: 12 }}>
+          <b>Auto-Hinweis, noch kein Vorfall.</b> Ist es ein Vorfall?
+          <div style={{ marginTop: 8 }}><HintButtons id={incident.id} reload={reload} onGone={onGone} /></div>
+        </div>
+      )}
+      {isStaff && !isHint && (
         <>
           <div className="row" style={{ marginTop: 12 }}>
-            {incident.status !== "reviewing" && <button onClick={() => setStatus("reviewing")}>In Prüfung setzen</button>}
+            {incident.status !== "reviewing" && <button onClick={() => setStatus("reviewing")}>In Bearbeitung setzen</button>}
             {incident.status !== "closed" && <button className="primary" onClick={() => setStatus("closed")}>Abschließen &amp; veröffentlichen</button>}
             {incident.status === "closed" && <button onClick={() => setStatus("open")}>Wieder öffnen</button>}
             <button onClick={() => setStatus(incident.status)}>Text speichern</button>
@@ -252,12 +260,15 @@ export default function IncidentsTab({
   const [source, setSource] = useState("all");
   const [creating, setCreating] = useState(false);
 
+  // Auto-Hinweise, die noch niemand bestätigt hat, sind keine Vorfälle
+  const isHint = (i: Incident) => i.source === "auto" && i.status === "open";
+  const hints = useMemo(() => incidents.filter(isHint), [incidents]);
   const shown = useMemo(
-    () => incidents.filter((i) => (status === "all" || i.status === status) && (source === "all" || i.source === source)),
+    () => incidents.filter((i) => !isHint(i) && (status === "all" || i.status === status) && (source === "all" || i.source === source)),
     [incidents, status, source],
   );
   const selected = incidents.find((i) => i.id === selectedId) ?? null;
-  const openCount = incidents.filter((i) => i.status !== "closed").length;
+  const openCount = incidents.filter((i) => !isHint(i) && i.status !== "closed").length;
 
   return (
     <>
@@ -270,7 +281,7 @@ export default function IncidentsTab({
             </select>
             <select value={source} onChange={(e) => setSource(e.target.value)} style={{ width: "auto" }}>
               <option value="all">Alle Quellen</option>
-              <option value="auto">Auto-Hinweise</option>
+              <option value="auto">Aus Auto-Hinweis</option>
               <option value="manual">Manuell</option>
             </select>
             <span className="muted">{openCount} nicht abgeschlossen</span>
@@ -282,6 +293,29 @@ export default function IncidentsTab({
 
       {creating && isStaff && (
         <NewIncident event={event} drivers={drivers} onDone={(id) => { setCreating(false); setSelectedId(id); reload(); }} />
+      )}
+
+      {isStaff && hints.length > 0 && (
+        <div className="panel">
+          <h3>Auto-Hinweise ({hints.length})</h3>
+          <p className="muted" style={{ margin: "2px 0 8px", fontSize: 13 }}>Noch keine Vorfälle. „Ist Vorfall“ setzt den Hinweis auf „In Bearbeitung“, „Kein Vorfall“ löscht ihn.</p>
+          {hints.map((h) => (
+            <div key={h.id} className="hint-item" style={h.id === selectedId ? { background: "var(--sel)" } : undefined}>
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <span>
+                  <b>{INCIDENT_KINDS[h.kind] ?? h.kind}</b>{" "}
+                  <span className="muted">{h.session_time != null && fmtClock(h.session_time)}{h.lap != null && ` · R${h.lap}`}</span>{" "}
+                  <span className="brk">{driversText(h)}</span>
+                </span>
+                <span className="row">
+                  <button onClick={() => setSelectedId(h.id)}>Details</button>
+                  <HintButtons id={h.id} reload={reload} onGone={() => { if (selectedId === h.id) setSelectedId(null); }} />
+                </span>
+              </div>
+              <div style={{ marginTop: 6 }}><ReplayLink event={event} sessionTime={h.session_time} small /></div>
+            </div>
+          ))}
+        </div>
       )}
 
       <div className="grid2" style={{ gridTemplateColumns: "minmax(0,3fr) minmax(0,2fr)", alignItems: "start", gap: 16 }}>
@@ -308,7 +342,7 @@ export default function IncidentsTab({
         </div>
         <div>
           {selected ? (
-            <Detail key={selected.id + selected.status + selected.incident_drivers.length} incident={selected} event={event} drivers={drivers} penalties={penalties} isStaff={isStaff} reload={reload} />
+            <Detail key={selected.id + selected.status + selected.incident_drivers.length} incident={selected} event={event} drivers={drivers} penalties={penalties} isStaff={isStaff} reload={reload} onGone={() => setSelectedId(null)} />
           ) : (
             <div className="notice">Wähle links einen Vorfall aus.</div>
           )}

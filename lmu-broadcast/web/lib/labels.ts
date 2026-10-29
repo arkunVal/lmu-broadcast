@@ -9,7 +9,7 @@ export const INCIDENT_KINDS: Record<string, string> = {
 
 export const INCIDENT_STATUS: Record<string, string> = {
   open: "Offen",
-  reviewing: "In Prüfung",
+  reviewing: "In Bearbeitung",
   closed: "Abgeschlossen",
 };
 

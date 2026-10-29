@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
+import DeleteEvent from "@/components/event/DeleteEvent";
 import { useAuth } from "@/lib/auth";
 import type { EventRow } from "@/lib/labels";
 import { getSupabase } from "@/lib/supabase";
@@ -153,7 +154,7 @@ function EventList() {
         <div className="tablewrap">
           <table className="plain">
             <thead>
-              <tr><th>Event</th><th>Strecke</th><th>Start</th><th>Status</th></tr>
+              <tr><th>Event</th><th>Strecke</th><th>Start</th><th>Status</th>{isAdmin && <th />}</tr>
             </thead>
             <tbody>
               {events.map((ev) => (
@@ -162,6 +163,7 @@ function EventList() {
                   <td>{ev.track ?? "–"}</td>
                   <td>{ev.starts_at ? new Date(ev.starts_at).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–"}</td>
                   <td><span className={`badge ${ev.status === "live" ? "live" : ""}`}>{STATUS[ev.status]}</span></td>
+                  {isAdmin && <td style={{ textAlign: "right" }}><DeleteEvent id={ev.id} name={ev.name} compact onDeleted={load} /></td>}
                 </tr>
               ))}
             </tbody>

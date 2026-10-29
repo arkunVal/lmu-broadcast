@@ -25,8 +25,8 @@ export default function OverviewTab({
       .then(({ data }) => setCoverage(data ? Number((data as { coverage: number }).coverage) : null));
   }, [event.track_slug]);
 
-  const open = incidents.filter((i) => i.status !== "closed");
-  const hints = open.filter((i) => i.source === "auto");
+  const hints = incidents.filter((i) => i.source === "auto" && i.status === "open"); // Hinweise, noch keine Vorfälle
+  const open = incidents.filter((i) => i.status !== "closed" && !hints.includes(i));
   const lastIncidents = incidents.slice(0, 4);
 
   return (
@@ -35,7 +35,7 @@ export default function OverviewTab({
         {isStaff && (
           <div className="panel" style={{ margin: 0 }}>
             <div className="stat">{open.length}</div>
-            <div className="stat-lbl">offene Vorfälle{hints.length > 0 ? `, davon ${hints.length} automatisch` : ""}</div>
+            <div className="stat-lbl">offene Vorfälle{hints.length > 0 ? `, dazu ${hints.length} Auto-${hints.length === 1 ? "Hinweis" : "Hinweise"}` : ""}</div>
             <button style={{ marginTop: 10 }} onClick={() => go("incidents")}>Zu den Vorfällen</button>
           </div>
         )}

@@ -67,11 +67,32 @@ Im Event den Reiter **Overlays** öffnen. Die Links sind schon fertig (richtiger
 
 ## Replay in Le Mans Ultimate
 
-Der Reader liest bei jedem Vorfall die Session-Uhr des Spiels und schickt sie mit. Das Replay von Le Mans Ultimate nutzt dieselbe Uhr. Bei jedem Vorfall und jeder Strafe steht deshalb „LMU-Replay ab 1:23:37“ (8 Sekunden vor dem Ereignis) mit Knopf *Kopieren*. Im Spiel: Replay öffnen, diese Zeit anspringen. Läuft die Replay-Uhr bei dir anders, trägst du im Event unter *Einstellungen* einmal den Unterschied in Sekunden ein (normal 0). Das beim ersten echten Test prüfen. Nur wer von Phase 4 (frühe Version) kommt, führt `supabase/repair.sql` einmal aus.
+Der Reader liest bei jedem Vorfall die Session-Uhr des Spiels und schickt sie mit. Das Replay von Le Mans Ultimate nutzt dieselbe Uhr. Bei jedem Vorfall, Hinweis und jeder Strafe steht deshalb „LMU-Replay ab 1:23:37“ (8 Sekunden vor dem Ereignis). Läuft die Replay-Uhr bei dir anders, trägst du im Event unter *Einstellungen* einmal den Unterschied in Sekunden ein (normal 0).
+
+**Knopf „▶ Im Spiel anspringen“** (Admin und Rennleitung): Die Website legt einen Befehl an, der Reader am Rennrechner holt ihn alle 1,5 Sekunden ab und springt über die lokale Schnittstelle des Spiels (Port 6397) im Replay an die Zeit. Das Ergebnis steht neben dem Knopf. Voraussetzungen: Reader läuft, Spiel läuft, Replay ist im Spiel geöffnet.
+
+Wichtig: LMU dokumentiert keinen Replay-Sprung. Der Reader sucht selbst nach einem passenden Endpunkt. Klappt das nicht, steht am Knopf „Kein Replay-Sprung im Spiel gefunden“. Dann:
+1. Spiel starten, im Ordner `reader` ausführen: `py lmu_reader.py --replay-endpoints`. Das listet alle Replay-Endpunkte des Spiels und speichert `lmu-api.json`.
+2. Den richtigen Endpunkt in `config.json` eintragen, z. B. `"replay_jump": {"path": "/rest/replay/seek", "method": "POST", "param": "time", "where": "query", "scale": 1}`. (`scale` 1000, wenn das Spiel Millisekunden will.)
+3. Oder die Ausgabe von Schritt 1 schicken, dann wird es fest eingebaut.
+
+## Auto-Hinweise und Vorfälle
+
+Ein Auto-Hinweis ist **kein** Vorfall. Er erscheint in der Live-Seite (links unter der Karte) und oben im Reiter *Vorfälle*. Die Rennleitung klickt:
+- **Ist Vorfall**: Der Hinweis wird zum Vorfall mit Status *In Bearbeitung*.
+- **Kein Vorfall**: Der Hinweis wird gelöscht.
+
+## Event löschen
+
+Admins: im Event unter *Einstellungen, Event löschen* oder in der Event-Liste *Löschen*. Es gibt eine Rückfrage. Gelöscht werden Vorfälle, Strafen, Fahrer und Reader-Key des Events.
+
+## Update von einer älteren Version
+
+Einmal `supabase/repair.sql` im SQL Editor ausführen (gefahrlos, löscht nichts). Sonst funktionieren Hinweis-Löschen und der Replay-Knopf nicht.
 
 ## Live-Seite
 
-Links die Streckenkarte (Autos, die Gelb auslösen, pulsieren gelb), rechts das Live-Timing. Sektorzeiten erscheinen, sobald ein Auto den Sektor beendet hat (hell), ältere Zeiten der letzten Runde sind gedimmt.
+Links schmal die Streckenkarte (Autos, die Gelb auslösen, pulsieren gelb) mit den Auto-Hinweisen, rechts über die volle Breite das Live-Timing, ganz rechts die aktuelle Geschwindigkeit. Sektorzeiten erscheinen, sobald ein Auto den Sektor beendet hat (hell), ältere Zeiten der letzten Runde sind gedimmt.
 
 ## Reifen
 
@@ -94,7 +115,7 @@ Rennleitung und Admins sehen im Event die Reiter *Live*, *Vorfälle*, *Strafen*.
 
 ## Tests (Entwickler, optional)
 
-- Reader: im Ordner `reader` `python -m unittest discover tests` (30 Tests).
+- Reader: im Ordner `reader` `python -m unittest discover tests` (36 Tests).
 - Website: im Ordner `web` `npm install`, dann `npx tsc --noEmit` und `npm run build`.
 
 ## Bekannte Unsicherheiten (beim ersten echten Test prüfen)

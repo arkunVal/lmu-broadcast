@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import DeleteEvent from "./DeleteEvent";
+import { useRouter } from "next/navigation";
 import CopyButton from "@/components/CopyButton";
 import type { EventRow } from "@/lib/labels";
 import { encodeReaderKey } from "@/lib/readerKey";
@@ -11,6 +13,7 @@ const OTHER = "__other__";
 type TrackOpt = { slug: string; name: string };
 
 export default function SettingsTab({ event, onSaved }: { event: EventRow; onSaved: () => void }) {
+  const router = useRouter();
   const supabase = getSupabase()!;
   const [status, setStatus] = useState(event.status);
   const [tracks, setTracks] = useState<TrackOpt[]>([]);
@@ -137,6 +140,12 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
           <button className="danger" onClick={rotate}>Neuen Key erzeugen</button>
         </div>
         {showKey && <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{readerKey || "(nicht lesbar)"}</pre>}
+      </div>
+
+      <div className="panel">
+        <h3>Event löschen</h3>
+        <p className="muted" style={{ margin: "2px 0 10px" }}>Entfernt das Event mit allen Vorfällen, Strafen, Fahrern und dem Reader-Key. Das kann nicht rückgängig gemacht werden.</p>
+        <DeleteEvent id={event.id} name={event.name} onDeleted={() => router.replace("/events")} />
       </div>
     </>
   );

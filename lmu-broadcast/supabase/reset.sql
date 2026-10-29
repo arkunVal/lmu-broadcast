@@ -6,6 +6,7 @@
 -- =====================================================================
 drop trigger if exists on_auth_user_created on auth.users;
 
+drop table if exists public.replay_commands cascade;
 drop table if exists public.penalties cascade;
 drop table if exists public.incident_drivers cascade;
 drop table if exists public.incidents cascade;
