@@ -76,6 +76,20 @@ Wichtig: LMU dokumentiert keinen Replay-Sprung. Der Reader sucht selbst nach ein
 2. Den richtigen Endpunkt in `config.json` eintragen, z. B. `"replay_jump": {"path": "/rest/replay/seek", "method": "POST", "param": "time", "where": "query", "scale": 1}`. (`scale` 1000, wenn das Spiel Millisekunden will.)
 3. Oder die Ausgabe von Schritt 1 schicken, dann wird es fest eingebaut.
 
+**Auf das Auto im Hinweis wechseln:** Der Sprung nimmt die Startnummer und den Namen des ersten beteiligten Fahrers mit. Der Reader sucht das Auto im Spiel (Startnummer, sonst Name) und stellt die Replay-Kamera darauf. Klappt der Wechsel nicht, springt das Replay trotzdem, und neben dem Knopf steht ein Hinweis. Dann den passenden Endpunkt aus `--replay-endpoints` in `config.json` eintragen, z. B. `"replay_focus": {"path": "/rest/watch/focus", "method": "POST", "param": "slotID", "where": "query", "by": "slot"}` (`by`: `slot`, `number` oder `name`).
+
+## Anmeldung zum Event (Fahrer und Teams)
+
+**Admin:** Beim Anlegen des Events die Klassen wählen (Hypercar, LMP2, LMGT3 …, eigene möglich) und ggf. „Team-Event“ ankreuzen. Beides ist später unter *Einstellungen* änderbar.
+
+**Einzelfahrer:** Event-Code eingeben, „Weiter“. Der In-Game-Name kommt automatisch aus dem Konto (sonst einmal eintragen), dazu Klasse aus der Liste und Startnummer (1 bis 999, pro Event einmalig).
+
+**Team-Event:**
+1. Der Teamkapitän wählt „Neues Team anmelden“: Teamname, Klasse, Startnummer und die In-Game-Namen der Teammitglieder (eine pro Zeile). Er ist automatisch Fahrer.
+2. Die Teammitglieder geben nur den Event-Code ein und wählen „Ich bin Teammitglied“. Sie werden über ihren In-Game-Namen dem Team zugeordnet, Klasse und Nummer gelten fürs ganze Team.
+3. Der Kapitän pflegt sein Team später im Reiter *Fahrer* („Mein Team“: Mitglieder hinzufügen oder entfernen). Admin und Rennleitung können alles ändern.
+Die Übersicht zeigt alle Fahrer mit Klasse, Team und Status („angemeldet“ oder „noch nicht beigetreten“).
+
 ## Auto-Hinweise und Vorfälle
 
 Ein Auto-Hinweis ist **kein** Vorfall. Er erscheint in der Live-Seite (links unter der Karte) und oben im Reiter *Vorfälle*. Die Rennleitung klickt:

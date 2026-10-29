@@ -1,26 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { sameName, type EventDriver, type EventRow } from "@/lib/labels";
+import { useState } from "react";
+import { type EventDriver, type EventRow } from "@/lib/labels";
+import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
-
-type Acc = { display_name: string; ingame_name: string | null };
 
 export default function DriversTab({
   event, drivers, isStaff, reload,
 }: {
   event: EventRow; drivers: EventDriver[]; isStaff: boolean; reload: () => void;
 }) {
+  const { profile } = useAuth();
   const supabase = getSupabase()!;
-  const [accounts, setAccounts] = useState<Acc[]>([]);
   const [form, setForm] = useState({ ingame_name: "", car_number: "", car_class: "", team: "" });
   const [bulk, setBulk] = useState("");
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
+  const [newMember, setNewMember] = useState("");
+  const [teamErr, setTeamErr] = useState("");
 
-  useEffect(() => {
-    supabase.from("profiles").select("display_name, ingame_name").then(({ data }) => setAccounts((data as Acc[]) ?? []));
-  }, [supabase]);
+  const captain = drivers.find((d) => d.is_captain && d.profile_id && d.profile_id === profile?.id && d.team_id);
+  const myTeam = captain ? drivers.filter((d) => d.team_id === captain.team_id) : [];
+
+  async function addMember(e: React.FormEvent) {
+    e.preventDefault();
+    if (!captain?.team_id) return;
+    setTeamErr("");
+    const { error } = await supabase.rpc("team_add_member", { p_team: captain.team_id, p_name: newMember.trim() });
+    if (error) setTeamErr(error.message);
+    else setNewMember("");
+    reload();
+  }
+
+  async function removeMember(id: string) {
+    setTeamErr("");
+    const { error } = await supabase.rpc("team_remove_member", { p_driver: id });
+    if (error) setTeamErr(error.message);
+    reload();
+  }
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -76,7 +93,26 @@ export default function DriversTab({
   }
 
   return (
-    <div className={isStaff ? "split b" : "split full"}>
+    <div className={isStaff || captain ? "split b" : "split full"}>
+      {!isStaff && captain && (
+        <div className="panel">
+          <h3>Mein Team: {captain.team}</h3>
+          <p className="muted" style={{ margin: "2px 0 10px" }}>Trage deine Teammitglieder mit ihrem In-Game-Namen ein. Wer danach den Event-Code eingibt, landet automatisch in deinem Team.</p>
+          <ul style={{ margin: "0 0 10px", paddingLeft: 0, listStyle: "none" }}>
+            {myTeam.map((m) => (
+              <li key={m.id} className="row" style={{ justifyContent: "space-between", padding: "4px 0" }}>
+                <span><b>{m.ingame_name}</b> <span className="muted" style={{ fontSize: 13 }}>{m.is_captain ? "Kapitän" : m.profile_id ? "angemeldet" : "noch nicht beigetreten"}</span></span>
+                {!m.is_captain && <button className="danger" onClick={() => removeMember(m.id)}>Entfernen</button>}
+              </li>
+            ))}
+          </ul>
+          <form onSubmit={addMember} className="row" style={{ flexWrap: "nowrap" }}>
+            <input value={newMember} onChange={(e) => setNewMember(e.target.value)} required placeholder="In-Game-Name" style={{ flex: 1, minWidth: 0 }} />
+            <button className="primary">Hinzufügen</button>
+          </form>
+          {teamErr && <div className="err">{teamErr}</div>}
+        </div>
+      )}
       {isStaff && (
         <div className="panel">
           <h3>Fahrer eintragen</h3>
@@ -84,7 +120,12 @@ export default function DriversTab({
             <div className="grid2">
               <div><label>In-Game-Name</label><input required value={form.ingame_name} onChange={(e) => setForm({ ...form, ingame_name: e.target.value })} style={{ width: "100%" }} /></div>
               <div><label>Startnummer</label><input type="number" value={form.car_number} onChange={(e) => setForm({ ...form, car_number: e.target.value })} style={{ width: "100%" }} /></div>
-              <div><label>Klasse</label><input value={form.car_class} onChange={(e) => setForm({ ...form, car_class: e.target.value })} placeholder="Hypercar, LMP2, GT3 …" style={{ width: "100%" }} /></div>
+              <div><label>Klasse</label>{(event.classes ?? []).length > 0 ? (
+                <select value={form.car_class} onChange={(e) => setForm({ ...form, car_class: e.target.value })} style={{ width: "100%" }}>
+                  <option value="">–</option>
+                  {(event.classes ?? []).map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              ) : <input value={form.car_class} onChange={(e) => setForm({ ...form, car_class: e.target.value })} placeholder="Hypercar, LMP2, GT3 …" style={{ width: "100%" }} />}</div>
               <div><label>Team</label><input value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })} style={{ width: "100%" }} /></div>
             </div>
             <div style={{ marginTop: 10 }}><button className="primary">Hinzufügen</button></div>
@@ -102,19 +143,18 @@ export default function DriversTab({
       <div className="tablewrap">
         <table className="plain">
           <thead>
-            <tr><th>Nr</th><th>In-Game-Name</th><th>Klasse</th><th>Team</th><th>Konto</th>{isStaff && <th />}</tr>
+            <tr><th>Nr</th><th>In-Game-Name</th><th>Klasse</th><th>Team</th><th>Status</th>{isStaff && <th />}</tr>
           </thead>
           <tbody>
             {drivers.length === 0 && <tr><td colSpan={6} className="muted">Noch keine Fahrer eingetragen.</td></tr>}
             {drivers.map((d) => {
-              const acc = accounts.find((a) => sameName(a.ingame_name, d.ingame_name));
               return (
                 <tr key={d.id}>
                   <td>{d.car_number ?? "–"}</td>
                   <td>{d.ingame_name}</td>
                   <td>{d.car_class ?? "–"}</td>
                   <td>{d.team ?? "–"}</td>
-                  <td>{acc ? <span className="badge closed">verknüpft: {acc.display_name || "Konto"}</span> : <span className="muted">kein Konto</span>}</td>
+                  <td>{d.profile_id ? <span className="badge closed">angemeldet{d.is_captain ? " · Kapitän" : ""}</span> : <span className="muted">{d.team_id ? "eingetragen, noch nicht beigetreten" : "nur eingetragen"}</span>}</td>
                   {isStaff && <td><button className="danger" onClick={() => remove(d.id)}>Entfernen</button></td>}
                 </tr>
               );

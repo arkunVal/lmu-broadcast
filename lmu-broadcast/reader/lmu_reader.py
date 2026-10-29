@@ -223,8 +223,10 @@ def main() -> int:
         auto_track = AutoTrack(site_url, ingest_token)
 
     # Replay-Sprung-Knopf der Website (nur mit echtem Spiel)
+    replay = None
     if site_url and ingest_token and not args.dry_run and not args.demo and not args.from_file:
-        ReplayControl(site_url, ingest_token, cfg.get("replay_jump")).start()
+        replay = ReplayControl(site_url, ingest_token, cfg.get("replay_jump"), focus_override=cfg.get("replay_focus"))
+        replay.start()
 
     interval = 1.0 / read_hz
     send_interval = 1.0 / send_hz
@@ -251,6 +253,8 @@ def main() -> int:
             else:
                 data = source.read()
                 payload = build_payload(data) if now - last_send >= send_interval or payload is None else payload
+                if replay is not None:
+                    replay.set_cars(payload["cars"])
 
             # Vorfall-Hinweise: bei jedem Lese-Takt
             if detector is not None and data is not None:

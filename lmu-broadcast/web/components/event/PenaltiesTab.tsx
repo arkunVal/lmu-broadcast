@@ -56,7 +56,7 @@ export default function PenaltiesTab({
                 <td>{p.car_number != null && `#${p.car_number} `}{p.ingame_name}</td>
                 <td><b>{penaltyText(p.kind, p.amount)}</b></td>
                 <td className="brk">{p.reason || "–"}</td>
-                <td className="num">{p.lap ?? "–"}{p.session_time != null && <> <ReplayLink event={event} sessionTime={p.session_time} small /></>}</td>
+                <td className="num">{p.lap ?? "–"}{p.session_time != null && <> <ReplayLink event={event} sessionTime={p.session_time} focus={{ num: p.car_number, name: p.ingame_name }} small /></>}</td>
                 <td><span className={`badge ${p.status === "issued" ? "open" : ""}`}>{PENALTY_STATUS[p.status]}</span></td>
                 {isStaff && (
                   <td>

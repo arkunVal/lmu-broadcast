@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import RegisterForm from "@/components/RegisterForm";
 import RequireAuth from "@/components/RequireAuth";
 import DeleteEvent from "@/components/event/DeleteEvent";
 import { useAuth } from "@/lib/auth";
@@ -13,36 +14,20 @@ const STATUS: Record<string, string> = { planned: "Geplant", live: "Live", finis
 const OTHER = "__other__";
 
 type TrackOpt = { slug: string; name: string };
+const PRESET_CLASSES = ["Hypercar", "LMP2", "LMGT3", "GT3", "LMP3"];
+
+function parseClasses(picked: string[], custom: string): string[] {
+  const all = [...picked, ...custom.split(/[,;\n]/).map((c) => c.trim()).filter(Boolean)];
+  return all.filter((c, i) => all.findIndex((x) => x.toLowerCase() === c.toLowerCase()) === i);
+}
 
 function JoinEvent({ onJoined }: { onJoined: () => void }) {
-  const [code, setCode] = useState("");
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function join(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setMsg(null);
-    const { error } = await getSupabase()!.rpc("join_event", { p_code: code });
-    if (error) setMsg({ ok: false, text: error.message });
-    else {
-      setMsg({ ok: true, text: "Du bist dem Event beigetreten." });
-      setCode("");
-      onJoined();
-    }
-    setBusy(false);
-  }
-
   return (
-    <form className="panel" onSubmit={join}>
-      <h3>Einem Event beitreten</h3>
-      <p className="muted" style={{ margin: "2px 0 8px" }}>Den Event-Code bekommst du von der Rennleitung. Du gibst ihn nur einmal pro Event ein.</p>
-      <div className="row">
-        <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="EVT-XXXX-XXXX" required style={{ width: 240 }} />
-        <button className="primary" disabled={busy}>Beitreten</button>
-      </div>
-      {msg && <div className={msg.ok ? "okmsg" : "err"}>{msg.text}</div>}
-    </form>
+    <div className="panel">
+      <h3>Für ein Event anmelden</h3>
+      <p className="muted" style={{ margin: "2px 0 8px" }}>Event-Code, Klasse und Startnummer. Bei Team-Events meldest du dein Team an oder trittst als Mitglied bei.</p>
+      <RegisterForm onDone={onJoined} />
+    </div>
   );
 }
 
@@ -50,6 +35,9 @@ function NewEvent({ onCreated }: { onCreated: () => void }) {
   const supabase = getSupabase()!;
   const [tracks, setTracks] = useState<TrackOpt[]>([]);
   const [form, setForm] = useState({ name: "", track: "", other: "", starts_at: "" });
+  const [picked, setPicked] = useState<string[]>(["Hypercar", "LMP2", "LMGT3"]);
+  const [customClasses, setCustomClasses] = useState("");
+  const [teamEvent, setTeamEvent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -76,10 +64,14 @@ function NewEvent({ onCreated }: { onCreated: () => void }) {
       track,
       track_slug: slug,
       starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
+      classes: parseClasses(picked, customClasses),
+      is_team_event: teamEvent,
     });
     if (error) setError(error.message);
     else {
       setForm({ name: "", track: "", other: "", starts_at: "" });
+      setCustomClasses("");
+      setTeamEvent(false);
       onCreated();
     }
     setBusy(false);
@@ -103,6 +95,18 @@ function NewEvent({ onCreated }: { onCreated: () => void }) {
         )}
         <div><label>Start</label><input type="datetime-local" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })} /></div>
       </div>
+      <label>Klassen (Fahrer wählen bei der Anmeldung eine davon)</label>
+      <div className="row">
+        {PRESET_CLASSES.map((c) => (
+          <button type="button" key={c} className={picked.includes(c) ? "primary" : ""} style={{ padding: "4px 12px", fontSize: 13 }}
+            onClick={() => setPicked(picked.includes(c) ? picked.filter((x) => x !== c) : [...picked, c])}>{c}</button>
+        ))}
+      </div>
+      <input value={customClasses} onChange={(e) => setCustomClasses(e.target.value)} placeholder="weitere Klassen, mit Komma getrennt" style={{ width: "100%", marginTop: 8 }} />
+      <label style={{ display: "flex", alignItems: "center", gap: 8, textTransform: "none", letterSpacing: 0, fontSize: 14, color: "var(--text)", cursor: "pointer" }}>
+        <input type="checkbox" checked={teamEvent} onChange={(e) => setTeamEvent(e.target.checked)} style={{ width: 18, height: 18 }} />
+        Team-Event (Fahrer melden sich als Team mit Teammitgliedern an)
+      </label>
       <p className="muted" style={{ fontSize: 13, margin: "8px 0 0" }}>
         {tracks.length === 0
           ? "Noch keine Strecke aufgezeichnet. Das passiert automatisch, sobald der Reader eine Strecke zum ersten Mal sieht."

@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { fmtClock } from "@/lib/format";
 import type { EventRow } from "@/lib/labels";
 import { replayStamp } from "@/lib/replay";
+import type { Focus } from "@/lib/focus";
 import { getSupabase } from "@/lib/supabase";
 
 type State = { kind: "idle" } | { kind: "wait" } | { kind: "ok"; text: string } | { kind: "fail"; text: string };
@@ -14,7 +15,7 @@ type State = { kind: "idle" } | { kind: "wait" } | { kind: "ok"; text: string } 
  * Zeitstempel fuers LMU-Replay (vom Reader aus dem Spiel gelesen) plus Knopf, der den Reader am Rennrechner
  * anweist, im Spiel-Replay an diese Stelle zu springen. Den Knopf sehen Admins und Rennleitung.
  */
-export default function ReplayLink({ event, sessionTime, small }: { event: EventRow; sessionTime: number | null; small?: boolean }) {
+export default function ReplayLink({ event, sessionTime, small, focus }: { event: EventRow; sessionTime: number | null; small?: boolean; focus?: Focus | null }) {
   const { profile } = useAuth();
   const canJump = profile?.role === "admin" || profile?.role === "steward";
   const [state, setState] = useState<State>({ kind: "idle" });
@@ -29,9 +30,9 @@ export default function ReplayLink({ event, sessionTime, small }: { event: Event
     const supabase = getSupabase();
     if (!supabase || t == null) return;
     setState({ kind: "wait" });
-    const { data, error } = await supabase.from("replay_commands").insert({ event_id: event.id, target_time: t }).select("id").single();
+    const { data, error } = await supabase.from("replay_commands").insert({ event_id: event.id, target_time: t, car_number: focus?.num ?? null, driver: focus?.name ?? null }).select("id").single();
     if (error || !data) {
-      setState({ kind: "fail", text: error?.message?.includes("replay_commands") ? "Datenbank-Update fehlt: supabase/repair.sql ausführen." : (error?.message ?? "Senden fehlgeschlagen") });
+      setState({ kind: "fail", text: (error?.message?.includes("replay_commands") || error?.message?.includes("car_number")) ? "Datenbank-Update fehlt: supabase/repair.sql ausführen." : (error?.message ?? "Senden fehlgeschlagen") });
       return;
     }
     const id = (data as { id: string }).id;
@@ -54,7 +55,7 @@ export default function ReplayLink({ event, sessionTime, small }: { event: Event
       <b className="num">{text}</b>
       {canJump && (
         <button type="button" className={small ? undefined : "primary"} disabled={state.kind === "wait"} onClick={jump} style={small ? { padding: "4px 10px", fontSize: 13 } : undefined}>
-          {state.kind === "wait" ? "Sende …" : "▶ Im Spiel anspringen"}
+          {state.kind === "wait" ? "Sende …" : `▶ Im Spiel anspringen${focus ? ` · ${focus.num != null ? `#${focus.num}` : focus.name}` : ""}`}
         </button>
       )}
       <span style={small ? { fontSize: 13 } : undefined}><CopyButton text={text} label="Kopieren" /></span>

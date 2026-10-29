@@ -10,6 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import replay_control as rc
 
 SPEC = {"paths": {
+    "/rest/watch/focus/{slot}": {"post": {"parameters": [{"name": "slot", "in": "path"}]}},
+    "/rest/garage/focusX": {"get": {"parameters": [{"name": "id", "in": "query"}]}},
     "/rest/replay/status": {"get": {"parameters": []}},
     "/rest/replay/seek": {"post": {"parameters": [{"name": "time", "in": "query"}]}},
     "/rest/garage/x": {"get": {}},
@@ -96,6 +98,44 @@ class ReplayControlTests(unittest.TestCase):
             self.assertEqual(Handler.reports[0]["status"], "failed")
         finally:
             SPEC.clear(); SPEC.update(saved)
+
+    def test_focus_plan_and_resolution(self):
+        plan = rc.guess_focus_plan(SPEC)
+        self.assertEqual(plan["path"], "/rest/watch/focus/{slot}")
+        self.assertEqual(plan["where"], "path")
+        cars = [{"id": 3, "num": 50, "driver": "Lena Vogt"}, {"id": 7, "num": 8, "driver": "Max Becker"}]
+        self.assertEqual(rc.resolve_car(cars, 8, None)["id"], 7)
+        self.assertEqual(rc.resolve_car(cars, None, "lena vogt")["id"], 3)
+        self.assertEqual(rc.resolve_car(cars, 99, "Max Becker")["id"], 7)  # Nummer unbekannt, Name passt
+        self.assertIsNone(rc.resolve_car(cars, 99, "Niemand"))
+        self.assertEqual(rc.focus_value({"by": "number"}, None, 12, None), 12)
+        self.assertEqual(rc.focus_value({"by": "name"}, None, None, "X"), "X")
+        self.assertEqual(rc.build_focus_call(plan, 3), ("POST", "/rest/watch/focus/3", None))
+
+    def test_jump_then_focus_end_to_end(self):
+        ctl = rc.ReplayControl(f"http://127.0.0.1:{self.port}", "x" * 24, focus_delay_s=0)
+        ctl.set_cars([{"id": 3, "num": 50, "driver": "Lena Vogt"}])
+        Handler.commands = [{"id": "c9", "time": 100.0, "car": 50, "driver": "Lena Vogt"}]
+        ctl.poll_once()
+        self.assertEqual(Handler.log, ["/rest/replay/seek?time=100", "/rest/watch/focus/3"])
+        self.assertEqual(Handler.reports[0]["status"], "done")
+        self.assertIn("Kamera auf #50", Handler.reports[0]["message"])
+
+    def test_focus_unknown_car_keeps_jump_ok(self):
+        ctl = rc.ReplayControl(f"http://127.0.0.1:{self.port}", "x" * 24, focus_delay_s=0)
+        ctl.set_cars([])
+        Handler.commands = [{"id": "c10", "time": 5.0, "car": 77, "driver": "Nobody"}]
+        ctl.poll_once()
+        self.assertEqual(Handler.log, ["/rest/replay/seek?time=5"])
+        self.assertEqual(Handler.reports[0]["status"], "done")
+        self.assertIn("nicht in den Spieldaten", Handler.reports[0]["message"])
+
+    def test_focus_override_by_number(self):
+        ctl = rc.ReplayControl(f"http://127.0.0.1:{self.port}", "x" * 24, focus_delay_s=0,
+                               focus_override={"path": "/custom/cam", "method": "POST", "param": "car", "where": "query", "by": "number"})
+        ok, msg = ctl.focus(12, None)
+        self.assertTrue(ok)
+        self.assertEqual(Handler.log, ["/custom/cam?car=12"])
 
     def test_override_from_config(self):
         ctl = rc.ReplayControl(f"http://127.0.0.1:{self.port}", "x" * 24, {"path": "/custom", "method": "POST", "param": "t", "where": "query", "scale": 1000})

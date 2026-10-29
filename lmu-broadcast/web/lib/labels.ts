@@ -100,6 +100,8 @@ export type EventRow = {
   starts_at: string | null;
   status: "planned" | "live" | "finished";
   replay_offset?: number;
+  classes?: string[];
+  is_team_event?: boolean;
 };
 
 export type EventDriver = {
@@ -109,6 +111,9 @@ export type EventDriver = {
   car_number: number | null;
   car_class: string | null;
   team: string | null;
+  team_id?: string | null;
+  profile_id?: string | null;
+  is_captain?: boolean;
 };
 
 export type IncidentDriver = { id: string; incident_id: string; ingame_name: string; car_number: number | null; role: "involved" | "possible" };

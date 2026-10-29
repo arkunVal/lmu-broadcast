@@ -30,6 +30,12 @@ POLL_S = 1.5
 PATH_WORDS = ("seek", "jump", "goto", "scrub", "time", "position", "playback")
 PARAM_WORDS = ("time", "second", "position", "seek", "offset", "et", "pos")
 
+# Fahrzeug/Kamera im Replay waehlen
+FOCUS_AREAS = ("replay", "watch", "camera", "spectat", "broadcast")
+FOCUS_PATH_WORDS = ("focus", "camera", "vehicle", "car", "driver", "slot", "select", "follow", "target")
+FOCUS_PARAM_WORDS = ("slot", "vehicle", "car", "driver", "focus", "target", "id", "index", "name", "number")
+FOCUS_SKIP = ("garage", "strategy", "setup", "pitstop", "weather", "hud", "standings")
+
 
 def _game_request(method: str, path: str, body: bytes | None = None, timeout: float = 5.0):
     conn = http.client.HTTPConnection(GAME_HOST, GAME_PORT, timeout=timeout)
@@ -49,11 +55,11 @@ def load_schema() -> dict:
     return json.loads(text)
 
 
-def replay_operations(spec: dict) -> list[dict]:
-    """Alle Operationen, deren Pfad 'replay' enthaelt."""
+def replay_operations(spec: dict, areas: tuple = ("replay",)) -> list[dict]:
+    """Alle Operationen, deren Pfad eines der Stichwoerter enthaelt (Standard: 'replay')."""
     out = []
     for path, ops in (spec.get("paths") or {}).items():
-        if "replay" not in path.lower():
+        if not any(a in path.lower() for a in areas):
             continue
         for method, op in (ops or {}).items():
             if method.lower() not in ("get", "post", "put", "patch"):
@@ -86,6 +92,58 @@ def guess_plan(spec: dict) -> dict | None:
                 if any(w == field.lower() or w in field.lower() for w in PARAM_WORDS) and best is None:
                     best = {"path": op["path"], "method": op["method"], "param": field, "where": "body", "scale": 1}
     return best
+
+
+def guess_focus_plan(spec: dict) -> dict | None:
+    """Sucht einen Endpunkt, der im Replay ein bestimmtes Fahrzeug anwaehlt (Kamera/Fokus)."""
+    for op in replay_operations(spec, FOCUS_AREAS):
+        low = op["path"].lower()
+        if any(w in low for w in FOCUS_SKIP) or not any(w in low for w in FOCUS_PATH_WORDS):
+            continue
+        for prm in op["params"]:
+            name = prm["name"].lower()
+            if prm["in"] in ("query", "path") and any(w in name for w in FOCUS_PARAM_WORDS):
+                return {"path": op["path"], "method": op["method"], "param": prm["name"], "where": prm["in"], "by": "slot"}
+            for field in prm.get("fields", []):
+                if any(w in field.lower() for w in FOCUS_PARAM_WORDS):
+                    return {"path": op["path"], "method": op["method"], "param": field, "where": "body", "by": "slot"}
+    return None
+
+
+def resolve_car(cars: list[dict], number, name: str | None) -> dict | None:
+    """Findet das Auto in den aktuellen Spieldaten: erst ueber die Startnummer, dann ueber den Fahrernamen."""
+    if number is not None:
+        for c in cars:
+            if c.get("num") == number:
+                return c
+    if name:
+        low = name.strip().lower()
+        for c in cars:
+            if str(c.get("driver", "")).strip().lower() == low:
+                return c
+    return None
+
+
+def focus_value(plan: dict, car: dict | None, number, name: str | None):
+    """Welcher Wert an die Schnittstelle geht: Slot-ID (Standard), Startnummer oder Name."""
+    by = plan.get("by", "slot")
+    if by == "number":
+        return number if number is not None else (car or {}).get("num")
+    if by == "name":
+        return name or (car or {}).get("driver")
+    return (car or {}).get("id")
+
+
+def build_focus_call(plan: dict, value) -> tuple[str, str, bytes | None]:
+    path, where, param = plan["path"], plan.get("where", "query"), plan["param"]
+    body = None
+    if where == "path":
+        path = path.replace("{" + param + "}", quote(str(value)))
+    elif where == "body":
+        body = json.dumps({param: value}).encode("utf-8")
+    else:
+        path = f"{path}?{quote(param)}={quote(str(value))}"
+    return plan.get("method", "POST").upper(), path, body
 
 
 def build_call(plan: dict, seconds: float) -> tuple[str, str, bytes | None]:
@@ -124,12 +182,20 @@ def dump_endpoints() -> int:
         params = ", ".join(f"{p['name']}({p['in']})" for p in op["params"]) or "keine Parameter"
         print(f"  {op['method']:5} {op['path']}  [{params}] {op['summary']}")
     plan = guess_plan(spec)
-    print("Automatisch gewaehlt:", json.dumps(plan) if plan else "nichts Passendes gefunden")
+    print("Sprung automatisch gewaehlt:", json.dumps(plan) if plan else "nichts Passendes gefunden")
+    focus_ops = [o for o in replay_operations(spec, FOCUS_AREAS) if not any(w in o["path"].lower() for w in FOCUS_SKIP)]
+    print(f"\n{len(focus_ops)} Endpunkte fuer Replay/Kamera/Zuschauer (fuer den Fahrzeugwechsel):")
+    for op in focus_ops:
+        params = ", ".join(f"{p['name']}({p['in']})" + (f"{{{','.join(p['fields'])}}}" if p.get("fields") else "") for p in op["params"]) or "keine Parameter"
+        print(f"  {op['method']:5} {op['path']}  [{params}] {op['summary']}")
+    fplan = guess_focus_plan(spec)
+    print("Fahrzeugwechsel automatisch gewaehlt:", json.dumps(fplan) if fplan else "nichts Passendes gefunden")
     return 0
 
 
 class ReplayControl(threading.Thread):
-    def __init__(self, site_url: str, token: str, override: dict | None = None, poll_s: float = POLL_S):
+    def __init__(self, site_url: str, token: str, override: dict | None = None, poll_s: float = POLL_S,
+                 focus_override: dict | None = None, focus_delay_s: float = 0.7):
         super().__init__(daemon=True)
         parsed = urlparse(site_url)
         self._https = parsed.scheme != "http"
@@ -138,6 +204,10 @@ class ReplayControl(threading.Thread):
         self._headers = {"Content-Type": "application/json", "x-ingest-token": token}
         self._override = override if isinstance(override, dict) and override.get("path") else None
         self._poll = poll_s
+        self._focus_override = focus_override if isinstance(focus_override, dict) and focus_override.get("path") else None
+        self._focus_plan: dict | None = None
+        self._focus_delay = focus_delay_s
+        self._cars: list[dict] = []
         self._seen: set[str] = set()
         self._plan: dict | None = None
         self.done = 0
@@ -167,6 +237,36 @@ class ReplayControl(threading.Thread):
         self._site("POST", {"id": cmd_id, "status": "done" if ok else "failed", "message": message})
 
     # ------------------------------------------------------------------- Spiel
+    def set_cars(self, cars: list[dict]) -> None:
+        """Aktuelle Autos der Session (aus dem Paket), um Startnummer/Name auf die Slot-ID abzubilden."""
+        self._cars = cars or []
+
+    def focus(self, number, name: str | None) -> tuple[bool, str]:
+        """Im Replay das Fahrzeug anwaehlen. Rueckgabe: (geklappt, Text)."""
+        label = f"#{number}" if number is not None else (name or "")
+        if number is None and not name:
+            return True, ""
+        plan = self._focus_override or self._focus_plan
+        if plan is None:
+            try:
+                plan = self._focus_plan = guess_focus_plan(load_schema())
+            except Exception as exc:
+                return False, f"Fahrzeugwechsel: Spiel nicht erreichbar ({type(exc).__name__})"
+        if plan is None:
+            return False, "Fahrzeugwechsel: kein Endpunkt gefunden (Reader mit --replay-endpoints starten)"
+        car = resolve_car(self._cars, number, name)
+        value = focus_value(plan, car, number, name)
+        if value is None:
+            return False, f"Fahrzeugwechsel: {label} nicht in den Spieldaten gefunden"
+        method, path, body = build_focus_call(plan, value)
+        try:
+            status, text = _game_request(method, path, body)
+        except Exception as exc:
+            return False, f"Fahrzeugwechsel: Spiel nicht erreichbar ({type(exc).__name__})"
+        if 200 <= status < 300:
+            return True, f"Kamera auf {label}"
+        return False, f"Fahrzeugwechsel: Spiel antwortet HTTP {status} auf {method} {plan['path']}: {text[:80]}"
+
     def jump(self, seconds: float) -> tuple[bool, str]:
         plan = self._override or self._plan
         if plan is None:
@@ -198,6 +298,14 @@ class ReplayControl(threading.Thread):
             ok, msg = False, "Ungueltige Zeit"
         else:
             ok, msg = self.jump(seconds)
+            if ok:
+                number = cmd.get("car")
+                name = cmd.get("driver")
+                if number is not None or name:
+                    time.sleep(self._focus_delay)
+                    f_ok, f_msg = self.focus(number, name)
+                    if f_msg:
+                        msg = f"{msg}. {f_msg}"
         if ok:
             self.done += 1
         else:

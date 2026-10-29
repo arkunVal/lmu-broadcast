@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import HintButtons from "./HintButtons";
+import { pickFocus } from "@/lib/focus";
 import ReplayLink from "./ReplayLink";
 import Tires from "@/components/Tires";
 import TrackMap from "@/components/TrackMap";
@@ -74,7 +75,7 @@ export default function LiveTab({
                 {h.incident_drivers.map((d) => `${d.car_number != null ? `#${d.car_number} ` : ""}${d.ingame_name}${d.role === "possible" ? " (?)" : ""}`).join(", ") || "–"}
               </div>
             </div>
-            <div style={{ marginTop: 6 }}><ReplayLink event={event} sessionTime={h.session_time} small /></div>
+            <div style={{ marginTop: 6 }}><ReplayLink event={event} sessionTime={h.session_time} focus={pickFocus(h)} small /></div>
             {isStaff && <div style={{ marginTop: 6 }}><HintButtons id={h.id} reload={reload} /></div>}
           </div>
         ))}

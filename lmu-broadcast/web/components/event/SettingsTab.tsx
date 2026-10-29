@@ -21,6 +21,8 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
   const [track, setTrack] = useState(event.track_slug ?? "");
   const [other, setOther] = useState("");
   const [replayOffset, setReplayOffset] = useState(String(event.replay_offset ?? 0));
+  const [classes, setClasses] = useState((event.classes ?? []).join(", "));
+  const [teamEvent, setTeamEvent] = useState(!!event.is_team_event);
   const [token, setToken] = useState<string | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [msg, setMsg] = useState("");
@@ -54,7 +56,7 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
       name = t?.name ?? event.track;
       slug = t?.slug ?? track;
     }
-    const { error } = await supabase.from("events").update({ status, track: name, track_slug: slug, replay_offset: Math.round(Number(replayOffset) || 0) }).eq("id", event.id);
+    const { error } = await supabase.from("events").update({ status, track: name, track_slug: slug, replay_offset: Math.round(Number(replayOffset) || 0), classes: classes.split(/[,;\n]/).map((c) => c.trim()).filter((c, i, a) => c && a.findIndex((x) => x.toLowerCase() === c.toLowerCase()) === i), is_team_event: teamEvent }).eq("id", event.id);
     if (error) setErr(error.message);
     else setMsg("Gespeichert.");
     onSaved();
@@ -110,6 +112,12 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
             </select>
           </div>
         </div>
+        <label>Klassen (Auswahl bei der Anmeldung, mit Komma getrennt)</label>
+        <input value={classes} onChange={(e) => setClasses(e.target.value)} placeholder="Hypercar, LMP2, LMGT3" style={{ width: "100%" }} />
+        <label style={{ display: "flex", alignItems: "center", gap: 8, textTransform: "none", letterSpacing: 0, fontSize: 14, color: "var(--text)", cursor: "pointer" }}>
+          <input type="checkbox" checked={teamEvent} onChange={(e) => setTeamEvent(e.target.checked)} style={{ width: 18, height: 18 }} />
+          Team-Event
+        </label>
         <div style={{ marginTop: 4, maxWidth: 320 }}>
           <label>Replay-Uhr Versatz (Sekunden, normal 0)</label>
           <input type="number" value={replayOffset} onChange={(e) => setReplayOffset(e.target.value)} />

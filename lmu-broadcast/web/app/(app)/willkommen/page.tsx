@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import RegisterForm from "@/components/RegisterForm";
 import RequireAuth from "@/components/RequireAuth";
 import { useAuth } from "@/lib/auth";
 import { ROLE_INFO, type Role } from "@/lib/labels";
@@ -55,7 +56,13 @@ function Wizard() {
           </button>
         ))}
       </div>
-      {info && (
+      {role === "driver" && (
+        <div className="panel" style={{ maxWidth: 560 }}>
+          <h3>2. Für dein Event anmelden</h3>
+          <RegisterForm onDone={() => router.replace("/events")} />
+        </div>
+      )}
+      {info && role !== "driver" && (
         <form className="panel" onSubmit={submit} style={{ maxWidth: 560 }}>
           <h3>2. {info.codeLabel} und In-Game-Name</h3>
           <label>{info.codeLabel}</label>

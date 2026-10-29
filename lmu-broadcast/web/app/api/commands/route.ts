@@ -34,14 +34,14 @@ export async function GET(req: Request) {
   const since = new Date(Date.now() - MAX_AGE_MS).toISOString();
   const { data, error } = await admin
     .from("replay_commands")
-    .select("id, target_time")
+    .select("id, target_time, car_number, driver")
     .eq("event_id", eventId)
     .eq("status", "pending")
     .gte("created_at", since)
     .order("created_at", { ascending: true })
     .limit(5);
   if (error) return NextResponse.json({ error: "Datenbankfehler" }, { status: 500 });
-  return NextResponse.json({ commands: (data ?? []).map((c) => ({ id: c.id, time: c.target_time })) });
+  return NextResponse.json({ commands: (data ?? []).map((c) => ({ id: c.id, time: c.target_time, car: c.car_number, driver: c.driver })) });
 }
 
 /** Der Reader meldet das Ergebnis: { id, status: "done" | "failed", message } */

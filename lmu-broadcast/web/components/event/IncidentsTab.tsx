@@ -9,6 +9,7 @@ import {
 import { sessionLabel } from "@/lib/standings";
 import { getSupabase } from "@/lib/supabase";
 import PenaltyForm from "./PenaltyForm";
+import { pickFocus } from "@/lib/focus";
 import HintButtons from "./HintButtons";
 import ReplayLink from "./ReplayLink";
 
@@ -162,7 +163,7 @@ function Detail({
         {incident.lap != null && ` · Runde ${incident.lap}`}
         {incident.lap_dist != null && ` · ${Math.round(incident.lap_dist)} m`}
       </div>
-      <div style={{ margin: "0 0 8px" }}><ReplayLink event={event} sessionTime={incident.session_time} /></div>
+      <div style={{ margin: "0 0 8px" }}><ReplayLink event={event} sessionTime={incident.session_time} focus={pickFocus(incident)} /></div>
 
       {isStaff ? (
         <>
@@ -312,7 +313,7 @@ export default function IncidentsTab({
                   <HintButtons id={h.id} reload={reload} onGone={() => { if (selectedId === h.id) setSelectedId(null); }} />
                 </span>
               </div>
-              <div style={{ marginTop: 6 }}><ReplayLink event={event} sessionTime={h.session_time} small /></div>
+              <div style={{ marginTop: 6 }}><ReplayLink event={event} sessionTime={h.session_time} focus={pickFocus(h)} small /></div>
             </div>
           ))}
         </div>
