@@ -103,6 +103,10 @@ Ein Auto-Hinweis ist **kein** Vorfall. Er erscheint in der Live-Seite (links unt
 - **Ist Vorfall**: Der Hinweis wird zum Vorfall mit Status *In Bearbeitung*.
 - **Kein Vorfall**: Der Hinweis wird gelöscht.
 
+## Streckenkarte löschen und neu aufnehmen
+
+Admin: *Admin → Strecken → „Löschen / neu aufnehmen“* oder im Event unter *Einstellungen → Streckenkarte*. Der Reader fragt alle 20 Sekunden nach, ob die Karte noch da ist. Fehlt sie, nimmt er sie in der nächsten Runde neu auf und lädt sie hoch. Dafür muss jemand mit laufendem Reader eine vollständige Runde fahren.
+
 ## Event löschen
 
 Admins: im Event unter *Einstellungen, Event löschen* oder in der Event-Liste *Löschen*. Es gibt eine Rückfrage. Gelöscht werden Vorfälle, Strafen, Fahrer und Reader-Key des Events.
