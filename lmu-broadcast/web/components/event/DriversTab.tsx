@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import CarNo from "@/components/CarNo";
 import { type EventDriver, type EventRow } from "@/lib/labels";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
@@ -150,7 +151,7 @@ export default function DriversTab({
             {drivers.map((d) => {
               return (
                 <tr key={d.id}>
-                  <td>{d.car_number ?? "–"}</td>
+                  <td>{d.car_number != null ? <CarNo num={d.car_number} cls={d.car_class} /> : "–"}</td>
                   <td>{d.ingame_name}</td>
                   <td>{d.car_class ?? "–"}</td>
                   <td>{d.team ?? "–"}</td>

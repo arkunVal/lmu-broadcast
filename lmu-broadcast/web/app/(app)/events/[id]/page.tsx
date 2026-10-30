@@ -24,6 +24,7 @@ function EventView() {
   const isAdmin = profile?.role === "admin";
   const isStaff = isAdmin || profile?.role === "steward";
   const isTeam = isStaff || profile?.role === "broadcaster";
+  const isCaptain = drivers.some((d) => d.is_captain && d.profile_id && d.profile_id === profile?.id);
   const [tab, setTab] = useState<Tab>("overview");
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -36,9 +37,9 @@ function EventView() {
   const tabs: [Tab, string, number?][] = [
     ["overview", "Übersicht"],
     ...(isTeam ? ([["live", "Live"]] as [Tab, string][]) : []),
-    ["incidents", "Vorfälle", isStaff ? openCount + hintCount : 0],
+    ...(isTeam ? ([["incidents", "Vorfälle", isStaff ? openCount + hintCount : 0]] as [Tab, string, number][]) : []),
     ["penalties", "Strafen"],
-    ["drivers", "Fahrer"],
+    ...(isTeam || isCaptain ? ([["drivers", isTeam ? "Fahrer" : "Mein Team"]] as [Tab, string][]) : []),
     ...(isTeam ? ([["overlays", "Overlays"]] as [Tab, string][]) : []),
     ...(isAdmin ? ([["settings", "Einstellungen"]] as [Tab, string][]) : []),
   ];
@@ -69,13 +70,13 @@ function EventView() {
       {tab === "live" && isTeam && (
         <LiveTab event={event} incidents={incidents} openIncident={(id) => { setSelected(id); setTab("incidents"); }} reload={reload} />
       )}
-      {tab === "incidents" && (
+      {tab === "incidents" && isTeam && (
         <IncidentsTab event={event} incidents={incidents} drivers={drivers} penalties={penalties} isStaff={isStaff} selectedId={selected} setSelectedId={setSelected} reload={reload} />
       )}
       {tab === "penalties" && (
         <PenaltiesTab event={event} penalties={penalties} drivers={drivers} isStaff={isStaff} myIngameName={profile?.ingame_name ?? null} reload={reload} />
       )}
-      {tab === "drivers" && <DriversTab event={event} drivers={drivers} isStaff={isStaff} reload={reload} />}
+      {tab === "drivers" && (isTeam || isCaptain) && <DriversTab event={event} drivers={drivers} isStaff={isStaff} reload={reload} />}
       {tab === "overlays" && isTeam && <OverlaysTab event={event} />}
       {tab === "settings" && isAdmin && <SettingsTab event={event} onSaved={reload} />}
       </div>

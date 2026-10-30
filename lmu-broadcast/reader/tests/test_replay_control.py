@@ -22,6 +22,7 @@ class Handler(BaseHTTPRequestHandler):
     log = []
     commands = []
     reports = []
+    active = None  # None = isActive unbekannt (404), sonst True/False
 
     def log_message(self, *a):
         pass
@@ -38,6 +39,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, SPEC)
         if self.path == "/api/commands":
             return self._send(200, {"commands": Handler.commands})
+        if self.path == "/rest/replay/isActive" and Handler.active is not None:
+            return self._send(200, Handler.active)
         self._send(404, {})
 
     def do_POST(self):
@@ -47,12 +50,14 @@ class Handler(BaseHTTPRequestHandler):
             Handler.reports.append(json.loads(body))
             return self._send(200, {"ok": True})
         Handler.log.append(self.path)
+        if self.path == "/rest/replay/toggleactive" and Handler.active is not None:
+            Handler.active = not Handler.active
         self._send(200, {})
 
 
 class ReplayControlTests(unittest.TestCase):
     def setUp(self):
-        Handler.log, Handler.commands, Handler.reports = [], [], []
+        Handler.log, Handler.commands, Handler.reports, Handler.active = [], [], [], None
         self.srv = HTTPServer(("127.0.0.1", 0), Handler)
         self.port = self.srv.server_address[1]
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
@@ -143,6 +148,63 @@ class ReplayControlTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(Handler.log, ["/custom?t=5000"])
 
+    def _ctl(self):
+        ctl = rc.ReplayControl(f"http://127.0.0.1:{self.port}", "x" * 24, focus_delay_s=0)
+        ctl._enter_delay = 0
+        ctl.set_cars([{"id": 3, "num": 50, "driver": "Lena Vogt"}])
+        return ctl
+
+    def test_focus_only_command(self):
+        ctl = self._ctl()
+        Handler.commands = [{"id": "f1", "kind": "focus", "time": None, "car": 50, "driver": "Lena Vogt"}]
+        ctl.poll_once()
+        self.assertEqual(Handler.log, ["/rest/watch/focus/3"])
+        self.assertEqual(Handler.reports[0]["status"], "done")
+
+    def test_focus_only_without_car_fails(self):
+        ctl = self._ctl()
+        Handler.commands = [{"id": "f2", "kind": "focus", "time": None, "car": None, "driver": None}]
+        ctl.poll_once()
+        self.assertEqual(Handler.reports[0]["status"], "failed")
+
+    def test_live_command_leaves_replay(self):
+        ctl = self._ctl()
+        Handler.active = True
+        Handler.commands = [{"id": "l1", "kind": "live", "time": None, "car": None, "driver": None}]
+        ctl.poll_once()
+        self.assertEqual(Handler.log, ["/rest/replay/toggleactive"])
+        self.assertFalse(Handler.active)
+        self.assertEqual(Handler.reports[0]["status"], "done")
+
+    def test_live_command_when_already_live(self):
+        ctl = self._ctl()
+        Handler.active = False
+        Handler.commands = [{"id": "l2", "kind": "live", "time": None, "car": None, "driver": None}]
+        ctl.poll_once()
+        self.assertEqual(Handler.log, [])
+        self.assertEqual(Handler.reports[0]["status"], "done")
+
+    def test_jump_opens_replay_when_live(self):
+        ctl = self._ctl()
+        Handler.active = False
+        Handler.commands = [{"id": "j1", "kind": "jump", "time": 60.0, "car": 50, "driver": "Lena Vogt"}]
+        ctl.poll_once()
+        self.assertEqual(Handler.log, ["/rest/replay/toggleactive", "/rest/replay/seek?time=60", "/rest/watch/focus/3"])
+        self.assertIn("Replay geoeffnet", Handler.reports[0]["message"])
+
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KnownFocusEndpoint(unittest.TestCase):
+    def test_prefers_watch_focus_slotid(self):
+        from replay_control import guess_focus_plan
+        spec = {"paths": {
+            "/rest/replay/CameraController/setCameraByName/{cameraName}": {"post": {"parameters": [{"name": "cameraName", "in": "path"}]}},
+            "/rest/watch/focus/{slotid}": {"put": {"parameters": [{"name": "slotid", "in": "path"}]}},
+        }}
+        plan = guess_focus_plan(spec)
+        self.assertEqual(plan["path"], "/rest/watch/focus/{slotid}")
+        self.assertEqual(plan["method"].upper(), "PUT")
+        self.assertEqual(plan["where"], "path")

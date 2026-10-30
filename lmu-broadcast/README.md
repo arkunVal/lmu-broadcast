@@ -78,7 +78,14 @@ Wichtig: LMU dokumentiert keinen Replay-Sprung. Der Reader sucht selbst nach ein
 
 **Auf das Auto im Hinweis wechseln:** Der Sprung nimmt die Startnummer und den Namen des ersten beteiligten Fahrers mit. Der Reader sucht das Auto im Spiel (Startnummer, sonst Name) und stellt die Replay-Kamera darauf. Klappt der Wechsel nicht, springt das Replay trotzdem, und neben dem Knopf steht ein Hinweis. Dann den passenden Endpunkt aus `--replay-endpoints` in `config.json` eintragen, z. B. `"replay_focus": {"path": "/rest/watch/focus", "method": "POST", "param": "slotID", "where": "query", "by": "slot"}` (`by`: `slot`, `number` oder `name`).
 
+**Fahrzeug im Spiel anwählen und zurück zu Live:**
+- Im Reiter *Live* auf eine Zeile klicken: Der Reader stellt die Spiel-Kamera auf dieses Auto (`PUT /rest/watch/focus/{slotid}`). Das geht im Replay und im Live-Bild. Das dürfen Admin, Rennleitung und Übertragung.
+- „↩ Zurück zu Live“ (oben im Reiter *Live*) beendet das Replay im Spiel.
+- „▶ Im Spiel anspringen“ öffnet das Replay selbst, wenn das Spiel gerade das Live-Bild zeigt.
+
 ## Anmeldung zum Event (Fahrer und Teams)
+
+**Sichtbarkeit:** Fahrer sehen nur Übersicht (Infos und Anmeldeliste) und Strafen. Die Übertragung (Kommentator) sieht alles außer den Auto-Hinweisen (Übersicht, Live, Vorfälle, Strafen, Fahrer, Overlays), darf aber nichts bearbeiten: keine Strafen, keine Vorfälle, keine Fahrer ändern. Erlaubt sind das Live-Dashboard, der Klick auf ein Auto (Kamera im Spiel) und „Zurück zu Live“. Rennleitung und Admin sehen und bearbeiten alles. Ein Teamkapitän sieht zusätzlich „Mein Team“. Die Adresse der Seite öffnet direkt das Anmelde-Fenster.
 
 **Admin:** Beim Anlegen des Events die Klassen wählen (Hypercar, LMP2, LMGT3 …, eigene möglich) und ggf. „Team-Event“ ankreuzen. Beides ist später unter *Einstellungen* änderbar.
 

@@ -96,6 +96,12 @@ def guess_plan(spec: dict) -> dict | None:
 
 def guess_focus_plan(spec: dict) -> dict | None:
     """Sucht einen Endpunkt, der im Replay ein bestimmtes Fahrzeug anwaehlt (Kamera/Fokus)."""
+    # Bekannter Endpunkt von LMU: PUT /rest/watch/focus/{slotid}
+    for op in replay_operations(spec, FOCUS_AREAS):
+        if op["path"].lower().rstrip("/").endswith("/watch/focus/{slotid}") and op["method"].upper() == "PUT":
+            prm = next((q for q in op["params"] if q["in"] == "path"), None)
+            if prm:
+                return {"path": op["path"], "method": op["method"], "param": prm["name"], "where": "path", "by": "slot"}
     for op in replay_operations(spec, FOCUS_AREAS):
         low = op["path"].lower()
         if any(w in low for w in FOCUS_SKIP) or not any(w in low for w in FOCUS_PATH_WORDS):
@@ -207,6 +213,7 @@ class ReplayControl(threading.Thread):
         self._focus_override = focus_override if isinstance(focus_override, dict) and focus_override.get("path") else None
         self._focus_plan: dict | None = None
         self._focus_delay = focus_delay_s
+        self._enter_delay = 1.5
         self._cars: list[dict] = []
         self._seen: set[str] = set()
         self._plan: dict | None = None
@@ -267,6 +274,43 @@ class ReplayControl(threading.Thread):
             return True, f"Kamera auf {label}"
         return False, f"Fahrzeugwechsel: Spiel antwortet HTTP {status} auf {method} {plan['path']}: {text[:80]}"
 
+    def replay_active(self) -> bool | None:
+        """Ist das Spiel gerade im Replay? None, wenn das Spiel es nicht sagt."""
+        try:
+            status, text = _game_request("GET", "/rest/replay/isActive")
+        except Exception:
+            return None
+        if status != 200:
+            return None
+        t = text.strip().lower()
+        if t in ("true", "1"):
+            return True
+        if t in ("false", "0"):
+            return False
+        try:
+            v = json.loads(text)
+        except ValueError:
+            return None
+        if isinstance(v, dict):
+            v = next((x for x in v.values() if isinstance(x, bool)), None)
+        return v if isinstance(v, bool) else None
+
+    def _toggle_replay(self) -> bool:
+        try:
+            status, _ = _game_request("POST", "/rest/replay/toggleactive")
+        except Exception:
+            return False
+        return 200 <= status < 300
+
+    def go_live(self) -> tuple[bool, str]:
+        """Aus dem Replay zurueck zum Live-Bild."""
+        active = self.replay_active()
+        if active is False:
+            return True, "Spiel zeigt schon das Live-Bild"
+        if not self._toggle_replay():
+            return False, "Zurueck zu Live: Spiel antwortet nicht"
+        return True, "Zurueck zum Live-Bild"
+
     def jump(self, seconds: float) -> tuple[bool, str]:
         plan = self._override or self._plan
         if plan is None:
@@ -292,13 +336,28 @@ class ReplayControl(threading.Thread):
         if not cmd_id or cmd_id in self._seen:
             return
         self._seen.add(cmd_id)
+        kind = cmd.get("kind") or "jump"
         try:
-            seconds = float(cmd.get("time"))
+            seconds = float(cmd.get("time")) if kind == "jump" else 0.0
         except (TypeError, ValueError):
             ok, msg = False, "Ungueltige Zeit"
         else:
-            ok, msg = self.jump(seconds)
-            if ok:
+            if kind == "live":
+                ok, msg = self.go_live()
+            elif kind == "focus":
+                ok, msg = self.focus(cmd.get("car"), cmd.get("driver"))
+                msg = msg or "Kein Auto angegeben"
+                ok = ok and bool(cmd.get("car") is not None or cmd.get("driver"))
+            else:
+                entered = False
+                if self.replay_active() is False:  # live im Spiel: erst ins Replay wechseln
+                    entered = self._toggle_replay()
+                    if entered:
+                        time.sleep(self._enter_delay)
+                ok, msg = self.jump(seconds)
+                if ok and entered:
+                    msg = "Replay geoeffnet. " + msg
+            if ok and kind == "jump":
                 number = cmd.get("car")
                 name = cmd.get("driver")
                 if number is not None or name:

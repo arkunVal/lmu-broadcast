@@ -289,7 +289,7 @@ export default function IncidentsTab({
             <button className="primary" onClick={() => setCreating((v) => !v)}>{creating ? "Abbrechen" : "Vorfall melden"}</button>
           </>
         )}
-        {!isStaff && <span className="muted">Hier erscheinen abgeschlossene Vorfälle mit der Entscheidung der Rennleitung.</span>}
+        {!isStaff && <span className="muted">Vorfälle der Rennleitung, nur zum Ansehen.</span>}
       </div>
 
       {creating && isStaff && (

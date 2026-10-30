@@ -607,6 +607,27 @@ grant execute on function public.register_for_event(text, text, text, int, text,
 grant execute on function public.team_add_member(uuid, text) to authenticated;
 grant execute on function public.team_remove_member(uuid) to authenticated;
 
+-- ============== Befehle: Sprung, Auto anwaehlen, zurueck zu Live; Vorfaelle nur fuer Rennleitung ==============
+alter table public.replay_commands add column if not exists kind text not null default 'jump';
+alter table public.replay_commands drop constraint if exists replay_commands_kind_check;
+alter table public.replay_commands add constraint replay_commands_kind_check check (kind in ('jump', 'focus', 'live'));
+alter table public.replay_commands alter column target_time drop not null;
+
+drop policy if exists replay_commands_select on public.replay_commands;
+create policy replay_commands_select on public.replay_commands for select to authenticated
+  using (public.my_role() in ('admin', 'steward', 'broadcaster') and public.can_see_event(event_id));
+drop policy if exists replay_commands_insert on public.replay_commands;
+create policy replay_commands_insert on public.replay_commands for insert to authenticated
+  with check (public.my_role() in ('admin', 'steward', 'broadcaster') and public.can_see_event(event_id));
+
+drop policy if exists incidents_select on public.incidents;
+create policy incidents_select on public.incidents for select to authenticated
+  using (
+    public.is_staff()
+    or (public.my_role() = 'broadcaster' and not (source = 'auto' and status = 'open') and public.can_see_event(event_id))
+  );
+
+
 alter publication supabase_realtime add table public.incidents, public.penalties;
 
 -- Schon vorhandene Konten (vor diesem Skript registriert) bekommen ein Profil ohne Rolle

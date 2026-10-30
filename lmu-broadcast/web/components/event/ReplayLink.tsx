@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import CopyButton from "@/components/CopyButton";
 import { useAuth } from "@/lib/auth";
 import { fmtClock } from "@/lib/format";
 import type { EventRow } from "@/lib/labels";
 import { replayStamp } from "@/lib/replay";
 import type { Focus } from "@/lib/focus";
+import { sendCommand } from "@/lib/commands";
 import { getSupabase } from "@/lib/supabase";
 
 type State = { kind: "idle" } | { kind: "wait" } | { kind: "ok"; text: string } | { kind: "fail"; text: string };
@@ -15,12 +16,10 @@ type State = { kind: "idle" } | { kind: "wait" } | { kind: "ok"; text: string } 
  * Zeitstempel fuers LMU-Replay (vom Reader aus dem Spiel gelesen) plus Knopf, der den Reader am Rennrechner
  * anweist, im Spiel-Replay an diese Stelle zu springen. Den Knopf sehen Admins und Rennleitung.
  */
-export default function ReplayLink({ event, sessionTime, small, focus }: { event: EventRow; sessionTime: number | null; small?: boolean; focus?: Focus | null }) {
+export default function ReplayLink({ event, sessionTime, small, focus, noCopy }: { event: EventRow; sessionTime: number | null; small?: boolean; focus?: Focus | null; noCopy?: boolean }) {
   const { profile } = useAuth();
-  const canJump = profile?.role === "admin" || profile?.role === "steward";
+  const canJump = profile?.role === "admin" || profile?.role === "steward" || profile?.role === "broadcaster";
   const [state, setState] = useState<State>({ kind: "idle" });
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   const t = replayStamp(event, sessionTime);
   if (t == null) return null;
@@ -30,27 +29,12 @@ export default function ReplayLink({ event, sessionTime, small, focus }: { event
     const supabase = getSupabase();
     if (!supabase || t == null) return;
     setState({ kind: "wait" });
-    const { data, error } = await supabase.from("replay_commands").insert({ event_id: event.id, target_time: t, car_number: focus?.num ?? null, driver: focus?.name ?? null }).select("id").single();
-    if (error || !data) {
-      setState({ kind: "fail", text: (error?.message?.includes("replay_commands") || error?.message?.includes("car_number")) ? "Datenbank-Update fehlt: supabase/repair.sql ausführen." : (error?.message ?? "Senden fehlgeschlagen") });
-      return;
-    }
-    const id = (data as { id: string }).id;
-    let tries = 0;
-    const poll = async () => {
-      tries += 1;
-      const { data: row } = await supabase.from("replay_commands").select("status, message").eq("id", id).maybeSingle();
-      const r = row as { status: string; message: string | null } | null;
-      if (r?.status === "done") return setState({ kind: "ok", text: r.message ?? "Replay springt" });
-      if (r?.status === "failed") return setState({ kind: "fail", text: r.message ?? "Reader meldet einen Fehler" });
-      if (tries >= 10) return setState({ kind: "fail", text: "Keine Antwort vom Reader. Läuft er am Rennrechner mit dem Key dieses Events?" });
-      timer.current = setTimeout(poll, 1000);
-    };
-    timer.current = setTimeout(poll, 1000);
+    const r = await sendCommand(supabase, event.id, { kind: "jump", time: t, car: focus?.num ?? null, driver: focus?.name ?? null });
+    setState(r.ok ? { kind: "ok", text: r.text } : { kind: "fail", text: r.text });
   }
 
   return (
-    <span style={{ display: "inline-flex", flexWrap: "wrap", alignItems: "center", gap: 8 }} title="Replay von Le Mans Ultimate, 8 Sekunden vor dem Vorfall">
+    <span style={{ display: "inline-flex", flexWrap: small ? "nowrap" : "wrap", alignItems: "center", gap: 8 }} title="Replay von Le Mans Ultimate, 8 Sekunden vor dem Vorfall">
       <span className="muted">{small ? "⏪" : "⏪ LMU-Replay ab"}</span>
       <b className="num">{text}</b>
       {canJump && (
@@ -58,7 +42,7 @@ export default function ReplayLink({ event, sessionTime, small, focus }: { event
           {state.kind === "wait" ? "Sende …" : `▶ Im Spiel anspringen${focus ? ` · ${focus.num != null ? `#${focus.num}` : focus.name}` : ""}`}
         </button>
       )}
-      <span style={small ? { fontSize: 13 } : undefined}><CopyButton text={text} label="Kopieren" /></span>
+      {!noCopy && <span style={small ? { fontSize: 13 } : undefined}><CopyButton text={text} label="Kopieren" /></span>}
       {state.kind === "ok" && <span className="okmsg" style={{ margin: 0 }}>✓ {state.text}</span>}
       {state.kind === "fail" && <span className="err" style={{ margin: 0 }}>{state.text}</span>}
     </span>

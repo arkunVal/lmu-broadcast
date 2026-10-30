@@ -5,6 +5,8 @@ import { fmtClock } from "@/lib/format";
 import { PENALTY_KINDS, PENALTY_REASONS, type EventDriver, type PenaltyKind } from "@/lib/labels";
 import { getSupabase } from "@/lib/supabase";
 
+const OTHER = "__other__";
+
 /** Strafe vergeben (Rennleitung). Fahrer kommen aus der Event-Fahrerliste oder werden frei eingetragen. */
 export default function PenaltyForm({
   eventId,
@@ -25,6 +27,7 @@ export default function PenaltyForm({
 }) {
   const supabase = getSupabase()!;
   const [name, setName] = useState(names?.[0] ?? "");
+  const [free, setFree] = useState(false);
   const [kind, setKind] = useState<PenaltyKind>("time");
   const [amount, setAmount] = useState("5");
   const [reason, setReason] = useState("");
@@ -78,10 +81,23 @@ export default function PenaltyForm({
       <div className="grid2" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
         <div>
           <label>Fahrer</label>
-          <input list={`pen-drivers-${incidentId ?? "x"}`} value={name} onChange={(e) => setName(e.target.value)} placeholder="In-Game-Name" />
-          <datalist id={`pen-drivers-${incidentId ?? "x"}`}>
-            {options.map((n) => <option key={n} value={n} />)}
-          </datalist>
+          <select
+            value={free ? OTHER : name}
+            onChange={(e) => {
+              if (e.target.value === OTHER) { setFree(true); setName(""); }
+              else { setFree(false); setName(e.target.value); }
+            }}
+          >
+            <option value="">Fahrer wählen …</option>
+            {options.map((n) => {
+              const nr = drivers.find((d) => d.ingame_name.toLowerCase() === n.toLowerCase())?.car_number;
+              return <option key={n} value={n}>{nr != null ? `#${nr} ` : ""}{n}</option>;
+            })}
+            <option value={OTHER}>Anderer Fahrer …</option>
+          </select>
+          {(free || (name && !options.includes(name))) && (
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="In-Game-Name" style={{ width: "100%", marginTop: 8 }} autoFocus={free} />
+          )}
         </div>
         <div>
           <label>Startnummer</label>

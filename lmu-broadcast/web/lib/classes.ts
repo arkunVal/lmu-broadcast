@@ -15,8 +15,8 @@ export function classColor(cls: string): string {
     case 0: return "#e5373d";
     case 1: return "#2f7be8";
     case 2: return "#9a63e0";
-    case 3: return "#f08a24";
-    case 4: return "#2fb36c";
+    case 3: return "#2fb36c";
+    case 4: return "#f08a24";
     default: return "#8b95a5";
   }
 }

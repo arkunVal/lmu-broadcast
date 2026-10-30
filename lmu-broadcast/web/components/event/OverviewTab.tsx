@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import CarNo from "@/components/CarNo";
 import CopyButton from "@/components/CopyButton";
 import { type EventDriver, type EventRow, type Incident, type Penalty } from "@/lib/labels";
 import { getSupabase } from "@/lib/supabase";
@@ -64,7 +65,7 @@ export default function OverviewTab({
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.id}>
-                      <td className="num">{r.car_number != null ? <span className="carno">{r.car_number}</span> : "–"}</td>
+                      <td className="num">{r.car_number != null ? <CarNo num={r.car_number} cls={r.car_class} /> : "–"}</td>
                       <td><b>{r.ingame_name}</b>{r.is_captain ? <span className="muted"> · Kapitän</span> : null}</td>
                       <td>{r.car_class ?? "–"}</td>
                       <td>{r.team ?? "–"}</td>

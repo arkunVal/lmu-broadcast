@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { sendCommand } from "@/lib/commands";
+import { getSupabase } from "@/lib/supabase";
 import HintButtons from "./HintButtons";
 import { pickFocus } from "@/lib/focus";
 import ReplayLink from "./ReplayLink";
+import CarNo from "@/components/CarNo";
 import Tires from "@/components/Tires";
 import TrackMap from "@/components/TrackMap";
 import { classColor, classLabel } from "@/lib/classes";
@@ -21,7 +24,22 @@ export default function LiveTab({
 }) {
   const { profile } = useAuth();
   const isStaff = profile?.role === "admin" || profile?.role === "steward";
+  const canControl = isStaff || profile?.role === "broadcaster";
   const { snapshot, connection, receivedAt, packets } = useLiveData(event.room);
+  const [picked, setPicked] = useState<number | null>(null);
+  const [ctlMsg, setCtlMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [ctlBusy, setCtlBusy] = useState(false);
+
+  async function control(kindOf: "focus" | "live", car?: Car) {
+    const supabase = getSupabase();
+    if (!supabase || ctlBusy) return;
+    setCtlBusy(true);
+    setCtlMsg(null);
+    if (car) setPicked(car.id);
+    const r = await sendCommand(supabase, event.id, kindOf === "live" ? { kind: "live" } : { kind: "focus", car: car?.num ?? null, driver: car?.driver ?? null });
+    setCtlMsg(r);
+    setCtlBusy(false);
+  }
   const [now, setNow] = useState(() => Date.now());
   const [raw, setRaw] = useState(false);
   useEffect(() => {
@@ -60,59 +78,60 @@ export default function LiveTab({
 
   return (
     <div className="live-grid">
-      <div className="live-left">
+      <div className="live-top">
         <TrackMap snapshot={live ? snapshot : null} panel />
-      <div className="panel">
-        <h3>Auto-Hinweise</h3>
-        <p className="muted" style={{ margin: "2px 0 8px", fontSize: 13 }}>Noch keine Vorfälle. {isStaff ? "„Ist Vorfall“ übernimmt den Hinweis in Bearbeitung, „Kein Vorfall“ löscht ihn." : "Die Rennleitung prüft sie."}</p>
-        {hints.length === 0 && <div className="muted">Keine offenen Hinweise.</div>}
-        {hints.map((h) => (
-          <div key={h.id} className="hint-item">
-            <div>
-              <b>{INCIDENT_KINDS[h.kind] ?? h.kind}</b>{" "}
-              <span className="muted">{h.session_time != null && fmtClock(h.session_time)}{h.lap != null && `, R${h.lap}`}</span>
-              <div style={{ fontSize: 13 }}>
-                {h.incident_drivers.map((d) => `${d.car_number != null ? `#${d.car_number} ` : ""}${d.ingame_name}${d.role === "possible" ? " (?)" : ""}`).join(", ") || "–"}
-              </div>
-            </div>
-            <div style={{ marginTop: 6 }}><ReplayLink event={event} sessionTime={h.session_time} focus={pickFocus(h)} small /></div>
-            {isStaff && <div style={{ marginTop: 6 }}><HintButtons id={h.id} reload={reload} /></div>}
+        <div className="live-info">
+          <div className="row">
+            <span className="chip"><span className={`dot ${connection === "subscribed" ? "ok" : connection === "error" ? "bad" : "warn"}`} />{connText}</span>
+            <span className="chip"><span className={`dot ${live ? "ok" : snapshot ? "warn" : ""}`} />{dataText}{age !== null && `, ${age.toFixed(1)} s alt, ${packets} Pakete`}</span>
+            {canControl && <button onClick={() => control("live")} disabled={ctlBusy} title="Das Spiel verlässt das Replay und zeigt wieder das Live-Bild. Ein Klick auf ein Auto in der Tabelle stellt die Kamera im Spiel darauf.">↩ Zurück zu Live</button>}
+            {ctlBusy && <span className="muted" style={{ fontSize: 13 }}>Sende …</span>}
+            {ctlMsg && <span className={ctlMsg.ok ? "okmsg" : "err"} style={{ margin: 0 }}>{ctlMsg.ok ? "✓ " : ""}{ctlMsg.text}</span>}
           </div>
-        ))}
-      </div>
-      </div>
-      <div className="live-right">
-        <div className="row" style={{ marginBottom: 12 }}>
-          <span className="chip"><span className={`dot ${connection === "subscribed" ? "ok" : connection === "error" ? "bad" : "warn"}`} />{connText}</span>
-          <span className="chip"><span className={`dot ${live ? "ok" : snapshot ? "warn" : ""}`} />{dataText}{age !== null && `, ${age.toFixed(1)} s alt, ${packets} Pakete`}</span>
+          {anyYellow && <div className="banner" style={{ margin: 0 }}>Gelb: Ein Fahrzeug steht auf der Strecke und könnte Gelb auslösen.</div>}
+          {!live && (
+            <div className="notice" style={{ margin: 0 }}>
+              {connection === "subscribed"
+                ? "Warte auf Live-Daten. Läuft der Reader mit dem Reader-Key dieses Events? Den Key findest du unter „Einstellungen“."
+                : "Verbinde …"}
+            </div>
+          )}
+          {s && live && (
+            <div className="live-bar" style={{ margin: 0 }}>
+              <div><div className="k">Strecke</div><div style={{ fontWeight: 700 }}>{s.track || "–"}</div></div>
+              <div><div className="k">{sessionLabel(s.type)}</div><span className={`flagpill ${flag.cls}`}><i />{flag.text}</span></div>
+              <div><div className="k">Restzeit</div><div className="v">{fmtClock(s.remaining)}</div></div>
+              <div><div className="k">Luft / Strecke</div><div className="v">{s.airTemp.toFixed(0)}° / {s.trackTemp.toFixed(0)}°C</div></div>
+              <div><div className="k">Wetter</div><div className="v">{s.rain > 0.05 ? "Regen" : "Trocken"}</div></div>
+            </div>
+          )}
+          {isStaff && (
+            <div className="panel hints">
+              <h3 title="„Ist Vorfall“ übernimmt in Bearbeitung, „Kein Vorfall“ löscht den Hinweis">Auto-Hinweise ({hints.length})</h3>
+              {hints.length === 0 ? (
+                <div className="muted">Keine offenen Hinweise.</div>
+              ) : (
+                <table className="plain">
+                  <thead><tr><th>Art</th><th className="num">Runde</th><th>Beteiligte</th><th>Replay</th><th /></tr></thead>
+                  <tbody>
+                    {hints.map((h) => (
+                      <tr key={h.id}>
+                        <td><b>{INCIDENT_KINDS[h.kind] ?? h.kind}</b></td>
+                        <td className="num">{h.lap ?? "–"}</td>
+                        <td>{h.incident_drivers.map((d) => `${d.car_number != null ? `#${d.car_number} ` : ""}${d.ingame_name}${d.role === "possible" ? " (?)" : ""}`).join(", ") || "–"}</td>
+                        <td><ReplayLink event={event} sessionTime={h.session_time} focus={pickFocus(h)} small noCopy /></td>
+                        <td><HintButtons id={h.id} reload={reload} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </div>
-        {anyYellow && <div className="banner">Gelb: Ein Fahrzeug steht auf der Strecke und könnte Gelb auslösen.</div>}
+      </div>
 
-        {!live && (
-          <div className="notice">
-            {connection === "subscribed"
-              ? "Warte auf Live-Daten. Läuft der Reader mit dem Reader-Key dieses Events? Den Key findest du unter „Einstellungen“."
-              : "Verbinde …"}
-          </div>
-        )}
-
-        {s && live && (
-          <div className="live-bar">
-            <div>
-              <div className="k">Strecke</div>
-              <div style={{ fontWeight: 700 }}>{s.track || "–"}</div>
-            </div>
-            <div>
-              <div className="k">{sessionLabel(s.type)}</div>
-              <span className={`flagpill ${flag.cls}`}><i />{flag.text}</span>
-            </div>
-            <div><div className="k">Restzeit</div><div className="v">{fmtClock(s.remaining)}</div></div>
-            <div><div className="k">Luft / Strecke</div><div className="v">{s.airTemp.toFixed(0)}° / {s.trackTemp.toFixed(0)}°C</div></div>
-            <div><div className="k">Wetter</div><div className="v">{s.rain > 0.05 ? "Regen" : "Trocken"}</div></div>
-          </div>
-        )}
-
-        <div className="live-classes">
+      <div className="live-classes">
         {groups.map((g) => {
           const col = classColor(g.cls);
           const shown = (c: Car) => {
@@ -153,9 +172,9 @@ export default function LiveTab({
                   </thead>
                   <tbody>
                     {g.rows.map((r) => (
-                      <tr key={r.car.id} className={r.car.yellowCause ? "yellow" : r.car.player ? "player" : ""}>
+                      <tr key={r.car.id} className={`${r.car.yellowCause ? "yellow" : r.car.player ? "player" : ""}${canControl ? " pick" : ""}${picked === r.car.id ? " picked" : ""}`} onClick={canControl ? () => control("focus", r.car) : undefined} title={canControl ? "Kamera im Spiel auf dieses Auto stellen" : undefined}>
                         <td className="num">{r.classPos}</td>
-                        <td className="ctr"><span className="carno">{r.car.num ?? "–"}</span></td>
+                        <td className="ctr"><CarNo num={r.car.num} cls={r.car.cls} /></td>
                         <td>{r.car.driver}</td>
                         <td className="num">{r.car.laps}</td>
                         {secCell(r.car, 0)}{secCell(r.car, 1)}{secCell(r.car, 2)}
@@ -186,8 +205,6 @@ export default function LiveTab({
           </div>
         )}
         </div>
-      </div>
-
     </div>
   );
 }
