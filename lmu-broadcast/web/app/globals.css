@@ -385,7 +385,7 @@ tr.picked td { box-shadow: inset 0 -2px 0 var(--accent, #FFFC40); }
 @media (max-width: 1100px) { .live-top { grid-template-columns: 1fr; } }
 @media (min-width: 1101px) and (min-height: 640px) {
   .live-grid { min-height: 0; }
-  .live-top { flex: 0 0 52%; min-height: 0; }
+  .live-top { flex: 0 0 clamp(290px, 40%, 440px); min-height: 0; }
   .live-info .hints { flex: 1 1 0; }
   .live-classes { flex: 1 1 0; min-height: 0; overflow: auto; padding-right: 4px; }
   .live-top > .mpanel svg { height: 0; }
@@ -394,3 +394,11 @@ tr.pick:hover td { background: rgba(255, 252, 64, 0.08); }
 @media (min-width: 1101px) and (min-height: 640px) { .live-info { overflow: auto; } }
 .hints td > span { flex-wrap: nowrap !important; }
 .hints td { vertical-align: middle; }
+
+/* Event-Kopf: eine Zeile statt drei, damit unten mehr Platz bleibt */
+.page-title.evt { min-height: 0; align-items: center; margin: 0 0 2px; }
+.evt-l { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; min-width: 0; }
+.evt-l h1 { margin: 0; font-size: 26px; line-height: 1.1; }
+.evt-l a.btn.back { margin: 0; }
+.evt-sub { color: var(--muted); }
+.tabs { padding-top: 6px; margin-bottom: 10px; }

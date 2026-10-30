@@ -139,7 +139,7 @@ function Tracks() {
   }, [load]);
 
   async function remove(t: TrackRow) {
-    if (!confirm(`Streckenkarte „${t.name}“ löschen? Der Reader nimmt sie beim nächsten Befahren neu auf.`)) return;
+    if (!confirm(`Streckenkarte „${t.name}“ löschen? Der Reader nimmt sie neu auf, sobald jemand mit laufendem Reader eine Runde fährt.`)) return;
     const { error } = await supabase.from("tracks").delete().eq("slug", t.slug);
     if (error) setError(error.message);
     await load();
@@ -162,7 +162,7 @@ function Tracks() {
                   <td className="num">{t.length ? `${(t.length / 1000).toFixed(2)} km` : "–"}</td>
                   <td className="num">{Math.round(t.coverage * 100)} %</td>
                   <td>{new Date(t.updated_at).toLocaleDateString("de-DE")}</td>
-                  <td><button className="danger" onClick={() => remove(t)}>Löschen</button></td>
+                  <td><button className="danger" onClick={() => remove(t)}>Löschen / neu aufnehmen</button></td>
                 </tr>
               ))}
             </tbody>

@@ -46,11 +46,11 @@ function EventView() {
 
   return (
     <>
-      <div className="page-title">
-        <div>
+      <div className="page-title evt">
+        <div className="evt-l">
           <Link href="/events" className="btn back">← Alle Events</Link>
           <h1>{event.name}</h1>
-          <p>{event.track ?? "Strecke noch offen"}</p>
+          <span className="evt-sub">{event.track ?? "Strecke noch offen"}</span>
         </div>
         <span className={`badge ${event.status === "live" ? "live" : ""}`}>{STATUS[event.status]}</span>
       </div>

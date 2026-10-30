@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import DeleteEvent from "./DeleteEvent";
 import { useRouter } from "next/navigation";
 import CopyButton from "@/components/CopyButton";
@@ -23,6 +23,7 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
   const [replayOffset, setReplayOffset] = useState(String(event.replay_offset ?? 0));
   const [classes, setClasses] = useState((event.classes ?? []).join(", "));
   const [teamEvent, setTeamEvent] = useState(!!event.is_team_event);
+  const [mapInfo, setMapInfo] = useState<{ coverage: number; updated_at: string } | null | undefined>(undefined);
   const [token, setToken] = useState<string | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [msg, setMsg] = useState("");
@@ -33,6 +34,23 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
     supabase.from("event_secrets").select("ingest_token").eq("event_id", event.id).maybeSingle()
       .then(({ data }) => setToken((data as { ingest_token: string } | null)?.ingest_token ?? null));
   }, [supabase, event.id]);
+
+  const loadMap = useCallback(async () => {
+    if (!event.track_slug) return setMapInfo(null);
+    const { data } = await supabase.from("tracks").select("coverage, updated_at").eq("slug", event.track_slug).maybeSingle();
+    setMapInfo((data as { coverage: number; updated_at: string } | null) ?? null);
+  }, [supabase, event.track_slug]);
+  useEffect(() => { loadMap(); }, [loadMap]);
+
+  async function deleteMap() {
+    if (!confirm("Streckenkarte löschen? Der Reader nimmt sie neu auf, sobald jemand mit laufendem Reader eine Runde fährt (eine vollständige Runde, am besten ohne Boxengasse).")) return;
+    setErr("");
+    const { data, error } = await supabase.from("tracks").delete().eq("slug", event.track_slug!).select("slug");
+    if (error) setErr(error.message);
+    else if (!data || data.length === 0) setErr("Löschen nicht erlaubt oder Karte nicht vorhanden.");
+    else setMsg("Karte gelöscht. Der Reader nimmt sie in der nächsten Runde neu auf.");
+    await loadMap();
+  }
 
   // Strecke, die noch nicht aufgezeichnet ist, wird als "Andere" vorbelegt
   useEffect(() => {
@@ -130,6 +148,20 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
           {msg && <span className="okmsg" style={{ margin: 0 }}>{msg}</span>}
         </div>
         {err && <div className="err">{err}</div>}
+      </div>
+
+      <div className="panel">
+        <h3>Streckenkarte</h3>
+        <p className="muted" style={{ margin: "2px 0 10px" }}>
+          {!event.track_slug
+            ? "Für dieses Event ist noch keine Strecke gewählt."
+            : mapInfo === undefined
+              ? "Lade …"
+              : mapInfo === null
+                ? "Noch keine Karte gespeichert. Der Reader nimmt sie auf, sobald jemand eine Runde fährt."
+                : `Gespeichert (${Math.round(Number(mapInfo.coverage) * 100)} % der Strecke, aufgenommen am ${new Date(mapInfo.updated_at).toLocaleDateString("de-DE")}). Ist sie schief oder lückenhaft, löschen und neu aufnehmen lassen.`}
+        </p>
+        <button className="danger" disabled={!mapInfo} onClick={deleteMap}>Karte löschen und neu aufnehmen</button>
       </div>
 
       <div className="panel">
