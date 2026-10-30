@@ -610,7 +610,7 @@ grant execute on function public.team_remove_member(uuid) to authenticated;
 -- ============== Befehle: Sprung, Auto anwaehlen, zurueck zu Live; Vorfaelle nur fuer Rennleitung ==============
 alter table public.replay_commands add column if not exists kind text not null default 'jump';
 alter table public.replay_commands drop constraint if exists replay_commands_kind_check;
-alter table public.replay_commands add constraint replay_commands_kind_check check (kind in ('jump', 'focus', 'live'));
+alter table public.replay_commands add constraint replay_commands_kind_check check (kind in ('jump', 'focus', 'live', 'next', 'prev'));
 alter table public.replay_commands alter column target_time drop not null;
 
 drop policy if exists replay_commands_select on public.replay_commands;

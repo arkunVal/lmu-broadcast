@@ -43,6 +43,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, Handler.active)
         self._send(404, {})
 
+    def do_PUT(self):
+        Handler.log.append(self.path)
+        self._send(200, {})
+
     def do_POST(self):
         n = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(n)
@@ -191,6 +195,13 @@ class ReplayControlTests(unittest.TestCase):
         ctl.poll_once()
         self.assertEqual(Handler.log, ["/rest/replay/toggleactive", "/rest/replay/seek?time=60", "/rest/watch/focus/3"])
         self.assertIn("Replay geoeffnet", Handler.reports[0]["message"])
+
+    def test_next_prev_car(self):
+        ctl = self._ctl()
+        Handler.commands = [{"id": "n1", "kind": "next"}, {"id": "n2", "kind": "prev"}]
+        ctl.poll_once()
+        self.assertEqual(Handler.log, ["/rest/watch/focusForward", "/rest/watch/focusBackward"])
+        self.assertEqual([r["status"] for r in Handler.reports], ["done", "done"])
 
 
 if __name__ == "__main__":

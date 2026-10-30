@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { fmtClock } from "@/lib/format";
 import {
-  CONFIDENCE, INCIDENT_KINDS, INCIDENT_STATUS, SESSION_TYPES, penaltyText,
+  CONFIDENCE, DECISION_OPTIONS, INCIDENT_KINDS, INCIDENT_STATUS, SESSION_TYPES, penaltyText,
   type EventDriver, type EventRow, type Incident, type Penalty,
 } from "@/lib/labels";
 import { sessionLabel } from "@/lib/standings";
@@ -100,6 +100,8 @@ function NewIncident({ event, drivers, onDone }: { event: EventRow; drivers: Eve
   );
 }
 
+const OWN = "__own__";
+
 function Detail({
   incident, event, drivers, penalties, isStaff, reload, onGone,
 }: {
@@ -107,7 +109,12 @@ function Detail({
 }) {
   const isHint = incident.source === "auto" && incident.status === "open";
   const supabase = getSupabase()!;
+  const known = DECISION_OPTIONS.find((o) => o.label === (incident.decision ?? "").split(" – ")[0]);
   const [decision, setDecision] = useState(incident.decision ?? "");
+  const [choice, setChoice] = useState(known?.label ?? (incident.decision ? OWN : ""));
+  const [note, setNote] = useState(known ? (incident.decision ?? "").split(" – ").slice(1).join(" – ") : "");
+  const chosen = DECISION_OPTIONS.find((o) => o.label === choice);
+  const decisionText = choice === OWN ? decision.trim() : choice ? [choice, note.trim()].filter(Boolean).join(" – ") : "";
   const [description, setDescription] = useState(incident.description);
   const [addName, setAddName] = useState("");
   const [showPenalty, setShowPenalty] = useState(false);
@@ -120,7 +127,7 @@ function Detail({
       .from("incidents")
       .update({
         status,
-        decision: decision.trim() || null,
+        decision: decisionText || null,
         description: description.trim(),
         closed_at: status === "closed" ? new Date().toISOString() : null,
       })
@@ -202,7 +209,20 @@ function Detail({
       )}
 
       <label>Entscheidung der Rennleitung</label>
-      {isStaff ? <textarea value={decision} onChange={(e) => setDecision(e.target.value)} /> : <p>{incident.decision || "–"}</p>}
+      {isStaff ? (
+        <>
+          <select value={choice} onChange={(e) => setChoice(e.target.value)}>
+            <option value="">Entscheidung wählen …</option>
+            {DECISION_OPTIONS.map((o) => <option key={o.label} value={o.label}>{o.label}</option>)}
+            <option value={OWN}>Eigene Entscheidung …</option>
+          </select>
+          {choice === OWN ? (
+            <textarea value={decision} onChange={(e) => setDecision(e.target.value)} placeholder="Entscheidung als Text" style={{ marginTop: 8 }} />
+          ) : choice ? (
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Zusatz oder Begründung (optional)" style={{ width: "100%", marginTop: 8 }} />
+          ) : null}
+        </>
+      ) : <p>{incident.decision || "–"}</p>}
 
       {linked.length > 0 && (
         <>
@@ -238,6 +258,8 @@ function Detail({
                 lap={incident.lap}
                 sessionTime={incident.session_time}
                 names={incident.incident_drivers.map((d) => d.ingame_name)}
+                initialKind={chosen?.kind}
+                initialAmount={chosen?.amount}
                 onDone={() => { setShowPenalty(false); reload(); }}
               />
             </div>
@@ -328,7 +350,7 @@ export default function IncidentsTab({
             <tbody>
               {shown.length === 0 && <tr><td colSpan={4} className="muted">Keine Vorfälle.</td></tr>}
               {shown.map((i) => (
-                <tr key={i.id} onClick={() => setSelectedId(i.id)} style={{ cursor: "pointer", background: i.id === selectedId ? "var(--sel)" : undefined }}>
+                <tr key={i.id} className={`st-${i.status}`} onClick={() => setSelectedId(i.id)} style={{ cursor: "pointer", background: i.id === selectedId ? "var(--sel)" : undefined }}>
                   <td>{i.session_time != null ? fmtClock(i.session_time) : "–"}{i.lap != null && <span className="muted"> · R{i.lap}</span>}</td>
                   <td>
                     {INCIDENT_KINDS[i.kind] ?? i.kind}{" "}

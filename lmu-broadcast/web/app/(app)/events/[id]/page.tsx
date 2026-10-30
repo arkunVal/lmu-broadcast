@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
@@ -11,11 +10,12 @@ import OverlaysTab from "@/components/event/OverlaysTab";
 import OverviewTab from "@/components/event/OverviewTab";
 import PenaltiesTab from "@/components/event/PenaltiesTab";
 import SettingsTab from "@/components/event/SettingsTab";
+import EventBar from "@/components/event/EventBar";
 import { useAuth } from "@/lib/auth";
+import { LiveProvider } from "@/lib/liveContext";
 import { useEventData } from "@/lib/eventData";
 
 type Tab = "overview" | "live" | "incidents" | "penalties" | "drivers" | "overlays" | "settings";
-const STATUS: Record<string, string> = { planned: "Geplant", live: "Live", finished: "Beendet" };
 
 function EventView() {
   const params = useParams<{ id: string }>();
@@ -45,15 +45,8 @@ function EventView() {
   ];
 
   return (
-    <>
-      <div className="page-title evt">
-        <div className="evt-l">
-          <Link href="/events" className="btn back">← Alle Events</Link>
-          <h1>{event.name}</h1>
-          <span className="evt-sub">{event.track ?? "Strecke noch offen"}</span>
-        </div>
-        <span className={`badge ${event.status === "live" ? "live" : ""}`}>{STATUS[event.status]}</span>
-      </div>
+    <LiveProvider room={isTeam ? event.room : ""}>
+      <EventBar event={event} showLive={isTeam} />
       {error && <div className="err">{error}</div>}
       <div className="tabs">
         {tabs.map(([key, label, count]) => (
@@ -68,7 +61,7 @@ function EventView() {
         <OverviewTab event={event} incidents={incidents} penalties={penalties} drivers={drivers} isStaff={isStaff} isAdmin={isAdmin} go={(t) => setTab(t as Tab)} />
       )}
       {tab === "live" && isTeam && (
-        <LiveTab event={event} incidents={incidents} openIncident={(id) => { setSelected(id); setTab("incidents"); }} reload={reload} />
+        <LiveTab event={event} incidents={incidents} drivers={drivers} openIncident={(id) => { setSelected(id); setTab("incidents"); }} reload={reload} />
       )}
       {tab === "incidents" && isTeam && (
         <IncidentsTab event={event} incidents={incidents} drivers={drivers} penalties={penalties} isStaff={isStaff} selectedId={selected} setSelectedId={setSelected} reload={reload} />
@@ -80,7 +73,7 @@ function EventView() {
       {tab === "overlays" && isTeam && <OverlaysTab event={event} />}
       {tab === "settings" && isAdmin && <SettingsTab event={event} onSaved={reload} />}
       </div>
-    </>
+    </LiveProvider>
   );
 }
 

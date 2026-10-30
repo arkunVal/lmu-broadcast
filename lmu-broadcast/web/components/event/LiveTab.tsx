@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { sendCommand } from "@/lib/commands";
 import { getSupabase } from "@/lib/supabase";
@@ -12,97 +12,66 @@ import Tires from "@/components/Tires";
 import TrackMap from "@/components/TrackMap";
 import { classColor, classLabel } from "@/lib/classes";
 import { fmtClock, fmtGap, fmtTime } from "@/lib/format";
-import { INCIDENT_KINDS, type EventRow, type Incident } from "@/lib/labels";
+import { INCIDENT_KINDS, type EventDriver, type EventRow, type Incident } from "@/lib/labels";
 import { buildGroups, sessionKind, sessionLabel } from "@/lib/standings";
 import type { Car } from "@/lib/types";
-import { useLiveData } from "@/lib/useLiveData";
+import { useLive } from "@/lib/liveContext";
 
 export default function LiveTab({
-  event, incidents, openIncident, reload,
+  event, incidents, drivers, openIncident, reload,
 }: {
-  event: EventRow; incidents: Incident[]; openIncident: (id: string) => void; reload: () => void;
+  event: EventRow; incidents: Incident[]; drivers: EventDriver[]; openIncident: (id: string) => void; reload: () => void;
 }) {
   const { profile } = useAuth();
   const isStaff = profile?.role === "admin" || profile?.role === "steward";
   const canControl = isStaff || profile?.role === "broadcaster";
-  const { snapshot, connection, receivedAt, packets } = useLiveData(event.room);
+  const { snapshot, live, connection, setWatching } = useLive();
   const [picked, setPicked] = useState<number | null>(null);
   const [ctlMsg, setCtlMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [ctlBusy, setCtlBusy] = useState(false);
 
-  async function control(kindOf: "focus" | "live", car?: Car) {
+  async function control(kindOf: "focus" | "live" | "next" | "prev", car?: Car) {
     const supabase = getSupabase();
     if (!supabase || ctlBusy) return;
     setCtlBusy(true);
     setCtlMsg(null);
-    if (car) setPicked(car.id);
-    const r = await sendCommand(supabase, event.id, kindOf === "live" ? { kind: "live" } : { kind: "focus", car: car?.num ?? null, driver: car?.driver ?? null });
+    if (car) { setPicked(car.id); setWatching({ num: car.num, name: car.driver }); }
+    const r = await sendCommand(supabase, event.id, kindOf === "focus" ? { kind: "focus", car: car?.num ?? null, driver: car?.driver ?? null } : { kind: kindOf });
+    if (kindOf === "live") { setPicked(null); setWatching(null); }
     setCtlMsg(r);
     setCtlBusy(false);
   }
-  const [now, setNow] = useState(() => Date.now());
   const [raw, setRaw] = useState(false);
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 500);
-    return () => clearInterval(id);
-  }, []);
 
   const hints = incidents.filter((i) => i.source === "auto" && i.status === "open").slice(0, 10);
-  const age = receivedAt ? Math.max(0, (now - receivedAt) / 1000) : null;
-  const live = snapshot?.status === "live" && age !== null && age < 5;
   const s = snapshot?.session;
   const kind = s ? sessionKind(s.type) : "race";
   const groups = snapshot && live ? buildGroups(snapshot.cars, kind) : [];
   const anyYellow = !!snapshot && live && snapshot.cars.some((c) => c.yellowCause);
 
-  const flag = !s
-    ? { cls: "", text: "" }
-    : s.phase === 7
-      ? { cls: "red", text: "SESSION GESTOPPT" }
-      : s.phase === 6
-        ? { cls: "yellow", text: "FULL COURSE YELLOW" }
-        : s.sectorFlags.some(Boolean)
-          ? { cls: "yellow", text: "GELB" }
-          : { cls: "", text: "GRÜNE FLAGGE" };
-
-  const connText = connection === "subscribed" ? "Verbunden" : connection === "error" ? "Verbindungsfehler" : connection === "missing-config" ? "Konfiguration fehlt" : "Verbinde …";
-  const dataText = !snapshot
-    ? "Noch keine Daten vom Reader"
-    : snapshot.demo
-      ? "Demo-Daten"
-      : snapshot.status !== "live"
-        ? "Reader läuft, Spiel nicht aktiv"
-        : age !== null && age >= 5
-          ? "Daten veraltet"
-          : "Spiel läuft";
+  const teamOf = (c: Car) => drivers.find((d) => (c.num != null && d.car_number === c.num) || d.ingame_name.toLowerCase() === String(c.driver).toLowerCase())?.team ?? "";
 
   return (
     <div className="live-grid">
       <div className="live-top">
         <TrackMap snapshot={live ? snapshot : null} panel />
         <div className="live-info">
-          <div className="row">
-            <span className="chip"><span className={`dot ${connection === "subscribed" ? "ok" : connection === "error" ? "bad" : "warn"}`} />{connText}</span>
-            <span className="chip"><span className={`dot ${live ? "ok" : snapshot ? "warn" : ""}`} />{dataText}{age !== null && `, ${age.toFixed(1)} s alt, ${packets} Pakete`}</span>
-            {canControl && <button onClick={() => control("live")} disabled={ctlBusy} title="Das Spiel verlässt das Replay und zeigt wieder das Live-Bild. Ein Klick auf ein Auto in der Tabelle stellt die Kamera im Spiel darauf.">↩ Zurück zu Live</button>}
-            {ctlBusy && <span className="muted" style={{ fontSize: 13 }}>Sende …</span>}
-            {ctlMsg && <span className={ctlMsg.ok ? "okmsg" : "err"} style={{ margin: 0 }}>{ctlMsg.ok ? "✓ " : ""}{ctlMsg.text}</span>}
-          </div>
+          {canControl ? (
+            <div className="camrow">
+              <span className="lbl">Kamera</span>
+              <button onClick={() => control("prev")} disabled={ctlBusy} title="Vorheriges Auto im Spiel anwählen">◀ Voriges Auto</button>
+              <button onClick={() => control("next")} disabled={ctlBusy} title="Nächstes Auto im Spiel anwählen">Nächstes Auto ▶</button>
+              <button onClick={() => control("live")} disabled={ctlBusy} title="Das Spiel verlässt das Replay und zeigt wieder das Live-Bild. Ein Klick auf ein Auto in der Tabelle stellt die Kamera im Spiel darauf.">↩ Zurück zu Live</button>
+              {ctlBusy && <span className="muted" style={{ fontSize: 13 }}>Sende …</span>}
+              {ctlMsg && <span className={ctlMsg.ok ? "okmsg" : "err"} style={{ margin: 0 }}>{ctlMsg.ok ? "✓ " : ""}{ctlMsg.text}</span>}
+            </div>
+          ) : null}
           {anyYellow && <div className="banner" style={{ margin: 0 }}>Gelb: Ein Fahrzeug steht auf der Strecke und könnte Gelb auslösen.</div>}
           {!live && (
             <div className="notice" style={{ margin: 0 }}>
               {connection === "subscribed"
                 ? "Warte auf Live-Daten. Läuft der Reader mit dem Reader-Key dieses Events? Den Key findest du unter „Einstellungen“."
                 : "Verbinde …"}
-            </div>
-          )}
-          {s && live && (
-            <div className="live-bar" style={{ margin: 0 }}>
-              <div><div className="k">Strecke</div><div style={{ fontWeight: 700 }}>{s.track || "–"}</div></div>
-              <div><div className="k">{sessionLabel(s.type)}</div><span className={`flagpill ${flag.cls}`}><i />{flag.text}</span></div>
-              <div><div className="k">Restzeit</div><div className="v">{fmtClock(s.remaining)}</div></div>
-              <div><div className="k">Luft / Strecke</div><div className="v">{s.airTemp.toFixed(0)}° / {s.trackTemp.toFixed(0)}°C</div></div>
-              <div><div className="k">Wetter</div><div className="v">{s.rain > 0.05 ? "Regen" : "Trocken"}</div></div>
             </div>
           )}
           {isStaff && (
@@ -163,7 +132,7 @@ export default function LiveTab({
                 <table className="plain">
                   <thead>
                     <tr>
-                      <th className="num">#</th><th className="ctr">Auto</th><th>Fahrer</th><th className="num">Runden</th>
+                      <th className="num">#</th><th className="ctr">Auto</th><th>Fahrer</th><th>Team</th><th className="num">Runden</th>
                       <th className="num">S1</th><th className="num">S2</th><th className="num">S3</th>
                       <th className="num">Beste</th><th className="num">Letzte</th>
                       <th className="num">{kind === "race" ? "Abstand" : "Rückstand"}</th>{kind === "race" && <th className="num">Intervall</th>}
@@ -176,6 +145,7 @@ export default function LiveTab({
                         <td className="num">{r.classPos}</td>
                         <td className="ctr"><CarNo num={r.car.num} cls={r.car.cls} /></td>
                         <td>{r.car.driver}</td>
+                        <td className="muted">{teamOf(r.car) || "–"}</td>
                         <td className="num">{r.car.laps}</td>
                         {secCell(r.car, 0)}{secCell(r.car, 1)}{secCell(r.car, 2)}
                         <td className="num">{fmtTime(r.car.bestLap)}</td>

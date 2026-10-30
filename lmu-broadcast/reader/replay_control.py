@@ -67,6 +67,9 @@ def replay_operations(spec: dict, areas: tuple = ("replay",)) -> list[dict]:
             params = []
             for prm in (op or {}).get("parameters", []) or []:
                 row = {"name": prm.get("name", ""), "in": prm.get("in", "")}
+                enum = prm.get("enum") or (prm.get("schema") or {}).get("enum")
+                if enum:
+                    row["enum"] = enum
                 props = ((prm.get("schema") or {}).get("properties")) or {}
                 if props:
                     row["fields"] = list(props.keys())
@@ -192,7 +195,7 @@ def dump_endpoints() -> int:
     focus_ops = [o for o in replay_operations(spec, FOCUS_AREAS) if not any(w in o["path"].lower() for w in FOCUS_SKIP)]
     print(f"\n{len(focus_ops)} Endpunkte fuer Replay/Kamera/Zuschauer (fuer den Fahrzeugwechsel):")
     for op in focus_ops:
-        params = ", ".join(f"{p['name']}({p['in']})" + (f"{{{','.join(p['fields'])}}}" if p.get("fields") else "") for p in op["params"]) or "keine Parameter"
+        params = ", ".join(f"{p['name']}({p['in']})" + (f"{{{','.join(p['fields'])}}}" if p.get("fields") else "") + (f" erlaubt: {p['enum']}" if p.get("enum") else "") for p in op["params"]) or "keine Parameter"
         print(f"  {op['method']:5} {op['path']}  [{params}] {op['summary']}")
     fplan = guess_focus_plan(spec)
     print("Fahrzeugwechsel automatisch gewaehlt:", json.dumps(fplan) if fplan else "nichts Passendes gefunden")
@@ -302,6 +305,17 @@ class ReplayControl(threading.Thread):
             return False
         return 200 <= status < 300
 
+    def cycle_car(self, forward: bool) -> tuple[bool, str]:
+        """Naechstes / vorheriges Auto anwaehlen (Zuschauerkamera)."""
+        path = "/rest/watch/focusForward" if forward else "/rest/watch/focusBackward"
+        try:
+            status, text = _game_request("PUT", path)
+        except Exception as exc:
+            return False, f"Spiel nicht erreichbar ({type(exc).__name__})"
+        if 200 <= status < 300:
+            return True, "Naechstes Auto" if forward else "Vorheriges Auto"
+        return False, f"Spiel antwortet HTTP {status} auf PUT {path}: {text[:80]}"
+
     def go_live(self) -> tuple[bool, str]:
         """Aus dem Replay zurueck zum Live-Bild."""
         active = self.replay_active()
@@ -344,6 +358,8 @@ class ReplayControl(threading.Thread):
         else:
             if kind == "live":
                 ok, msg = self.go_live()
+            elif kind in ("next", "prev"):
+                ok, msg = self.cycle_car(kind == "next")
             elif kind == "focus":
                 ok, msg = self.focus(cmd.get("car"), cmd.get("driver"))
                 msg = msg or "Kein Auto angegeben"

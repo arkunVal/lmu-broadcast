@@ -103,6 +103,13 @@ Ein Auto-Hinweis ist **kein** Vorfall. Er erscheint in der Live-Seite (links unt
 - **Ist Vorfall**: Der Hinweis wird zum Vorfall mit Status *In Bearbeitung*.
 - **Kein Vorfall**: Der Hinweis wird gelöscht.
 
+## Kopfleiste, Kamera und Strafen-Bestätigung
+
+- Oben auf jeder Event-Seite steht die Statusleiste: Reader, Session, Restzeit, Luft- und Streckentemperatur, Wetter, Kamera (beobachtetes Auto) und Flaggenstatus.
+- Reiter *Live*: „◀ Voriges Auto“, „Nächstes Auto ▶“ und „↩ Zurück zu Live“ steuern die Kamera im Spiel. Ein Klick auf ein Auto stellt die Kamera darauf. Dafür `supabase/repair.sql` erneut ausführen und den Reader-Ordner ersetzen.
+- Strafen: Das Formular steht links immer offen. „Führung“ trägt die Runde des Führenden ein, „Jetzt“ die aktuelle Session-Zeit. Vor dem Verhängen erscheint ein Bestätigungsfenster.
+- `py lmu_reader.py --replay-endpoints` zeigt jetzt auch die erlaubten Werte der Replay-Befehle (z. B. für Play, Pause, Zeitlupe).
+
 ## Streckenkarte löschen und neu aufnehmen
 
 Admin: *Admin → Strecken → „Löschen / neu aufnehmen“* oder im Event unter *Einstellungen → Streckenkarte*. Der Reader fragt alle 20 Sekunden nach, ob die Karte noch da ist. Fehlt sie, nimmt er sie in der nächsten Runde neu auf und lädt sie hoch. Dafür muss jemand mit laufendem Reader eine vollständige Runde fahren.

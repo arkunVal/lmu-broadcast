@@ -43,7 +43,7 @@ export default function ReplayLink({ event, sessionTime, small, focus, noCopy }:
         </button>
       )}
       {!noCopy && <span style={small ? { fontSize: 13 } : undefined}><CopyButton text={text} label="Kopieren" /></span>}
-      {state.kind === "ok" && <span className="okmsg" style={{ margin: 0 }}>✓ {state.text}</span>}
+      {state.kind === "ok" && !small && <span className="okmsg" style={{ margin: 0 }}>✓ {state.text}</span>}
       {state.kind === "fail" && <span className="err" style={{ margin: 0 }}>{state.text}</span>}
     </span>
   );

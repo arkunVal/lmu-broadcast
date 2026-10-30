@@ -402,3 +402,31 @@ tr.pick:hover td { background: rgba(255, 252, 64, 0.08); }
 .evt-l a.btn.back { margin: 0; }
 .evt-sub { color: var(--muted); }
 .tabs { padding-top: 6px; margin-bottom: 10px; }
+
+/* Event-Kopf v5: Name links, Live-Status rechts */
+.evbar { display: flex; align-items: center; justify-content: space-between; gap: 10px 24px; flex-wrap: wrap; margin: 0 0 2px; }
+.evbar-l { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 14px; min-width: 0; }
+.evbar-l h1 { margin: 0; font-size: 24px; line-height: 1.1; }
+.evbar-l a.btn.back { margin: 0; }
+.sbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch; }
+.sc { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 12px; display: flex; flex-direction: column; justify-content: center; min-width: 74px; }
+.sc span { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.sc b { font-size: 14px; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.sc.flag { background: #123a24; border-color: #1f6b42; color: #7cf0ae; align-items: center; padding: 4px 16px; }
+.sc.flag.yellow { background: #4a3c0a; border-color: #8a7114; color: #ffd75e; }
+.sc.flag.red { background: #4a1313; border-color: #8f2a2a; color: #ff9a9a; }
+.camrow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.camrow .lbl { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.camrow button { padding: 6px 12px; font-size: 13px; }
+
+/* Bestaetigungsfenster */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: grid; place-items: center; z-index: 50; padding: 16px; }
+.modal { background: var(--panel); border: 1px solid var(--bad); border-radius: var(--r); padding: 18px 22px; width: min(420px, 100%); box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; margin: 8px 0 0; }
+.kv dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; align-self: center; }
+.kv dd { margin: 0; font-weight: 600; }
+.stat-n { font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.statrow { flex: none; }
+tr.st-open td:first-child { box-shadow: inset 3px 0 var(--bad); }
+tr.st-reviewing td:first-child { box-shadow: inset 3px 0 var(--accent); }
+tr.st-closed td:first-child { box-shadow: inset 3px 0 #2dd36f; }

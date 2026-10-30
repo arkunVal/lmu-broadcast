@@ -52,6 +52,24 @@ export function penaltyText(kind: string, amount: number | null): string {
   return k.label;
 }
 
+/** Auswahl "Entscheidung der Rennleitung" beim Vorfall. kind/amount füllen das Strafformular vor. */
+export type DecisionOption = { label: string; kind?: PenaltyKind; amount?: number };
+export const DECISION_OPTIONS: DecisionOption[] = [
+  { label: "Rennunfall, keine Strafe" },
+  { label: "Kein Vergehen" },
+  { label: "Verwarnung", kind: "warning" },
+  { label: "+5 s Zeitstrafe", kind: "time", amount: 5 },
+  { label: "+10 s Zeitstrafe", kind: "time", amount: 10 },
+  { label: "+15 s Zeitstrafe", kind: "time", amount: 15 },
+  { label: "+30 s Zeitstrafe", kind: "time", amount: 30 },
+  { label: "Drive-Through", kind: "drive_through" },
+  { label: "Stop-and-Go 10 s", kind: "stop_go", amount: 10 },
+  { label: "Positions-/Startplatzstrafe", kind: "grid", amount: 3 },
+  { label: "Disqualifikation", kind: "dq" },
+  { label: "Rennsperre", kind: "race_ban", amount: 1 },
+  { label: "Qualisperre", kind: "quali_ban", amount: 1 },
+];
+
 /** Begründungen für Strafen, gruppiert wie in der Rennleitungs-Auswahl. */
 export const PENALTY_REASONS: { group: string; items: string[] }[] = [
   { group: "General", items: ["Causing a collision", "Unsafe rejoin", "Pit lane infringement", "FCY infringement", "SC infringement"] },
