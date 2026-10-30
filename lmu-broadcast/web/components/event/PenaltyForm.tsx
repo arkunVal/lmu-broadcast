@@ -31,7 +31,7 @@ export default function PenaltyForm({
   onDone: () => void;
 }) {
   const supabase = getSupabase()!;
-  const [name, setName] = useState(names?.[0] ?? "");
+  const [name, setName] = useState("");
   const [free, setFree] = useState(false);
   const [kind, setKind] = useState<PenaltyKind>(initialKind ?? "time");
   const [amount, setAmount] = useState(String(initialAmount ?? 5));
@@ -46,7 +46,13 @@ export default function PenaltyForm({
   const [error, setError] = useState("");
 
   const unit = PENALTY_KINDS[kind].unit;
-  const options = Array.from(new Set([...(names ?? []), ...drivers.map((d) => d.ingame_name)]));
+  const involved = Array.from(new Set(names ?? []));
+  const others = Array.from(new Set(drivers.map((d) => d.ingame_name))).filter((n) => !involved.includes(n));
+  const options = [...involved, ...others];
+  const label = (n: string) => {
+    const nr = drivers.find((d) => d.ingame_name.toLowerCase() === n.toLowerCase())?.car_number;
+    return `${nr != null ? `#${nr} ` : ""}${n}`;
+  };
 
   function ask(e: React.FormEvent) {
     e.preventDefault();
@@ -93,7 +99,7 @@ export default function PenaltyForm({
       <div className="formhead">Strafe vergeben</div>
       <div className="grid2" style={{ gridTemplateColumns: "2fr 1fr 2fr" }}>
         <div>
-          <label>Fahrer</label>
+          <label>{involved.length ? "Verursacher (bekommt die Strafe)" : "Fahrer"}</label>
           <select
             value={free ? OTHER : name}
             onChange={(e) => {
@@ -101,11 +107,11 @@ export default function PenaltyForm({
               else { setFree(false); setName(e.target.value); }
             }}
           >
-            <option value="">Fahrer wählen …</option>
-            {options.map((n) => {
-              const nr = drivers.find((d) => d.ingame_name.toLowerCase() === n.toLowerCase())?.car_number;
-              return <option key={n} value={n}>{nr != null ? `#${nr} ` : ""}{n}</option>;
-            })}
+            <option value="">{involved.length ? "Verursacher wählen …" : "Fahrer wählen …"}</option>
+            {involved.length > 0 && <optgroup label="Beteiligte am Vorfall">{involved.map((n) => <option key={n} value={n}>{label(n)}</option>)}</optgroup>}
+            {others.length > 0 && (involved.length > 0
+              ? <optgroup label="Weitere Fahrer">{others.map((n) => <option key={n} value={n}>{label(n)}</option>)}</optgroup>
+              : others.map((n) => <option key={n} value={n}>{label(n)}</option>))}
             <option value={OTHER}>Anderer Fahrer …</option>
           </select>
           {(free || (name && !options.includes(name))) && (

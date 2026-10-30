@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import CarNo from "@/components/CarNo";
-import { PENALTY_STATUS, penaltyText, sameName, type EventDriver, type EventRow, type Penalty } from "@/lib/labels";
+import { INCIDENT_KINDS, PENALTY_STATUS, penaltyText, sameName, type EventDriver, type EventRow, type Incident, type Penalty } from "@/lib/labels";
 import { getSupabase } from "@/lib/supabase";
 import PenaltyForm from "./PenaltyForm";
 import ReplayLink from "./ReplayLink";
 
 export default function PenaltiesTab({
-  event, penalties, drivers, isStaff, myIngameName, reload,
+  event, penalties, drivers, incidents, isStaff, myIngameName, openIncident, reload,
 }: {
-  event: EventRow; penalties: Penalty[]; drivers: EventDriver[]; isStaff: boolean; myIngameName: string | null; reload: () => void;
+  event: EventRow; penalties: Penalty[]; drivers: EventDriver[]; incidents: Incident[]; isStaff: boolean; myIngameName: string | null; openIncident: (id: string) => void; reload: () => void;
 }) {
   const supabase = getSupabase()!;
   const [error, setError] = useState("");
@@ -27,16 +27,19 @@ export default function PenaltiesTab({
     <div className="tablewrap">
       <table className="plain">
         <thead>
-          <tr><th>Fahrer</th><th>Strafe</th><th>Begründung</th><th className="num">Runde</th><th>Status</th>{isStaff && <th />}</tr>
+          <tr><th>Fahrer</th><th>Strafe</th><th>Begründung</th><th className="num">Runde</th>{isStaff && <th>Vorfall</th>}<th>Status</th>{isStaff && <th />}</tr>
         </thead>
         <tbody>
-          {penalties.length === 0 && <tr><td colSpan={6} className="muted">Noch keine Strafen.</td></tr>}
+          {penalties.length === 0 && <tr><td colSpan={7} className="muted">Noch keine Strafen.</td></tr>}
           {penalties.map((p) => (
             <tr key={p.id} style={p.status === "revoked" ? { opacity: 0.5 } : undefined}>
               <td>{p.car_number != null && <CarNo num={p.car_number} cls={drivers.find((d) => d.car_number === p.car_number)?.car_class} />} {p.ingame_name}</td>
               <td><b>{penaltyText(p.kind, p.amount)}</b></td>
               <td className="brk">{p.reason || "–"}</td>
               <td className="num">{p.lap ?? "–"}{p.session_time != null && <> <ReplayLink event={event} sessionTime={p.session_time} focus={{ num: p.car_number, name: p.ingame_name }} small /></>}</td>
+              {isStaff && (
+                <td>{p.incident_id ? <button style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => openIncident(p.incident_id!)}>{INCIDENT_KINDS[incidents.find((i) => i.id === p.incident_id)?.kind ?? ""] ?? "Vorfall"}</button> : <span className="muted">–</span>}</td>
+              )}
               <td><span className={`badge ${p.status === "issued" ? "open" : ""}`}>{PENALTY_STATUS[p.status]}</span></td>
               {isStaff && (
                 <td>

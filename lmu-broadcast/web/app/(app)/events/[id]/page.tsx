@@ -67,7 +67,7 @@ function EventView() {
         <IncidentsTab event={event} incidents={incidents} drivers={drivers} penalties={penalties} isStaff={isStaff} selectedId={selected} setSelectedId={setSelected} reload={reload} />
       )}
       {tab === "penalties" && (
-        <PenaltiesTab event={event} penalties={penalties} drivers={drivers} isStaff={isStaff} myIngameName={profile?.ingame_name ?? null} reload={reload} />
+        <PenaltiesTab event={event} penalties={penalties} drivers={drivers} incidents={incidents} isStaff={isStaff} myIngameName={profile?.ingame_name ?? null} openIncident={(id) => { setSelected(id); setTab("incidents"); }} reload={reload} />
       )}
       {tab === "drivers" && (isTeam || isCaptain) && <DriversTab event={event} drivers={drivers} isStaff={isStaff} reload={reload} />}
       {tab === "overlays" && isTeam && <OverlaysTab event={event} />}
