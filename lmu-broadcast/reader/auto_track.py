@@ -22,19 +22,16 @@ from payload import MAX_CARS, _txt
 from track_recorder import MIN_FILL, TrackRecorder, track_slug
 
 RETRY_S = 30.0
-RECHECK_S = 20.0  # so oft wird nachgefragt, ob die Karte inzwischen geloescht wurde (Neu-Aufnahme)
 
 
 class AutoTrack:
-    def __init__(self, site_url: str, token: str, retry_s: float = RETRY_S, recheck_s: float = RECHECK_S):
+    def __init__(self, site_url: str, token: str, retry_s: float = RETRY_S):
         parsed = urlparse(site_url)
         self._https = parsed.scheme != "http"
         self._host = parsed.netloc
         self._base = parsed.path.rstrip("/")
         self._token = token
         self._retry_s = retry_s
-        self._recheck_s = recheck_s
-        self._recheck_at = 0.0
         self._lock = threading.Lock()
         self.recorder = TrackRecorder()
         self.slug = ""
@@ -98,17 +95,6 @@ class AutoTrack:
                 self.message = f"Strecken-Abfrage HTTP {status}"
                 self._retry_at = time.monotonic() + self._retry_s
 
-    def _recheck_job(self, slug: str):
-        """Karte war da: gibt es sie noch? Wurde sie geloescht, wird neu aufgenommen."""
-        status, _ = self._request("GET", f"/api/tracks/{slug}?meta=1")
-        with self._lock:
-            if slug != self.slug or self.state not in ("have", "uploaded"):
-                return
-            if status == 404:
-                self.recorder = TrackRecorder()
-                self.state = "record"
-                self.message = "Streckenkarte wurde geloescht, nehme neu auf"
-
     def _upload_job(self, slug: str, payload: dict):
         status, text = self._request("POST", "/api/tracks", payload)
         with self._lock:
@@ -151,9 +137,6 @@ class AutoTrack:
                 with self._lock:
                     self.state = "upload"
                 state = "upload"
-        elif state in ("have", "uploaded") and not busy and time.monotonic() >= self._recheck_at:
-            self._recheck_at = time.monotonic() + self._recheck_s
-            self._run(self._recheck_job, slug)
         if state == "upload" and not busy and time.monotonic() >= retry_at:
             self._run(self._upload_job, slug, self.recorder.payload())
 
