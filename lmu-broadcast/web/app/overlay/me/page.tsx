@@ -2,18 +2,41 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { PENALTY_KINDS, INCIDENT_KINDS, penaltyText } from "@/lib/labels";
 import { getSupabase } from "@/lib/supabase";
 import { OverlayVoice, type OverlayVoiceState } from "@/lib/voice";
 
+type Who = { name: string; num: number | null; team: string | null };
+type Pen = { id: string; name: string; num: number | null; team: string | null; lap: number | null; kind: string; amount: number | null; reason: string; createdAt: string; mine: boolean };
 type Feed = {
   me: { uid: string; name: string; num: number | null; cls: string | null; team: string | null };
   event: { id: string; name: string };
-  penalties: { id: string; kind: string; amount: number | null; reason: string; createdAt: string }[];
-  incidents: { id: string; kind: string; lap: number | null; createdAt: string }[];
+  penalties: Pen[];
+  reviews: { id: string; kind: string; lap: number | null; drivers: Who[]; createdAt: string }[];
+  cleared: { id: string; lap: number | null; drivers: Who[]; closedAt: string }[];
 };
 
-const NEW_MS = 25000; // so lange blinkt eine neue Strafe gross
+const KIND_EN: Record<string, string> = { contact: "Contact", offtrack: "Off track", track_limits: "Track limits", spin: "Spin", impact: "Impact", overtake: "Overtake", other: "Incident" };
+function penEn(kind: string, amount: number | null): string {
+  const n = amount ?? 0;
+  switch (kind) {
+    case "warning": return "Warning";
+    case "time": return `${n} second time penalty`;
+    case "drive_through": return "Drive-through penalty";
+    case "stop_go": return `${n} second stop-and-go`;
+    case "grid": return `${n} place grid penalty`;
+    case "dq": return "Disqualification";
+    case "race_ban": return "Race ban";
+    case "quali_ban": return "Qualifying ban";
+    default: return kind;
+  }
+}
+
+const NEW_MS = 25000; // so lange steht eine neue Strafe gross im Bild
+
+function Head({ who }: { who: Who[] }) {
+  const t = who.map((w) => `${w.num != null ? `#${w.num} ` : ""}${w.name}${w.team ? ` · ${w.team}` : ""}`).join("  /  ");
+  return <div className="pc-h">{t || "RACE DIRECTOR"}</div>;
+}
 
 /**
  * Persoenliches Fahrer-Overlay (fuer SimHub "Web page view" oder jeden Browser).
@@ -38,8 +61,9 @@ function Inner() {
     if (demo) {
       setFeed({
         me: { uid: "demo", name: "Max Becker", num: 8, cls: "Hypercar", team: "Alpha" }, event: { id: "demo", name: "Demo" },
-        penalties: [{ id: "p1", kind: "time", amount: 5, reason: "Kontakt in Kurve 3", createdAt: new Date().toISOString() }],
-        incidents: [{ id: "i1", kind: "contact", lap: 7, createdAt: new Date().toISOString() }],
+        penalties: [{ id: "p1", name: "Max Becker", num: 8, team: "Alpha", lap: 7, kind: "time", amount: 5, reason: "Kontakt in Kurve 3", createdAt: new Date().toISOString(), mine: true }],
+        reviews: [{ id: "i1", kind: "contact", lap: 9, drivers: [{ name: "Lena Vogt", num: 50, team: "Beta" }], createdAt: new Date().toISOString() }],
+        cleared: [{ id: "c1", lap: 5, drivers: [{ name: "Sara Klein", num: 28, team: "Gamma" }], closedAt: new Date().toISOString() }],
       });
       setVoice({ talking: true, toMe: true, onlyMe: true, message: "Boxen bitte in Runde 12" });
       return;
@@ -77,40 +101,54 @@ function Inner() {
   if (error && !feed) return <div className="dov"><div className="dov-card dov-bad">{error}</div></div>;
   if (!feed) return null;
 
-  const fresh = feed.penalties.filter((p) => demo || now - (seen.current.get(p.id) ?? 0) < NEW_MS && (seen.current.get(p.id) ?? 0) > 0);
-  const old = feed.penalties.filter((p) => !fresh.includes(p));
-  const empty = !voice.talking && !voice.message && feed.penalties.length === 0 && feed.incidents.length === 0;
+  const fresh = feed.penalties.filter((p) => demo || (now - (seen.current.get(p.id) ?? 0) < NEW_MS && (seen.current.get(p.id) ?? 0) > 0));
+  const mineOld = feed.penalties.filter((p) => p.mine && !fresh.includes(p));
+  const empty = !voice.talking && !voice.message && fresh.length + feed.reviews.length + feed.cleared.length + mineOld.length === 0;
 
   return (
     <div className="dov" style={{ zoom: scale }} data-testid="dov">
       {voice.talking && (
-        <div className="dov-card dov-voice">
-          <span className="dov-dot" />
-          <div><b>RENNLEITUNG SPRICHT</b><small>{voice.onlyMe ? "nur zu dir" : "an dich und andere"}</small></div>
+        <div className="pc pc-voice">
+          <div className="pc-h">RACE DIRECTOR</div>
+          <div><span className="dov-dot" />{voice.onlyMe ? "Speaking to you only" : "Speaking"}</div>
         </div>
       )}
-      {voice.message && <div className="dov-card dov-msg"><small>NACHRICHT DER RENNLEITUNG</small><b>{voice.message}</b></div>}
+      {voice.message && (
+        <div className="pc">
+          <div className="pc-h">RACE DIRECTOR</div>
+          <div>{voice.message}</div>
+        </div>
+      )}
       {fresh.map((p) => (
-        <div key={p.id} className="dov-card dov-pen dov-new">
-          <small>NEUE STRAFE</small>
-          <b>{penaltyText(p.kind, p.amount)}</b>
-          {p.reason && <span>{p.reason}</span>}
+        <div key={p.id} className="pc">
+          <Head who={[{ name: p.name, num: p.num, team: p.team }]} />
+          <div>Lap: <b>{p.lap ?? "–"}</b></div>
+          <div>Penalty: <b>{penEn(p.kind, p.amount)}</b></div>
+          <div>Reason: <b>{p.reason || "–"}</b></div>
         </div>
       ))}
-      {feed.incidents.map((i) => (
-        <div key={i.id} className="dov-card dov-inc">
-          <small>VORFALL IN BEARBEITUNG</small>
-          <b>{INCIDENT_KINDS[i.kind] ?? i.kind}{i.lap != null ? ` · Runde ${i.lap}` : ""}</b>
-          <span>Du bist beteiligt. Die Rennleitung prüft.</span>
+      {feed.reviews.map((i) => (
+        <div key={i.id} className="pc">
+          <Head who={i.drivers} />
+          <div>Lap: <b>{i.lap ?? "–"}</b></div>
+          <div>Incident: <b>{KIND_EN[i.kind] ?? i.kind}</b></div>
+          <div className="pc-status"><b>Under review</b></div>
         </div>
       ))}
-      {old.length > 0 && (
-        <div className="dov-card dov-list">
-          <small>OFFENE STRAFEN</small>
-          {old.map((p) => <div key={p.id}><b>{penaltyText(p.kind, p.amount)}</b>{p.reason ? <span> · {p.reason}</span> : null}</div>)}
+      {feed.cleared.map((i) => (
+        <div key={i.id} className="pc">
+          <Head who={i.drivers} />
+          <div>Lap: <b>{i.lap ?? "–"}</b></div>
+          <div className="pc-status"><b>No further action</b></div>
+        </div>
+      ))}
+      {mineOld.length > 0 && (
+        <div className="pc">
+          <div className="pc-h">YOUR OPEN PENALTIES</div>
+          {mineOld.map((p) => <div key={p.id}><b>{penEn(p.kind, p.amount)}</b>{p.reason ? ` — ${p.reason}` : ""}</div>)}
         </div>
       )}
-      {empty && q.get("always") === "1" && <div className="dov-card dov-ok">Alles ruhig · #{feed.me.num ?? ""} {feed.me.name}</div>}
+      {empty && q.get("always") === "1" && <div className="pc"><div className="pc-h">RACE DIRECTOR</div><div>All clear · #{feed.me.num ?? ""} {feed.me.name}</div></div>}
     </div>
   );
 }

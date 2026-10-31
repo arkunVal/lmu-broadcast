@@ -451,3 +451,19 @@ tr.st-closed td:first-child { box-shadow: inset 3px 0 #2dd36f; }
 .vsel-h { font-weight: 800; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
 .vgroup { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .vgroup > span:first-child { width: 60px; flex: none; }
+
+/* Funk-Tab fuer Fahrer */
+.funkbox { border-radius: var(--r); border: 2px solid var(--line); background: var(--panel); padding: 28px 24px; text-align: center; margin-bottom: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 180px; justify-content: center; }
+.funkbox .funk-t { font-size: 32px; font-weight: 900; letter-spacing: .02em; }
+.funkbox .funk-s { color: var(--muted); font-size: 16px; max-width: 560px; }
+.funkbox.off { border-color: var(--accent); }
+.funkbox.ok { border-color: #2fb36c; }
+.funkbox.talk { border-color: #3ad06b; background: #0f3a22; animation: funkp 1s infinite; }
+.funkbox.talk .funk-s { color: #bff3d0; }
+.funkbox button.big { padding: 14px 28px; font-size: 18px; margin-top: 8px; }
+.funk-bars { display: flex; gap: 6px; height: 40px; align-items: flex-end; }
+.funk-bars i { width: 8px; background: #3ad06b; border-radius: 3px; animation: funkb .8s infinite ease-in-out; }
+.funk-bars i:nth-child(2) { animation-delay: .1s; } .funk-bars i:nth-child(3) { animation-delay: .2s; } .funk-bars i:nth-child(4) { animation-delay: .3s; } .funk-bars i:nth-child(5) { animation-delay: .4s; }
+.tab .cnt.live { background: #3ad06b; color: #000; animation: funkp 1s infinite; }
+@keyframes funkb { 0%, 100% { height: 8px; } 50% { height: 40px; } }
+@keyframes funkp { 50% { filter: brightness(1.35); } }

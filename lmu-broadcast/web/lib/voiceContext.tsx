@@ -19,11 +19,15 @@ type Ctx = {
   message: (text: string, match: (m: PeerMeta) => boolean) => number;
   listener: ListenerState;
   setVolume: (v: number) => void;
+  volume: number;
+  chime: boolean;
+  setChime: (on: boolean) => void;
+  beep: () => void;
 };
 
 const none: Ctx = {
   mode: null, active: false, error: "", join: async () => {}, leave: () => {}, peers: [], micOn: false, talking: false,
-  talk: () => 0, message: () => 0, listener: { connected: false, talkingToMe: false, receiving: false }, setVolume: () => {},
+  talk: () => 0, message: () => 0, listener: { connected: false, talkingToMe: false, receiving: false }, setVolume: () => {}, volume: 1, chime: true, setChime: () => {}, beep: () => {},
 };
 const VoiceCtx = createContext<Ctx>(none);
 export const useVoice = () => useContext(VoiceCtx);
@@ -38,6 +42,25 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
   const [error, setError] = useState("");
   const [, bump] = useState(0);
   const [listener, setListener] = useState<ListenerState>(none.listener);
+  const [volume, setVol] = useState(1);
+  const [chime, setChimeState] = useState(true);
+  useEffect(() => { try { setChimeState(localStorage.getItem("flm-chime") !== "0"); } catch {} }, []);
+  const beep = useCallback(() => {
+    try {
+      const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AC();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.value = 880;
+      g.gain.setValueAtTime(0.15, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime + 0.4);
+      setTimeout(() => void ctx.close(), 600);
+    } catch {}
+  }, []);
+  const talkingToMe = listener.talkingToMe;
+  useEffect(() => { if (talkingToMe && chime) beep(); }, [talkingToMe]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const me = useMemo<PeerMeta | null>(() => {
     if (!profile) return null;
@@ -72,6 +95,7 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
         await h.startMic();
       } else {
         lis.current = new VoiceListener(supabase, event.id, me, setListener);
+        lis.current.setVolume(volume);
       }
       setActive(true);
     } catch (e) {
@@ -79,7 +103,7 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
       host.current = null;
       setError(e instanceof Error && e.name === "NotAllowedError" ? "Mikrofon wurde nicht erlaubt. Im Browser freigeben und erneut versuchen." : e instanceof Error && e.name === "NotFoundError" ? "Kein Mikrofon gefunden." : `Sprechfunk-Fehler: ${e instanceof Error ? e.message : e}`);
     }
-  }, [me, mode, active, event.id]);
+  }, [me, mode, active, event.id, volume]);
 
   useEffect(() => () => leave(), [leave]);
   useEffect(() => {
@@ -96,7 +120,9 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
     talk: (m) => host.current?.talk(m) ?? 0,
     message: (t, m) => host.current?.message(t, m) ?? 0,
     listener,
-    setVolume: (v) => lis.current?.setVolume(v),
+    setVolume: (v) => { setVol(v); lis.current?.setVolume(v); },
+    volume, chime, beep,
+    setChime: (on) => { setChimeState(on); try { localStorage.setItem("flm-chime", on ? "1" : "0"); } catch {} },
   };
   return <VoiceCtx.Provider value={value}>{children}</VoiceCtx.Provider>;
 }

@@ -5,6 +5,7 @@ import { useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import AccountTab from "@/components/event/AccountTab";
 import ControlsTab from "@/components/event/ControlsTab";
+import FunkTab from "@/components/event/FunkTab";
 import EventBar from "@/components/event/EventBar";
 import IncidentsTab from "@/components/event/IncidentsTab";
 import LiveTab from "@/components/event/LiveTab";
@@ -15,9 +16,14 @@ import { useAuth } from "@/lib/auth";
 import { useEventData } from "@/lib/eventData";
 import { groupHints, isHint } from "@/lib/hints";
 import { LiveProvider } from "@/lib/liveContext";
-import { VoiceProvider } from "@/lib/voiceContext";
+import { VoiceProvider, useVoice } from "@/lib/voiceContext";
 
-type Tab = "live" | "controls" | "map" | "incidents" | "penalties" | "session" | "account";
+type Tab = "live" | "controls" | "map" | "incidents" | "penalties" | "session" | "voice" | "account";
+
+function FunkDot() {
+  const v = useVoice();
+  return v.listener.talkingToMe ? <span className="cnt live" title="Rennleitung spricht">●</span> : null;
+}
 
 function EventView() {
   const params = useParams<{ id: string }>();
@@ -39,6 +45,7 @@ function EventView() {
     ...(isTeam ? ([["live", "Live Timings"], ["controls", "Controls"], ["map", "Track Map"], ["incidents", "Replay", isStaff ? openCount + hintCount : 0]] as [Tab, string, number?][]) : []),
     ["penalties", "Penalties"],
     ["session", "Session"],
+    ...(profile?.role === "driver" ? ([["voice", "Funk"]] as [Tab, string][]) : []),
     ["account", "Account"],
   ];
   const current: Tab = tab && tabs.some(([k]) => k === tab) ? tab : isTeam ? "live" : "session";
@@ -54,6 +61,7 @@ function EventView() {
           {tabs.map(([key, label, count]) => (
             <button key={key} role="tab" aria-selected={current === key} className={`tab ${current === key ? "active" : ""}`} onClick={() => setTab(key)}>
               {label}
+              {key === "voice" && <FunkDot />}
               {!!count && <span className="cnt" title={`${openCount} offen, ${hintCount} Auto-Hinweise`}>{count}</span>}
             </button>
           ))}
@@ -71,6 +79,7 @@ function EventView() {
           {current === "session" && (
             <SessionTab event={event} incidents={incidents} penalties={penalties} drivers={drivers} isStaff={isStaff} isAdmin={isAdmin} canManageDrivers={isTeam || isCaptain} go={goTab} reload={reload} />
           )}
+          {current === "voice" && profile?.role === "driver" && <FunkTab />}
           {current === "account" && <AccountTab />}
         </div>
       </VoiceProvider>

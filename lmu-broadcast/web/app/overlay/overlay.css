@@ -71,22 +71,17 @@
 .mp-ring.r2 { animation-delay: .6s; }
 @keyframes mp-pulse { from { transform: scale(.8); opacity: 1; } to { transform: scale(2.6); opacity: 0; } }
 
-/* Fahrer-Overlay (/overlay/me) */
-.dov { font-family: "Segoe UI", system-ui, sans-serif; color: #fff; width: 30em; max-width: 100vw; display: flex; flex-direction: column; gap: .5em; padding: .4em; font-size: 16px; }
-.dov-card { background: rgba(7, 14, 34, .93); border-left: .35em solid #fffc40; padding: .6em .9em; display: flex; flex-direction: column; gap: .15em; filter: drop-shadow(0 2px 8px rgba(0,0,0,.5)); }
-.dov-card small { font-size: .7em; letter-spacing: .12em; font-weight: 700; color: #c9d2e3; }
-.dov-card b { font-size: 1.2em; }
-.dov-card span { font-size: .85em; color: #d6deee; }
-.dov-voice { flex-direction: row; align-items: center; gap: .8em; border-left-color: #3ad06b; }
-.dov-voice small { display: block; }
-.dov-dot { width: 1em; height: 1em; border-radius: 50%; background: #3ad06b; animation: dovp 1s infinite; }
-.dov-msg { border-left-color: #4aa3ff; }
-.dov-pen { border-left-color: #ff4d4d; }
-.dov-pen.dov-new { background: rgba(120, 10, 20, .95); animation: dovb 1s infinite; }
-.dov-pen.dov-new b { font-size: 1.6em; }
-.dov-inc { border-left-color: #ffb020; }
-.dov-list { border-left-color: #ff4d4d; }
-.dov-bad { border-left-color: #ff4d4d; }
-.dov-ok { border-left-color: #3ad06b; }
+/* Fahrer-Overlay (/overlay/me): schlichter Text wie die Einblendung im Spiel ("RACE DIRECTOR") */
+.dov { font-family: "Segoe UI", system-ui, sans-serif; color: #fff; width: 26em; max-width: 100vw; display: flex; flex-direction: column; gap: .9em; padding: .4em; font-size: 16px; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+.pc { background: linear-gradient(90deg, rgba(0,0,0,.72), rgba(0,0,0,.45)); padding: .7em 1em .75em; display: flex; flex-direction: column; gap: .2em; animation: pcin .4s both; }
+.pc-h { font-size: 1.25em; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin-bottom: .25em; line-height: 1.15; }
+.pc > div:not(.pc-h) { font-size: 1.05em; color: #e4e8f0; }
+.pc b { color: #fff; font-weight: 700; }
+.pc-status { margin-top: .2em; }
+.pc-status b { letter-spacing: .06em; text-transform: uppercase; color: #ffd24a; }
+.pc-voice .dov-dot { margin-right: .5em; }
+.dov-dot { display: inline-block; width: .7em; height: .7em; border-radius: 50%; background: #3ad06b; animation: dovp 1s infinite; }
+.dov-card { background: rgba(0,0,0,.7); padding: .6em .9em; }
+.dov-bad { color: #fff; }
 @keyframes dovp { 50% { opacity: .35; } }
-@keyframes dovb { 50% { filter: brightness(1.5); } }
+@keyframes pcin { from { transform: translateX(-1.5em); opacity: 0; } }

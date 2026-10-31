@@ -56,7 +56,7 @@ export function penaltyText(kind: string, amount: number | null): string {
 /** Auswahl "Entscheidung der Rennleitung" beim Vorfall. kind/amount füllen das Strafformular vor. */
 export type DecisionOption = { label: string; kind?: PenaltyKind; amount?: number };
 export const DECISION_OPTIONS: DecisionOption[] = [
-  { label: "Rennunfall, keine Strafe" },
+  { label: "No further action" },
   { label: "Kein Vergehen" },
   { label: "Verwarnung", kind: "warning" },
   { label: "+5 s Zeitstrafe", kind: "time", amount: 5 },
