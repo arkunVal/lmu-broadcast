@@ -304,6 +304,9 @@ class HintDetector:
 
     def _overtakes(self, out, info, et, cars):
         """Zwei nahe Autos tauschen die Reihenfolge entlang der Strecke -> Ueberholmanoever (nur zum Ansehen)."""
+        if int(info.mSession) < 10:  # nur im Rennen, nicht in Training/Quali
+            self._pairs.clear()
+            return
         length = float(info.mLapDist)
         if length < 500.0:
             return

@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 
 from auto_track import AutoTrack
-from replay_control import ReplayControl, dump_endpoints
+from replay_control import ReplayControl, dump_endpoints, probe_commands
 from demo import demo_hint, demo_payload
 from hint_sender import HintSender
 from hints import HintDetector
@@ -154,6 +154,7 @@ def parse_args():
     p.add_argument("--room", help="Raumcode (ueberschreibt config.json)")
     p.add_argument("--rate", type=float, help="Sendungen pro Sekunde (ueberschreibt config.json)")
     p.add_argument("--record-track", action="store_true", help="Streckenverlauf fuer die Streckenkarte aufnehmen (eine Runde fahren)")
+    p.add_argument("--replay-probe", action="store_true", help="Replay-Befehle (Play, Pause ...) im Spiel durchprobieren und Antworten zeigen")
     p.add_argument("--replay-endpoints", action="store_true", help="alle Replay-Endpunkte des Spiels anzeigen (fuer den Replay-Sprung-Knopf)")
     p.add_argument("--hints-debug", action="store_true", help="Vorfall-Hinweise samt Rohwerten in der Konsole zeigen")
     p.add_argument("--demo-hints", action="store_true", help="im Demo-Modus gelegentlich einen Fake-Hinweis erzeugen")
@@ -163,6 +164,8 @@ def parse_args():
 
 def main() -> int:
     args = parse_args()
+    if args.replay_probe:
+        return probe_commands()
     if args.replay_endpoints:
         return dump_endpoints()
     if args.record_track:
@@ -225,7 +228,7 @@ def main() -> int:
     # Replay-Sprung-Knopf der Website (nur mit echtem Spiel)
     replay = None
     if site_url and ingest_token and not args.dry_run and not args.demo and not args.from_file:
-        replay = ReplayControl(site_url, ingest_token, cfg.get("replay_jump"), focus_override=cfg.get("replay_focus"))
+        replay = ReplayControl(site_url, ingest_token, cfg.get("replay_jump"), focus_override=cfg.get("replay_focus"), transport=cfg.get("replay_transport"))
         replay.start()
 
     interval = 1.0 / read_hz

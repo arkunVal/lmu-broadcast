@@ -15,12 +15,12 @@ from hints import HintDetector  # noqa: E402
 from pylmu.lmu_data import LMUObjectOut  # noqa: E402
 
 
-def frame(et, cars, phase=5, telemetry=None):
+def frame(et, cars, phase=5, telemetry=None, session=10):
     """cars: Liste von dicts mit Feldern fuer vehScoringInfo; telemetry: {mID: dict}."""
     d = LMUObjectOut()
     info = d.scoring.scoringInfo
     info.mTrackName = b"Test"
-    info.mSession = 10
+    info.mSession = session
     info.mStartET = 100.0
     info.mCurrentET = et
     info.mGamePhase = phase
@@ -198,6 +198,14 @@ class OvertakeTests(unittest.TestCase):
         self.assertEqual(len(hints), 1)
         self.assertEqual(hints[0]["details"]["overtaker"], "Fahrer2")
         self.assertEqual(hints[0]["details"]["overtaken"], "Fahrer1")
+
+    def test_no_overtake_hint_in_quali(self):
+        det = HintDetector()
+        frames = []
+        for i in range(10):
+            ld2 = 1000.0 + i * 2.0 - 8.0 + i * 1.8
+            frames.append(frame(10.0 + i * 0.5, [{"id": 1, "ld": 1000.0 + i * 2.0, "x": 1000.0 + i * 2.0}, {"id": 2, "ld": ld2, "x": ld2, "z": 3.0}], session=6))
+        self.assertEqual([h for h in run(det, frames) if h["kind"] == "overtake"], [])
 
     def test_far_apart_no_hint(self):
         det = HintDetector()

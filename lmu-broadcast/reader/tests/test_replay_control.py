@@ -180,6 +180,13 @@ class ReplayControlTests(unittest.TestCase):
         self.assertFalse(Handler.active)
         self.assertEqual(Handler.reports[0]["status"], "done")
 
+    def test_transport_button(self):
+        ctl = self._ctl()
+        Handler.commands = [{"id": "t1", "kind": "transport", "command": "pause", "time": None, "car": None, "driver": None}]
+        ctl.poll_once()
+        self.assertEqual(Handler.log, ["/rest/watch/replayCommand/Pause"])
+        self.assertEqual(Handler.reports[0]["status"], "done")
+
     def test_live_command_when_already_live(self):
         ctl = self._ctl()
         Handler.active = False
@@ -202,6 +209,18 @@ class ReplayControlTests(unittest.TestCase):
         ctl.poll_once()
         self.assertEqual(Handler.log, ["/rest/watch/focusForward", "/rest/watch/focusBackward"])
         self.assertEqual([r["status"] for r in Handler.reports], ["done", "done"])
+
+    def test_transport_buttons(self):
+        ctl = self._ctl()
+        Handler.commands = [{"id": "t1", "kind": "transport", "command": "pause"}, {"id": "t2", "kind": "transport", "command": "nix"}]
+        ctl.poll_once()
+        self.assertEqual(Handler.log, ["/rest/watch/replayCommand/Pause"])
+        self.assertEqual([r["status"] for r in Handler.reports], ["done", "failed"])
+
+    def test_transport_config_override(self):
+        ctl = rc.ReplayControl("http://127.0.0.1:1", "x" * 24, transport={"slow": "Slow Motion"})
+        self.assertEqual(ctl._transport["slow"], "Slow Motion")
+        self.assertEqual(ctl._transport["play"], "Play")
 
 
 if __name__ == "__main__":

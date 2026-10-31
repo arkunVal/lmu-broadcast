@@ -169,6 +169,33 @@ def build_call(plan: dict, seconds: float) -> tuple[str, str, bytes | None]:
     return plan.get("method", "POST").upper(), path, body
 
 
+TRANSPORT_DEFAULT = {"play": "Play", "pause": "Pause", "slow": "SlowMotion", "rewind": "Rewind", "forward": "FastForward"}
+TRANSPORT_ALIASES = {
+    "play": ["Play", "play", "PLAY"],
+    "pause": ["Pause", "pause", "TogglePause"],
+    "slow": ["SlowMotion", "Slow", "slowmotion"],
+    "rewind": ["Rewind", "rewind", "Reverse"],
+    "forward": ["FastForward", "fastforward", "Forward"],
+}
+PROBE_NAMES = ["Play", "Pause", "Stop", "TogglePause", "PlayPause", "SlowMotion", "Slow", "Rewind", "FastForward",
+               "Forward", "Backward", "Reverse", "StepForward", "StepBackward", "play", "pause", "slowmotion", "rewind", "fastforward"]
+
+
+def probe_commands() -> int:
+    """py lmu_reader.py --replay-probe : probiert Replay-Befehle im Spiel durch und zeigt die Antworten.
+    Spiel muss im Replay sein. Die Befehle wirken wirklich (Replay laeuft, haelt an ...)."""
+    print("Probiere PUT /rest/watch/replayCommand/{Name}. Das Spiel sollte im Replay sein. Antworten:")
+    for name in PROBE_NAMES:
+        try:
+            status, text = _game_request("PUT", f"/rest/watch/replayCommand/{quote(name)}")
+        except Exception as exc:
+            print(f"  {name:14} Spiel nicht erreichbar ({type(exc).__name__})")
+            return 1
+        print(f"  {name:14} HTTP {status}  {text[:100]!r}")
+        time.sleep(0.8)
+    return 0
+
+
 def dump_endpoints() -> int:
     """py lmu_reader.py --replay-endpoints : zeigt alle Replay-Endpunkte des Spiels."""
     try:
@@ -204,7 +231,7 @@ def dump_endpoints() -> int:
 
 class ReplayControl(threading.Thread):
     def __init__(self, site_url: str, token: str, override: dict | None = None, poll_s: float = POLL_S,
-                 focus_override: dict | None = None, focus_delay_s: float = 0.7):
+                 focus_override: dict | None = None, focus_delay_s: float = 0.7, transport: dict | None = None):
         super().__init__(daemon=True)
         parsed = urlparse(site_url)
         self._https = parsed.scheme != "http"
@@ -216,6 +243,9 @@ class ReplayControl(threading.Thread):
         self._focus_override = focus_override if isinstance(focus_override, dict) and focus_override.get("path") else None
         self._focus_plan: dict | None = None
         self._focus_delay = focus_delay_s
+        self._transport = dict(TRANSPORT_DEFAULT)
+        if isinstance(transport, dict):
+            self._transport.update({k: str(v) for k, v in transport.items() if k in TRANSPORT_DEFAULT and v})
         self._enter_delay = 1.5
         self._cars: list[dict] = []
         self._seen: set[str] = set()
@@ -316,6 +346,24 @@ class ReplayControl(threading.Thread):
             return True, "Naechstes Auto" if forward else "Vorheriges Auto"
         return False, f"Spiel antwortet HTTP {status} auf PUT {path}: {text[:80]}"
 
+    def transport(self, key: str) -> tuple[bool, str]:
+        """Replay-Knoepfe: play, pause, slow, rewind, forward. Probiert bekannte Schreibweisen, merkt sich die erste, die klappt."""
+        value = self._transport.get(key)
+        if not value:
+            return False, f"Unbekannter Replay-Knopf: {key}"
+        names = [value] + [n for n in TRANSPORT_ALIASES.get(key, []) if n != value]
+        last = ""
+        for name in names:
+            try:
+                status, text = _game_request("PUT", f"/rest/watch/replayCommand/{quote(name)}")
+            except Exception as exc:
+                return False, f"Spiel nicht erreichbar ({type(exc).__name__})"
+            if 200 <= status < 300:
+                self._transport[key] = name
+                return True, f"Replay: {name}"
+            last = f"HTTP {status} {text[:60]}"
+        return False, f"Spiel kennt den Befehl '{value}' nicht ({last}). Reader mit --replay-probe starten und config.json -> replay_transport anpassen."
+
     def go_live(self) -> tuple[bool, str]:
         """Aus dem Replay zurueck zum Live-Bild."""
         active = self.replay_active()
@@ -358,6 +406,8 @@ class ReplayControl(threading.Thread):
         else:
             if kind == "live":
                 ok, msg = self.go_live()
+            elif kind == "transport":
+                ok, msg = self.transport(str(cmd.get("command") or ""))
             elif kind in ("next", "prev"):
                 ok, msg = self.cycle_car(kind == "next")
             elif kind == "focus":
