@@ -1,13 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type CommandInput = { kind: "jump" | "focus" | "live" | "next" | "prev"; time?: number | null; car?: number | null; driver?: string | null };
+export type CommandInput = { kind: "jump" | "focus" | "live" | "next" | "prev" | "transport"; command?: string | null; time?: number | null; car?: number | null; driver?: string | null };
 export type CommandResult = { ok: boolean; text: string };
 
 /** Legt einen Befehl fuer den Reader an und wartet bis zu 10 s auf seine Antwort. */
 export async function sendCommand(supabase: SupabaseClient, eventId: string, cmd: CommandInput): Promise<CommandResult> {
   const { data, error } = await supabase
     .from("replay_commands")
-    .insert({ event_id: eventId, kind: cmd.kind, target_time: cmd.time ?? null, car_number: cmd.car ?? null, driver: cmd.driver ?? null })
+    .insert({ event_id: eventId, kind: cmd.kind, target_time: cmd.time ?? null, car_number: cmd.car ?? null, driver: cmd.driver ?? null, command: cmd.command ?? null })
     .select("id")
     .single();
   if (error || !data) {

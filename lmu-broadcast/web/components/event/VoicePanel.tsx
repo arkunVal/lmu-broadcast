@@ -9,7 +9,7 @@ const STATE: Record<string, string> = { connected: "verbunden", connecting: "ver
 /** Sprechfunk der Rennleitung: an alle, eine Klasse, ein Team oder einen Fahrer. */
 export default function VoicePanel() {
   const v = useVoice();
-  const [target, setTarget] = useState("all");
+  const [target, setTarget] = useState("");
   const [latch, setLatch] = useState(false);
   const [down, setDown] = useState(false);
   const held = useRef(false);
@@ -17,6 +17,7 @@ export default function VoicePanel() {
   const classes = useMemo(() => [...new Set(v.peers.map((p) => p.meta.cls).filter(Boolean) as string[])].sort(), [v.peers]);
   const teams = useMemo(() => [...new Set(v.peers.map((p) => p.meta.team).filter(Boolean) as string[])].sort(), [v.peers]);
   const match = useMemo(() => (m: PeerMeta) => {
+    if (!target) return false;
     if (target === "all") return true;
     const [k, ...rest] = target.split(":");
     const val = rest.join(":");
@@ -24,7 +25,7 @@ export default function VoicePanel() {
   }, [target]);
 
   function start() {
-    if (!v.micOn) return;
+    if (!v.micOn || !target) return;
     held.current = true;
     setDown(true);
     v.talk(match);
@@ -65,12 +66,13 @@ export default function VoicePanel() {
           <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
             <label style={{ margin: 0 }}>Sprechen an</label>
             <select value={target} onChange={(e) => setTarget(e.target.value)} style={{ width: "auto" }} aria-label="Empfänger">
+              <option value="">— Empfänger wählen —</option>
               <option value="all">Alle Fahrer</option>
               {classes.length > 0 && <optgroup label="Klasse">{classes.map((c) => <option key={c} value={`cls:${c}`}>{c}</option>)}</optgroup>}
               {teams.length > 0 && <optgroup label="Team">{teams.map((t) => <option key={t} value={`team:${t}`}>{t}</option>)}</optgroup>}
               <optgroup label="Fahrer">{v.peers.map((p) => <option key={p.meta.uid} value={`drv:${p.meta.uid}`}>{p.meta.num != null ? `#${p.meta.num} ` : ""}{p.meta.name}</option>)}</optgroup>
             </select>
-            <span className="muted">{count} erreichbar</span>
+            <span className="muted">{target ? `${count} erreichbar` : "Erst Empfänger wählen, dann sprechen."}</span>
           </div>
           <div className="row" style={{ gap: 10, margin: "10px 0", flexWrap: "wrap" }}>
             <button
@@ -78,8 +80,8 @@ export default function VoicePanel() {
               onPointerDown={(e) => { e.preventDefault(); if (latch && v.talking) { v.talk(null); setLatch(false); } else start(); }}
               onPointerUp={stop}
               onPointerLeave={stop}
-              disabled={count === 0}
-              title="Gedrückt halten zum Sprechen (Taste V)"
+              disabled={!target || count === 0}
+              title={target ? "Gedrückt halten zum Sprechen (Taste V)" : "Erst einen Empfänger wählen"}
             >
               {down || (latch && v.talking) ? "● Du sprichst" : "Sprechen (halten) · V"}
             </button>

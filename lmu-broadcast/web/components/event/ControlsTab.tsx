@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { sendCommand } from "@/lib/commands";
+import { getSupabase } from "@/lib/supabase";
 import { useCamera } from "@/lib/useCamera";
 import type { EventRow } from "@/lib/labels";
 import OverlaysTab from "./OverlaysTab";
@@ -11,6 +14,16 @@ export default function ControlsTab({ event }: { event: EventRow }) {
   const { profile } = useAuth();
   const staff = profile?.role === "admin" || profile?.role === "steward";
   const { msg, busy, control } = useCamera(event.id);
+  const [tMsg, setTMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [tBusy, setTBusy] = useState(false);
+  async function transport(command: string) {
+    const supabase = getSupabase();
+    if (!supabase || tBusy) return;
+    setTBusy(true);
+    setTMsg(null);
+    setTMsg(await sendCommand(supabase, event.id, { kind: "transport", command }));
+    setTBusy(false);
+  }
 
   return (
     <div className="scrollarea controls">
@@ -25,6 +38,19 @@ export default function ControlsTab({ event }: { event: EventRow }) {
               <button onClick={() => control("live")} disabled={busy} title="Das Spiel verlässt das Replay und zeigt wieder das Live-Bild.">↩ Zurück zu Live</button>
               {busy && <span className="muted" style={{ fontSize: 13 }}>Sende …</span>}
               {msg && <span className={msg.ok ? "okmsg" : "err"} style={{ margin: 0 }}>{msg.ok ? "✓ " : ""}{msg.text}</span>}
+            </div>
+          </div>
+          <div className="panel">
+            <h3>Replay-Steuerung</h3>
+            <p className="muted" style={{ margin: "0 0 10px", fontSize: 13 }}>Wirkt im Spiel-Replay am Rennrechner. Ein Sprung im Replay (Tab „Replay“) öffnet das Replay von selbst.</p>
+            <div className="camrow">
+              <button onClick={() => transport("rewind")} disabled={tBusy} title="Zurückspulen">⏪ Zurück</button>
+              <button onClick={() => transport("pause")} disabled={tBusy} title="Pause">⏸ Pause</button>
+              <button className="primary" onClick={() => transport("play")} disabled={tBusy} title="Abspielen">▶ Play</button>
+              <button onClick={() => transport("slow")} disabled={tBusy} title="Zeitlupe">🐢 Zeitlupe</button>
+              <button onClick={() => transport("forward")} disabled={tBusy} title="Vorspulen">⏩ Vor</button>
+              {tBusy && <span className="muted" style={{ fontSize: 13 }}>Sende …</span>}
+              {tMsg && <span className={tMsg.ok ? "okmsg" : "err"} style={{ margin: 0 }}>{tMsg.ok ? "✓ " : ""}{tMsg.text}</span>}
             </div>
           </div>
           {staff && <VoicePanel />}
