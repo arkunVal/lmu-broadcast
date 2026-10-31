@@ -15,16 +15,17 @@ from hints import HintDetector  # noqa: E402
 from pylmu.lmu_data import LMUObjectOut  # noqa: E402
 
 
-def frame(et, cars, phase=5, telemetry=None):
+def frame(et, cars, phase=5, telemetry=None, session=10):
     """cars: Liste von dicts mit Feldern fuer vehScoringInfo; telemetry: {mID: dict}."""
     d = LMUObjectOut()
     info = d.scoring.scoringInfo
     info.mTrackName = b"Test"
-    info.mSession = 10
+    info.mSession = session
     info.mStartET = 100.0
     info.mCurrentET = et
     info.mGamePhase = phase
     info.mNumVehicles = len(cars)
+    info.mLapDist = 5000.0
     for i, c in enumerate(cars):
         v = d.scoring.vehScoringInfo[i]
         v.mID = c["id"]
@@ -38,6 +39,7 @@ def frame(et, cars, phase=5, telemetry=None):
         v.mPathLateral = c.get("lat", 0.0)
         v.mTrackEdge = c.get("edge", 6.0)
         v.mInPits = c.get("pits", False)
+        v.mLapDist = c.get("ld", 0.0)
         v.mLocalAccel.x = c.get("ax", 0.0)
     telemetry = telemetry or {}
     d.telemetry.activeVehicles = len(telemetry)
@@ -182,6 +184,33 @@ class HintTests(unittest.TestCase):
         a = run(HintDetector(), [frame(10.0 + i * 0.5, [{"id": 1, "vx": 30.0, "vz": 20.0}]) for i in range(4)])
         b = run(HintDetector(), [frame(10.0 + i * 0.5, [{"id": 1, "vx": 30.0, "vz": 20.0}]) for i in range(4)])
         self.assertEqual(a[0]["key"], b[0]["key"])
+
+
+class OvertakeTests(unittest.TestCase):
+    def test_pass_gives_overtake_hint(self):
+        det = HintDetector()
+        frames = []
+        for i in range(10):
+            # Auto 2 liegt erst 8 m hinter Auto 1, ist dann 8 m davor
+            ld2 = 1000.0 + i * 2.0 - 8.0 + i * 1.8
+            frames.append(frame(10.0 + i * 0.5, [{"id": 1, "ld": 1000.0 + i * 2.0, "x": 1000.0 + i * 2.0}, {"id": 2, "ld": ld2, "x": ld2, "z": 3.0}]))
+        hints = [h for h in run(det, frames) if h["kind"] == "overtake"]
+        self.assertEqual(len(hints), 1)
+        self.assertEqual(hints[0]["details"]["overtaker"], "Fahrer2")
+        self.assertEqual(hints[0]["details"]["overtaken"], "Fahrer1")
+
+    def test_no_overtake_hint_in_quali(self):
+        det = HintDetector()
+        frames = []
+        for i in range(10):
+            ld2 = 1000.0 + i * 2.0 - 8.0 + i * 1.8
+            frames.append(frame(10.0 + i * 0.5, [{"id": 1, "ld": 1000.0 + i * 2.0, "x": 1000.0 + i * 2.0}, {"id": 2, "ld": ld2, "x": ld2, "z": 3.0}], session=6))
+        self.assertEqual([h for h in run(det, frames) if h["kind"] == "overtake"], [])
+
+    def test_far_apart_no_hint(self):
+        det = HintDetector()
+        frames = [frame(10.0 + i * 0.5, [{"id": 1, "ld": 1000.0, "x": 1000.0}, {"id": 2, "ld": 3000.0 - i * 400, "x": 3000.0 - i * 400}]) for i in range(6)]
+        self.assertEqual([h for h in run(det, frames) if h["kind"] == "overtake"], [])
 
 
 class SenderTest(unittest.TestCase):

@@ -94,6 +94,19 @@ class AutoTrackTest(unittest.TestCase):
             srv.shutdown()
             srv.server_close()
 
+    def test_deleted_map_is_recorded_again(self):
+        store = []
+        known = {"test-track-1": 0.99}
+        srv = make_server(known, store)
+        try:
+            at = AutoTrack(f"http://127.0.0.1:{srv.server_port}", "T", recheck_s=0.05)
+            self.assertTrue(self.wait(lambda: (at.update(frame(0)), at.state == "have")[1]))
+            known.clear()  # Karte auf der Website geloescht
+            self.assertTrue(self.wait(lambda: (at.update(frame(0)), at.state == "record")[1]))
+        finally:
+            srv.shutdown()
+            srv.server_close()
+
     def test_server_down_does_not_crash(self):
         at = AutoTrack("http://127.0.0.1:9", "T", retry_s=0.05)
         at.update(frame(0))

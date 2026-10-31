@@ -181,6 +181,72 @@ PROBE_NAMES = ["Play", "Pause", "Stop", "TogglePause", "PlayPause", "SlowMotion"
                "Forward", "Backward", "Reverse", "StepForward", "StepBackward", "play", "pause", "slowmotion", "rewind", "fastforward"]
 
 
+def _resolve(spec: dict, node, depth: int = 0):
+    """Loest $ref-Verweise im Schema auf (bis 4 Ebenen)."""
+    if depth > 4:
+        return node
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/"):
+            cur = spec
+            for part in ref[2:].split("/"):
+                cur = cur.get(part, {}) if isinstance(cur, dict) else {}
+            return _resolve(spec, cur, depth + 1)
+        return {k: _resolve(spec, v, depth + 1) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_resolve(spec, v, depth + 1) for v in node]
+    return node
+
+
+def _enums(node):
+    if isinstance(node, dict):
+        if isinstance(node.get("enum"), list):
+            yield node["enum"]
+        for v in node.values():
+            yield from _enums(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _enums(v)
+
+
+def schema_transport(spec: dict) -> dict:
+    """Liest die erlaubten Replay-Befehle aus dem Spiel-Schema und ordnet sie den Knoepfen zu."""
+    names: list[str] = []
+    for path, ops in (spec.get("paths") or {}).items():
+        if "replaycommand" in path.lower():
+            for lst in _enums(_resolve(spec, ops)):
+                names += [str(x) for x in lst]
+    if not names:
+        for lst in _enums(spec):
+            if any("pause" in str(x).lower() for x in lst):
+                names += [str(x) for x in lst]
+    rules = {"pause": ("pause",), "slow": ("slow",), "rewind": ("rew", "back", "revers"), "forward": ("fast", "forward"), "play": ("play",)}
+    out: dict = {}
+    for key, words in rules.items():
+        for n in names:
+            low = n.lower()
+            if any(w in low for w in words) and not (key == "play" and "pause" in low) and not (key == "forward" and "step" in low) and not (key == "rewind" and "step" in low):
+                out[key] = n
+                break
+    return out
+
+
+def dump_commands() -> int:
+    """py lmu_reader.py --replay-commands : zeigt, welche Replay-Befehle das Spiel laut Schema kennt."""
+    try:
+        spec = load_schema()
+    except Exception as exc:
+        print(f"Spiel nicht erreichbar ({exc})")
+        return 1
+    for path, ops in (spec.get("paths") or {}).items():
+        if "replaycommand" in path.lower():
+            print(path)
+            print(json.dumps(_resolve(spec, ops), indent=1, ensure_ascii=False)[:3000])
+    found = schema_transport(spec)
+    print("Zuordnung aus dem Schema:", found or "nichts gefunden")
+    return 0
+
+
 def probe_commands() -> int:
     """py lmu_reader.py --replay-probe : probiert Replay-Befehle im Spiel durch und zeigt die Antworten.
     Spiel muss im Replay sein. Die Befehle wirken wirklich (Replay laeuft, haelt an ...)."""
@@ -244,6 +310,8 @@ class ReplayControl(threading.Thread):
         self._focus_plan: dict | None = None
         self._focus_delay = focus_delay_s
         self._transport = dict(TRANSPORT_DEFAULT)
+        self._transport_loaded = False
+        self._transport_cfg = {k for k, v in (transport or {}).items() if v} if isinstance(transport, dict) else set()
         if isinstance(transport, dict):
             self._transport.update({k: str(v) for k, v in transport.items() if k in TRANSPORT_DEFAULT and v})
         self._enter_delay = 1.5
@@ -348,6 +416,14 @@ class ReplayControl(threading.Thread):
 
     def transport(self, key: str) -> tuple[bool, str]:
         """Replay-Knoepfe: play, pause, slow, rewind, forward. Probiert bekannte Schreibweisen, merkt sich die erste, die klappt."""
+        if not self._transport_loaded:
+            self._transport_loaded = True
+            try:
+                for k, v in schema_transport(load_schema()).items():
+                    if k not in self._transport_cfg:
+                        self._transport[k] = v
+            except Exception:
+                pass
         value = self._transport.get(key)
         if not value:
             return False, f"Unbekannter Replay-Knopf: {key}"

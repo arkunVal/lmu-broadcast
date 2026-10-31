@@ -31,6 +31,8 @@ DEFAULTS = {
     "impact_min": 100.0,        # Aufprall-Staerke (Einheit im Spiel unbekannt)
     "accel_spike": 80.0,        # Beschleunigungs-Spitze (m/s^2) fuer Autos ohne Telemetrie
     "accel_radius_factor": 0.6, # dabei Radius = contact_radius_m * Faktor
+    "overtake_radius_m": 20.0,  # Ueberholmanoever: so nah muessen sich beide Autos beim Platztausch sein
+    "overtake_min_kmh": 40.0,   # Ueberholmanoever: Mindesttempo beider Autos
 }
 
 
@@ -90,6 +92,7 @@ class HintDetector:
         self._log = log
         self._states: dict[int, _CarState] = {}
         self._cooldowns: dict[tuple, float] = {}
+        self._pairs: dict[tuple, int] = {}
         self._last_et: float | None = None
         self.detected = 0
 
@@ -104,10 +107,12 @@ class HintDetector:
             if et < self._last_et - 1e-6:
                 self._states.clear()  # neue Session
                 self._cooldowns.clear()
+                self._pairs.clear()
         self._last_et = et
 
         if int(info.mGamePhase) != GREEN_PHASE():
             self._states.clear()
+            self._pairs.clear()
             return []
 
         count = max(0, min(int(info.mNumVehicles), MAX_CARS))
@@ -140,6 +145,8 @@ class HintDetector:
             self._impact(out, info, et, car, st, tel, cars)
             self._spin(out, info, et, car, st, cars)
             self._accel(out, info, et, car, tel, cars)
+
+        self._overtakes(out, info, et, cars)
 
         if len(self._cooldowns) > 2000:
             cutoff = et - 3600.0
@@ -294,6 +301,39 @@ class HintDetector:
             {"source": "accel", "accelMs2": round(accel, 1), "distanceM": round(dist, 1)},
             ("contact", frozenset((car.id, other.id))),
         )
+
+    def _overtakes(self, out, info, et, cars):
+        """Zwei nahe Autos tauschen die Reihenfolge entlang der Strecke -> Ueberholmanoever (nur zum Ansehen)."""
+        if int(info.mSession) < 10:  # nur im Rennen, nicht in Training/Quali
+            self._pairs.clear()
+            return
+        length = float(info.mLapDist)
+        if length < 500.0:
+            return
+        r = self.cfg["overtake_radius_m"]
+        min_kmh = self.cfg["overtake_min_kmh"]
+        active = [c for c in cars if not bool(c.v.mInPits) and not bool(c.v.mInGarageStall) and c.speed >= min_kmh]
+        pairs: dict[tuple, int] = {}
+        for i, a in enumerate(active):
+            for b in active[i + 1:]:
+                d = (float(a.v.mLapDist) - float(b.v.mLapDist) + length / 2.0) % length - length / 2.0
+                if abs(d) > r or math.hypot(a.x - b.x, a.z - b.z) > r * 1.5:
+                    continue
+                key = (min(a.id, b.id), max(a.id, b.id))
+                sign = 1 if (d > 0) == (a.id < b.id) else -1  # +1: kleinere ID liegt vorn
+                if abs(d) < 0.5:
+                    sign = self._pairs.get(key, sign)
+                pairs[key] = sign
+                old = self._pairs.get(key)
+                if old is not None and old != sign:
+                    front, back = (a, b) if d > 0 else (b, a)
+                    self._emit(
+                        out, info, "overtake", "low", et, int(front.v.mTotalLaps) + 1, float(front.v.mLapDist),
+                        [(front.v, "involved"), (back.v, "involved")],
+                        {"overtaker": _txt(front.v.mDriverName), "overtaken": _txt(back.v.mDriverName)},
+                        ("overtake", frozenset(key)),
+                    )
+        self._pairs = pairs
 
     # -------------------------------------------------------------- Helfer
     @staticmethod
