@@ -169,3 +169,26 @@ Rennleitung und Admins sehen im Event die Reiter *Live*, *Vorfälle*, *Strafen*.
 - *„Event-Code unbekannt“*: Code wurde evtl. neu erzeugt, beim Admin nachfragen.
 - *Strecke wird nicht aufgenommen*: Eine Runde ohne Box fahren. Konsole zeigt „Streckenkarte: …“.
 - *Upload abgelehnt (401)*: `SUPABASE_SERVICE_ROLE_KEY` in Vercel gesetzt? Reader-Key aus dem richtigen Event?
+
+## Neue Navigation (Event)
+
+Im Event gibt es keine Seitenleiste mehr. Oben links steht „← Zurück“ (verlässt das Event), darunter die Tab-Leiste:
+**Live Timings** (Tabelle, Klick auf eine Zeile stellt die Spielkamera), **Controls** (Kamera, Sprechfunk, OBS-Overlays), **Track Map** (Karte groß),
+**Replay** (Auto-Hinweise und Vorfälle, Zahl = offen), **Penalties**, **Session** (Event-Infos, Anmeldungen, Einstellungen für Admins), **Account**.
+Fahrer sehen nur Penalties, Session und Account.
+
+## Überholmanöver und Zusammenfassen
+
+Der Reader meldet ein **Überholmanöver**, wenn zwei nahe Autos die Reihenfolge tauschen (`hints` in config.json: `overtake_radius_m` 20, `overtake_min_kmh` 40).
+Es ist nur zum Ansehen („Angucken“ springt im Replay hin, „Erledigt“ blendet aus). Hinweise am selben Fahrer innerhalb von 20 s werden zu einer Zeile
+zusammengefasst, z. B. „2x Kontakt & 1x Überholmanöver“. „Ist Vorfall“ macht daraus einen Vorfall (der Rest wird gelöscht), „Kein Vorfall“ löscht alle.
+**Wichtig:** `supabase/repair.sql` erneut ausführen (neue Art „overtake“). Die Schwellen sind noch nicht mit echten Rennen kalibriert.
+
+## Sprechfunk (kostenlos)
+
+Rennleitung (Admin/Steward) spricht unter **Controls → Sprechfunk** an: alle, eine Klasse, ein Team oder einen Fahrer (Knopf halten oder Taste V).
+Fahrer klicken oben im Event auf „Funk beitreten“ (ein Klick nötig, sonst blockiert der Browser den Ton) und hören nur Durchsagen.
+Technik: WebRTC (Audio direkt zwischen Browsern, Stern um die Rennleitung), Verbindungsaufbau über Supabase Realtime. Kein Server, keine Kosten.
+Team-Gespräche bleiben in Discord/TeamSpeak. Grenzen: kein Schutz gegen Mithören durch Event-Teilnehmer, etwa 30–40 Fahrer, hinter strengen
+Firmen-/Mobilnetzen kann ein TURN-Server nötig sein (optional: `NEXT_PUBLIC_TURN_URL`, `NEXT_PUBLIC_TURN_USER`, `NEXT_PUBLIC_TURN_PASS` in Vercel, z. B. Cloudflare Realtime TURN).
+Die Rennleitung muss den Tab offen lassen. Mikrofon-Freigabe im Browser erlauben.
