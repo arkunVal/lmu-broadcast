@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useAuth } from "./auth";
 import type { EventDriver, EventRow } from "./labels";
 import { getSupabase } from "./supabase";
-import { VoiceHost, VoiceListener, type ListenerState, type PeerInfo, type PeerMeta } from "./voice";
+import { VoiceHost, VoiceListener, type ListenerState, type PeerInfo, type PeerMeta, type Scope } from "./voice";
 
 type Ctx = {
   mode: "host" | "listener" | null;   // host = Rennleitung (spricht), listener = Fahrer (hört)
@@ -15,7 +15,7 @@ type Ctx = {
   peers: PeerInfo[];
   micOn: boolean;
   talking: boolean;
-  talk: (match: ((m: PeerMeta) => boolean) | null) => number;
+  talk: (match: ((m: PeerMeta) => boolean) | null, scope?: Scope) => number;
   message: (text: string, match: (m: PeerMeta) => boolean) => number;
   listener: ListenerState;
   setVolume: (v: number) => void;
@@ -27,7 +27,7 @@ type Ctx = {
 
 const none: Ctx = {
   mode: null, active: false, error: "", join: async () => {}, leave: () => {}, peers: [], micOn: false, talking: false,
-  talk: () => 0, message: () => 0, listener: { connected: false, talkingToMe: false, receiving: false }, setVolume: () => {}, volume: 1, chime: true, setChime: () => {}, beep: () => {},
+  talk: () => 0, message: () => 0, listener: { connected: false, talkingToMe: false, receiving: false, scope: null }, setVolume: () => {}, volume: 1, chime: true, setChime: () => {}, beep: () => {},
 };
 const VoiceCtx = createContext<Ctx>(none);
 export const useVoice = () => useContext(VoiceCtx);
@@ -117,7 +117,7 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
     peers: host.current?.list() ?? [],
     micOn: host.current?.micOn ?? false,
     talking: host.current?.isTalking ?? false,
-    talk: (m) => host.current?.talk(m) ?? 0,
+    talk: (m, sc) => host.current?.talk(m, sc) ?? 0,
     message: (t, m) => host.current?.message(t, m) ?? 0,
     listener,
     setVolume: (v) => { setVol(v); lis.current?.setVolume(v); },

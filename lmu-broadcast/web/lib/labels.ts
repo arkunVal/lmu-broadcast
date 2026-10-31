@@ -168,6 +168,7 @@ export type Penalty = {
   lap: number | null;
   session_time: number | null;
   status: "issued" | "served" | "revoked";
+  after_race?: boolean;
   created_at: string;
 };
 

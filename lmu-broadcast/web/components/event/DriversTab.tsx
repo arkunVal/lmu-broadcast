@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import CarNo from "@/components/CarNo";
 import { type EventDriver, type EventRow } from "@/lib/labels";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
@@ -88,13 +87,8 @@ export default function DriversTab({
     reload();
   }
 
-  async function remove(id: string) {
-    await supabase.from("event_drivers").delete().eq("id", id);
-    reload();
-  }
-
   return (
-    <div className={isStaff || captain ? "split b" : "split full"}>
+    <div className="stack">
       {!isStaff && captain && (
         <div className="panel">
           <h3>Mein Team: {captain.team}</h3>
@@ -141,28 +135,6 @@ export default function DriversTab({
           {msg && <div className="okmsg">{msg}</div>}
         </div>
       )}
-      <div className="tablewrap">
-        <table className="plain">
-          <thead>
-            <tr><th>Nr</th><th>In-Game-Name</th><th>Klasse</th><th>Team</th><th>Status</th>{isStaff && <th />}</tr>
-          </thead>
-          <tbody>
-            {drivers.length === 0 && <tr><td colSpan={6} className="muted">Noch keine Fahrer eingetragen.</td></tr>}
-            {drivers.map((d) => {
-              return (
-                <tr key={d.id}>
-                  <td>{d.car_number != null ? <CarNo num={d.car_number} cls={d.car_class} /> : "–"}</td>
-                  <td>{d.ingame_name}</td>
-                  <td>{d.car_class ?? "–"}</td>
-                  <td>{d.team ?? "–"}</td>
-                  <td>{d.profile_id ? <span className="badge closed">angemeldet{d.is_captain ? " · Kapitän" : ""}</span> : <span className="muted">{d.team_id ? "eingetragen, noch nicht beigetreten" : "nur eingetragen"}</span>}</td>
-                  {isStaff && <td><button className="danger" onClick={() => remove(d.id)}>Entfernen</button></td>}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }

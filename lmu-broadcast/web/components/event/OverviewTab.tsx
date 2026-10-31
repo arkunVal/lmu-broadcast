@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import CarNo from "@/components/CarNo";
+import Roster from "./Roster";
 import CopyButton from "@/components/CopyButton";
 import { PENALTY_STATUS, penaltyText, type EventDriver, type EventRow, type Incident, type Penalty } from "@/lib/labels";
 import { getSupabase } from "@/lib/supabase";
@@ -9,10 +9,10 @@ import { getSupabase } from "@/lib/supabase";
 const STATUS: Record<string, string> = { planned: "Geplant", live: "Live", finished: "Beendet" };
 
 export default function OverviewTab({
-  event, incidents, penalties, drivers, isStaff, isAdmin, go,
+  event, incidents, penalties, drivers, isStaff, isAdmin, go, reload,
 }: {
   event: EventRow; incidents: Incident[]; penalties: Penalty[]; drivers: EventDriver[];
-  isStaff: boolean; isAdmin: boolean; go: (tab: string) => void;
+  isStaff: boolean; isAdmin: boolean; go: (tab: string) => void; reload?: () => void;
 }) {
   const [coverage, setCoverage] = useState<number | null | undefined>(undefined);
 
@@ -94,30 +94,9 @@ export default function OverviewTab({
         </div>
 
         <div className="panel box grow">
-          <div className="box-h"><h3>Angemeldete Fahrer ({rows.length})</h3></div>
+          <div className="box-h"><h3>Angemeldete Fahrer ({rows.length}) · {new Set(rows.map((r) => r.team_id ?? r.team ?? r.id)).size} Teams</h3></div>
           <div className="box-b">
-            {rows.length === 0 ? (
-              <p className="muted" style={{ padding: "14px 18px", margin: 0 }}>
-                Noch kein Fahrer angemeldet. {isAdmin ? "Fahrer treten mit dem Event-Code bei." : ""}
-              </p>
-            ) : (
-              <div className="tablewrap">
-                <table className="plain">
-                  <thead><tr><th className="num">#</th><th>Fahrer</th><th>Klasse</th><th>Team</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {rows.map((r) => (
-                      <tr key={r.id}>
-                        <td className="num">{r.car_number != null ? <CarNo num={r.car_number} cls={r.car_class} /> : "–"}</td>
-                        <td><b>{r.ingame_name}</b>{r.is_captain ? <span className="muted"> · Kapitän</span> : null}</td>
-                        <td>{r.car_class ?? "–"}</td>
-                        <td>{r.team ?? "–"}</td>
-                        <td>{r.profile_id ? "angemeldet" : <span className="muted">noch nicht beigetreten</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <Roster drivers={rows} canRemove={isStaff} reload={reload} />
           </div>
         </div>
       </div>

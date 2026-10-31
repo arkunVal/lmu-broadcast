@@ -36,9 +36,9 @@ export async function GET(req: Request) {
 
   const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
   const [{ data: pens }, { data: incs }, { data: closed }, { data: all }] = await Promise.all([
-    admin.from("penalties").select("id, ingame_name, car_number, kind, amount, reason, lap, status, created_at, incident_id").eq("event_id", eventId).neq("status", "revoked").gte("created_at", since).order("created_at", { ascending: false }).limit(30),
+    admin.from("penalties").select("id, ingame_name, car_number, kind, amount, reason, lap, status, created_at, incident_id, after_race").eq("event_id", eventId).or(`status.eq.issued,and(status.eq.served,created_at.gte.${since})`).order("created_at", { ascending: false }).limit(100),
     admin.from("incidents").select("id, kind, lap, status, created_at, incident_drivers(ingame_name, car_number, role)").eq("event_id", eventId).eq("status", "reviewing").order("created_at", { ascending: false }).limit(10),
-    admin.from("incidents").select("id, kind, lap, decision, closed_at, incident_drivers(ingame_name, car_number, role)").eq("event_id", eventId).eq("status", "closed").gte("closed_at", new Date(Date.now() - 90 * 1000).toISOString()).limit(10),
+    admin.from("incidents").select("id, kind, lap, decision, closed_at, incident_drivers(ingame_name, car_number, role)").eq("event_id", eventId).eq("status", "closed").gte("closed_at", new Date(Date.now() - 40 * 1000).toISOString()).limit(10),
     admin.from("event_drivers").select("ingame_name, car_number, team").eq("event_id", eventId),
   ]);
   const roster = (all ?? []) as { ingame_name: string; car_number: number | null; team: string | null }[];
@@ -47,9 +47,14 @@ export async function GET(req: Request) {
   const involved = (list: unknown) => ((list ?? []) as Dr[]).filter((d) => d.role === "involved").map((d) => ({ name: d.ingame_name, num: d.car_number, team: teamOf(d.ingame_name, d.car_number) }));
   const NFA = /^(no further action|rennunfall, keine strafe|kein vergehen)/i;
 
-  const penaltyAll = (pens ?? []).map((p) => ({
+  // Wird im Rennen abgesessen? Dann bleibt sie beim betroffenen Fahrer stehen, bis sie abgesessen ist.
+  const SERVABLE = ["time", "drive_through", "stop_go"];
+  const recent = (pens ?? []).filter((p) => p.created_at >= since || (p.status === "issued" && SERVABLE.includes(p.kind as string) && !p.after_race && mine(p.ingame_name as string, p.car_number as number | null)));
+  const penaltyAll = recent.map((p) => ({
+    persist: p.status === "issued" && SERVABLE.includes(p.kind as string) && !p.after_race && mine(p.ingame_name as string, p.car_number as number | null),
+    afterRace: !!p.after_race,
     id: p.id, name: p.ingame_name, num: p.car_number, team: teamOf(p.ingame_name as string, p.car_number as number | null),
-    lap: p.lap, kind: p.kind, amount: p.amount, reason: p.reason, createdAt: p.created_at, mine: mine(p.ingame_name as string, p.car_number as number | null) && p.status === "issued",
+    lap: p.lap, kind: p.kind, amount: p.amount, reason: p.reason, createdAt: p.created_at, mine: mine(p.ingame_name as string, p.car_number as number | null),
   }));
   const reviews = (incs ?? []).map((i) => ({ id: i.id, kind: i.kind, lap: i.lap, drivers: involved(i.incident_drivers), createdAt: i.created_at }));
   const cleared = (closed ?? []).filter((i) => NFA.test(String(i.decision ?? ""))).map((i) => ({ id: i.id, lap: i.lap, drivers: involved(i.incident_drivers), closedAt: i.closed_at }));

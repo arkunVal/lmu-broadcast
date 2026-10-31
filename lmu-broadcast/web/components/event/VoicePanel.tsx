@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVoice } from "@/lib/voiceContext";
-import type { PeerMeta } from "@/lib/voice";
+import type { PeerMeta, Scope } from "@/lib/voice";
 
 const STATE: Record<string, string> = { overlay: "nur Overlay", connected: "verbunden", connecting: "verbindet", new: "verbindet", disconnected: "unterbrochen", failed: "Fehler", closed: "getrennt" };
 
@@ -26,11 +26,12 @@ export default function VoicePanel() {
     return k === "cls" ? m.cls === val : k === "team" ? m.team === val : m.uid === val;
   }, [target]);
 
+  const scope: Scope = target === "all" ? "all" : target.startsWith("drv:") ? "one" : "group";
   function start() {
     if (!v.micOn || !target) return;
     held.current = true;
     setDown(true);
-    v.talk(match);
+    v.talk(match, scope);
   }
   function stop() {
     if (!held.current) return;

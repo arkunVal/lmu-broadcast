@@ -17,8 +17,9 @@
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 
 export type PeerMeta = { uid: string; name: string; role: string; team: string | null; cls: string | null; num: number | null };
+export type Scope = "all" | "group" | "one";
 type Kind = "hello" | "rc-here" | "bye" | "offer" | "answer" | "ice" | "talk" | "msg";
-type Sig = { kind: Kind; from: string; to?: string; meta?: PeerMeta; data?: unknown; on?: boolean; targets?: string[]; text?: string };
+type Sig = { kind: Kind; from: string; to?: string; meta?: PeerMeta; data?: unknown; on?: boolean; targets?: string[]; text?: string; scope?: Scope };
 
 const HELLO_MS = 8000;
 const STALE_MS = 25000;
@@ -60,6 +61,7 @@ export class VoiceHost {
   private timer: ReturnType<typeof setInterval>;
   private talkTimer: ReturnType<typeof setInterval> | null = null;
   private talkTargets: string[] = [];
+  private talkScope: Scope = "all";
   private talking = false;
   ready = false;
 
@@ -97,7 +99,7 @@ export class VoiceHost {
   }
 
   /** Nur Fahrer, auf die `match` zutrifft, hoeren die Durchsage. null = Sprechtaste losgelassen. */
-  talk(match: ((m: PeerMeta) => boolean) | null) {
+  talk(match: ((m: PeerMeta) => boolean) | null, scope: Scope = "all") {
     const targets: string[] = [];
     for (const [uid, p] of this.peers) {
       const on = !!match && match(p.meta) && !!this.track;
@@ -107,9 +109,10 @@ export class VoiceHost {
     for (const [uid, o] of this.overlays) if (match && match(o.meta) && !targets.includes(uid)) targets.push(uid);
     this.talking = !!match && targets.length > 0;
     this.talkTargets = targets;
-    this.net.send({ kind: "talk", from: this.me.uid, on: this.talking, targets });
+    this.talkScope = scope;
+    this.net.send({ kind: "talk", from: this.me.uid, on: this.talking, targets, scope });
     if (this.talkTimer) { clearInterval(this.talkTimer); this.talkTimer = null; }
-    if (this.talking) this.talkTimer = setInterval(() => this.net.send({ kind: "talk", from: this.me.uid, on: true, targets: this.talkTargets }), 4000);
+    if (this.talking) this.talkTimer = setInterval(() => this.net.send({ kind: "talk", from: this.me.uid, on: true, targets: this.talkTargets, scope: this.talkScope }), 4000);
     this.onChange();
     return targets.length;
   }
@@ -190,14 +193,14 @@ export class VoiceHost {
   }
 }
 
-export type ListenerState = { connected: boolean; talkingToMe: boolean; receiving: boolean };
+export type ListenerState = { connected: boolean; talkingToMe: boolean; receiving: boolean; scope: Scope | null };
 
 /** Fahrer: meldet sich an, spielt die Durchsagen der Rennleitung ab. */
 export class VoiceListener {
   private net: Net;
   private pcs = new Map<string, { pc: RTCPeerConnection; audio: HTMLAudioElement; pending: RTCIceCandidateInit[]; remoteSet: boolean }>();
   private timer: ReturnType<typeof setInterval>;
-  private state: ListenerState = { connected: false, talkingToMe: false, receiving: false };
+  private state: ListenerState = { connected: false, talkingToMe: false, receiving: false, scope: null };
   private volume = 1;
 
   constructor(supabase: SupabaseClient, eventId: string, private me: PeerMeta, private onChange: (s: ListenerState) => void) {
@@ -233,7 +236,8 @@ export class VoiceListener {
       if (p.remoteSet) void p.pc.addIceCandidate(s.data as RTCIceCandidateInit).catch(() => {});
       else p.pending.push(s.data as RTCIceCandidateInit);
     } else if (s.kind === "talk") {
-      this.set({ talkingToMe: !!s.on && !!s.targets?.includes(this.me.uid) });
+      const to = !!s.on && !!s.targets?.includes(this.me.uid);
+      this.set({ talkingToMe: to, scope: to ? s.scope ?? null : null });
     }
   }
 
@@ -304,7 +308,7 @@ export class OverlayVoice {
     else if (s.kind === "talk") {
       const toMe = !!s.on && !!s.targets?.includes(this.me.uid);
       this.talkAt = Date.now();
-      this.set({ talking: toMe, toMe, onlyMe: toMe && (s.targets?.length ?? 0) === 1 });
+      this.set({ talking: toMe, toMe, onlyMe: toMe && s.scope === "one" });
     } else if (s.kind === "msg" && s.targets?.includes(this.me.uid) && s.text) {
       this.msgAt = Date.now();
       this.set({ message: s.text });

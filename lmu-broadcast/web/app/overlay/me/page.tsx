@@ -6,7 +6,7 @@ import { getSupabase } from "@/lib/supabase";
 import { OverlayVoice, type OverlayVoiceState } from "@/lib/voice";
 
 type Who = { name: string; num: number | null; team: string | null };
-type Pen = { id: string; name: string; num: number | null; team: string | null; lap: number | null; kind: string; amount: number | null; reason: string; createdAt: string; mine: boolean };
+type Pen = { id: string; name: string; num: number | null; team: string | null; lap: number | null; kind: string; amount: number | null; reason: string; createdAt: string; mine: boolean; persist: boolean; afterRace: boolean };
 type Feed = {
   me: { uid: string; name: string; num: number | null; cls: string | null; team: string | null };
   event: { id: string; name: string };
@@ -15,32 +15,53 @@ type Feed = {
   cleared: { id: string; lap: number | null; drivers: Who[]; closedAt: string }[];
 };
 
+const SHOW_MS = 20000; // Strafe, "Under review" und "No further action" stehen je 20 s im Bild
+
 const KIND_EN: Record<string, string> = { contact: "Contact", offtrack: "Off track", track_limits: "Track limits", spin: "Spin", impact: "Impact", overtake: "Overtake", other: "Incident" };
-function penEn(kind: string, amount: number | null): string {
+function penEn(kind: string, amount: number | null, afterRace = false): string {
   const n = amount ?? 0;
-  switch (kind) {
-    case "warning": return "Warning";
-    case "time": return `${n} second time penalty`;
-    case "drive_through": return "Drive-through penalty";
-    case "stop_go": return `${n} second stop-and-go`;
-    case "grid": return `${n} place grid penalty`;
-    case "dq": return "Disqualification";
-    case "race_ban": return "Race ban";
-    case "quali_ban": return "Qualifying ban";
-    default: return kind;
-  }
+  const t = (() => {
+    switch (kind) {
+      case "warning": return "Warning";
+      case "time": return `${n} second time penalty`;
+      case "drive_through": return "Drive-through penalty";
+      case "stop_go": return `${n} second stop-and-go`;
+      case "grid": return `${n} place grid penalty`;
+      case "dq": return "Disqualification";
+      case "race_ban": return "Race ban";
+      case "quali_ban": return "Qualifying ban";
+      default: return kind;
+    }
+  })();
+  return afterRace ? `${t} (added after the race)` : t;
 }
 
-const NEW_MS = 25000; // so lange steht eine neue Strafe gross im Bild
+function Who({ who }: { who: Who[] }) {
+  if (who.length === 0) return <div className="oc-who"><b>Race Director</b></div>;
+  return (
+    <div className="oc-who">
+      {who.map((w, i) => (
+        <span key={i} className="oc-p">{w.num != null && <i>#{w.num}</i>}<b>{w.name}</b>{w.team && <em>{w.team}</em>}</span>
+      ))}
+    </div>
+  );
+}
 
-function Head({ who }: { who: Who[] }) {
-  const t = who.map((w) => `${w.num != null ? `#${w.num} ` : ""}${w.name}${w.team ? ` · ${w.team}` : ""}`).join("  /  ");
-  return <div className="pc-h">{t || "RACE DIRECTOR"}</div>;
+function Card({ cls, tag, who, lap, children, timed, last }: { cls: string; tag: string; who: Who[]; lap?: number | null; children?: React.ReactNode; timed?: boolean; last?: React.ReactNode }) {
+  return (
+    <div className={`oc ${cls}`}>
+      <div className="oc-top"><span className="oc-tag">{tag}</span>{lap !== undefined && <span className="oc-lap">Lap {lap ?? "–"}</span>}</div>
+      <Who who={who} />
+      {children}
+      {last}
+      {timed && <div className="oc-bar"><span style={{ animationDuration: `${SHOW_MS}ms` }} /></div>}
+    </div>
+  );
 }
 
 /**
  * Persoenliches Fahrer-Overlay (fuer SimHub "Web page view" oder jeden Browser).
- * /overlay/me?k=<Schluessel>&e=<Event-ID>   Optionen: scale=1, bg=1 (dunkler Hintergrund), demo=1 (Beispieldaten)
+ * /overlay/me?k=<Schluessel>&e=<Event-ID>   Optionen: scale=1, always=1 (zeigt "All clear"), demo=1 (Beispieldaten)
  */
 function Inner() {
   const q = useSearchParams();
@@ -59,13 +80,17 @@ function Inner() {
 
   useEffect(() => {
     if (demo) {
+      const t = new Date().toISOString();
       setFeed({
         me: { uid: "demo", name: "Max Becker", num: 8, cls: "Hypercar", team: "Alpha" }, event: { id: "demo", name: "Demo" },
-        penalties: [{ id: "p1", name: "Max Becker", num: 8, team: "Alpha", lap: 7, kind: "time", amount: 5, reason: "Kontakt in Kurve 3", createdAt: new Date().toISOString(), mine: true }],
-        reviews: [{ id: "i1", kind: "contact", lap: 9, drivers: [{ name: "Lena Vogt", num: 50, team: "Beta" }], createdAt: new Date().toISOString() }],
-        cleared: [{ id: "c1", lap: 5, drivers: [{ name: "Sara Klein", num: 28, team: "Gamma" }], closedAt: new Date().toISOString() }],
+        penalties: [
+          { id: "p1", name: "Max Becker", num: 8, team: "Alpha", lap: 7, kind: "time", amount: 10, reason: "Causing contact — significant", createdAt: t, mine: true, persist: true, afterRace: false },
+          { id: "p2", name: "Sara Klein", num: 28, team: "Gamma", lap: 6, kind: "drive_through", amount: null, reason: "Track limits", createdAt: t, mine: false, persist: false, afterRace: false },
+        ],
+        reviews: [{ id: "i1", kind: "contact", lap: 9, drivers: [{ name: "Lena Vogt", num: 50, team: "Beta" }], createdAt: t }],
+        cleared: [{ id: "c1", lap: 5, drivers: [{ name: "Tom Weber", num: 12, team: "Delta" }], closedAt: t }],
       });
-      setVoice({ talking: true, toMe: true, onlyMe: true, message: "Boxen bitte in Runde 12" });
+      setVoice({ talking: true, toMe: true, onlyMe: true, message: "Box this lap please" });
       return;
     }
     if (!k || !e) { setError("Link unvollständig. Den Link im Event unter „Session“ kopieren."); return; }
@@ -78,7 +103,10 @@ function Inner() {
         if (!r.ok) { setError(j.error ?? `Fehler ${r.status}`); return; }
         setError("");
         const f = j as Feed;
-        for (const p of f.penalties) if (!seen.current.has(p.id)) seen.current.set(p.id, first.current ? 0 : Date.now());
+        const mark = (key: string) => { if (!seen.current.has(key)) seen.current.set(key, first.current ? 0 : Date.now()); };
+        f.penalties.forEach((p) => mark(`p:${p.id}`));
+        f.reviews.forEach((r2) => mark(`r:${r2.id}`));
+        f.cleared.forEach((c) => mark(`c:${c.id}`));
         first.current = false;
         setFeed(f);
       } catch {
@@ -98,57 +126,50 @@ function Inner() {
     return () => v.stop();
   }, [feed?.event.id, feed?.me.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (error && !feed) return <div className="dov"><div className="dov-card dov-bad">{error}</div></div>;
+  if (error && !feed) return <div className="dov"><div className="oc oc-rad"><div className="oc-top"><span className="oc-tag">Overlay</span></div><div className="oc-main">{error}</div></div></div>;
   if (!feed) return null;
 
-  const fresh = feed.penalties.filter((p) => demo || (now - (seen.current.get(p.id) ?? 0) < NEW_MS && (seen.current.get(p.id) ?? 0) > 0));
-  const mineOld = feed.penalties.filter((p) => p.mine && !fresh.includes(p));
-  const empty = !voice.talking && !voice.message && fresh.length + feed.reviews.length + feed.cleared.length + mineOld.length === 0;
+  const live = (key: string) => { const t = seen.current.get(key) ?? 0; return t > 0 && now - t < SHOW_MS; };
+  const penShown = feed.penalties.filter((p) => demo || p.persist || live(`p:${p.id}`));
+  const revShown = feed.reviews.filter((r) => demo || live(`r:${r.id}`));
+  const clrShown = feed.cleared.filter((c) => demo || live(`c:${c.id}`));
+  const empty = !voice.talking && !voice.message && penShown.length + revShown.length + clrShown.length === 0;
 
   return (
     <div className="dov" style={{ zoom: scale }} data-testid="dov">
       {voice.talking && (
-        <div className="pc pc-voice">
-          <div className="pc-h">RACE DIRECTOR</div>
-          <div><span className="dov-dot" />{voice.onlyMe ? "Speaking to you only" : "Speaking"}</div>
+        <div className="oc oc-radio">
+          <div className="oc-top"><span className="oc-tag"><span className="oc-dot" />Race Control · Radio</span></div>
+          <div className="oc-main">{voice.onlyMe ? "Speaking to you only" : "Speaking"}</div>
         </div>
       )}
       {voice.message && (
-        <div className="pc">
-          <div className="pc-h">RACE DIRECTOR</div>
-          <div>{voice.message}</div>
+        <div className="oc oc-radio">
+          <div className="oc-top"><span className="oc-tag">Race Control · Message</span></div>
+          <div className="oc-main">{voice.message}</div>
         </div>
       )}
-      {fresh.map((p) => (
-        <div key={p.id} className="pc">
-          <Head who={[{ name: p.name, num: p.num, team: p.team }]} />
-          <div>Lap: <b>{p.lap ?? "–"}</b></div>
-          <div>Penalty: <b>{penEn(p.kind, p.amount)}</b></div>
-          <div>Reason: <b>{p.reason || "–"}</b></div>
-        </div>
+      {penShown.map((p) => {
+        const timed = !p.persist;
+        return (
+          <Card key={p.id} cls="oc-pen" tag={p.persist ? "Penalty · to serve" : "Penalty applied"} who={[{ name: p.name, num: p.num, team: p.team }]} lap={p.lap} timed={timed}>
+            <div className="oc-main">{penEn(p.kind, p.amount, p.afterRace)}</div>
+            <div className="oc-reason"><span>Reason</span>{p.reason || "–"}</div>
+          </Card>
+        );
+      })}
+      {revShown.map((r) => (
+        <Card key={r.id} cls="oc-rev" tag="Incident" who={r.drivers} lap={r.lap} timed>
+          <div className="oc-main">{KIND_EN[r.kind] ?? r.kind}</div>
+          <div className="oc-status">Under review</div>
+        </Card>
       ))}
-      {feed.reviews.map((i) => (
-        <div key={i.id} className="pc">
-          <Head who={i.drivers} />
-          <div>Lap: <b>{i.lap ?? "–"}</b></div>
-          <div>Incident: <b>{KIND_EN[i.kind] ?? i.kind}</b></div>
-          <div className="pc-status"><b>Under review</b></div>
-        </div>
+      {clrShown.map((c) => (
+        <Card key={c.id} cls="oc-ok" tag="Decision" who={c.drivers} lap={c.lap} timed>
+          <div className="oc-status">No further action</div>
+        </Card>
       ))}
-      {feed.cleared.map((i) => (
-        <div key={i.id} className="pc">
-          <Head who={i.drivers} />
-          <div>Lap: <b>{i.lap ?? "–"}</b></div>
-          <div className="pc-status"><b>No further action</b></div>
-        </div>
-      ))}
-      {mineOld.length > 0 && (
-        <div className="pc">
-          <div className="pc-h">YOUR OPEN PENALTIES</div>
-          {mineOld.map((p) => <div key={p.id}><b>{penEn(p.kind, p.amount)}</b>{p.reason ? ` — ${p.reason}` : ""}</div>)}
-        </div>
-      )}
-      {empty && q.get("always") === "1" && <div className="pc"><div className="pc-h">RACE DIRECTOR</div><div>All clear · #{feed.me.num ?? ""} {feed.me.name}</div></div>}
+      {empty && q.get("always") === "1" && <div className="oc oc-radio"><div className="oc-top"><span className="oc-tag">Race Control</span></div><div className="oc-main">All clear · #{feed.me.num ?? ""} {feed.me.name}</div></div>}
     </div>
   );
 }

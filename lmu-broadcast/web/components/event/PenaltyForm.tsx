@@ -36,6 +36,7 @@ export default function PenaltyForm({
   const [kind, setKind] = useState<PenaltyKind>(initialKind ?? "time");
   const [amount, setAmount] = useState(String(initialAmount ?? 5));
   const [reason, setReason] = useState("");
+  const [afterRace, setAfterRace] = useState(false);
   const [preset, setPreset] = useState("");
   const [car, setCar] = useState("");
   const [lap, setLap] = useState(lapDefault != null ? String(lapDefault) : "");
@@ -84,6 +85,7 @@ export default function PenaltyForm({
       reason: [preset, reason.trim()].filter(Boolean).join(" – "),
       lap: lap.trim() ? Number(lap) || null : null,
       session_time: stamp.trim() && stampSeconds > 0 ? stampSeconds : null,
+      after_race: kind === "time" && afterRace,
     });
     if (error) setError(error.message);
     else {
@@ -135,6 +137,12 @@ export default function PenaltyForm({
           <input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: "100%" }} />
         </div>
       )}
+      {kind === "time" && (
+        <label className="row" style={{ margin: "10px 0 0", gap: 8, fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>
+          <input type="checkbox" checked={afterRace} onChange={(e) => setAfterRace(e.target.checked)} style={{ width: "auto" }} />
+          Wird nach dem Rennen zur Zeit addiert (nicht im Rennen abzusitzen)
+        </label>
+      )}
       <label>Grund</label>
       <select value={preset} onChange={(e) => setPreset(e.target.value)}>
         <option value="">Grund wählen …</option>
@@ -171,6 +179,7 @@ export default function PenaltyForm({
               <dt>Fahrer</dt><dd>{name.trim()}</dd>
               <dt>Startnummer</dt><dd>{car.trim() || drivers.find((d) => d.ingame_name.toLowerCase() === name.trim().toLowerCase())?.car_number || "–"}</dd>
               <dt>Strafe</dt><dd>{PENALTY_KINDS[kind].label}{unit && amount ? `, ${amount} ${unit}` : ""}</dd>
+              {kind === "time" && afterRace && (<><dt>Wann</dt><dd>Nach dem Rennen zur Zeit addiert</dd></>)}
               <dt>Grund</dt><dd>{[preset, reason.trim()].filter(Boolean).join(" – ") || "–"}</dd>
               <dt>Runde / Zeit</dt><dd>{lap || "–"} / {stamp || "–"}</dd>
             </dl>

@@ -34,7 +34,7 @@ export default function FunkTab() {
           <>
             <div className="funk-bars"><i /><i /><i /><i /><i /></div>
             <div className="funk-t">RENNLEITUNG SPRICHT</div>
-            <div className="funk-s">Die Durchsage gilt für dich.</div>
+            <div className="funk-s">{l.scope === "one" ? "Nur du wirst angesprochen." : l.scope === "group" ? "Durchsage an deine Klasse oder dein Team." : "Durchsage an alle Fahrer."}</div>
           </>
         )}
       </div>

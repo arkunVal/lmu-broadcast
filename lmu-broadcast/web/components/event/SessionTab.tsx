@@ -14,9 +14,9 @@ export default function SessionTab({
   isStaff: boolean; isAdmin: boolean; canManageDrivers: boolean; go: (tab: string) => void; reload: () => void;
 }) {
   return (
-    <div className="scrollarea stack">
+    <div className="scrollarea stack sessionstack">
       <DriverOverlayPanel event={event} />
-      <OverviewTab event={event} incidents={incidents} penalties={penalties} drivers={drivers} isStaff={isStaff} isAdmin={isAdmin} go={go} />
+      <OverviewTab event={event} incidents={incidents} penalties={penalties} drivers={drivers} isStaff={isStaff} isAdmin={isAdmin} go={go} reload={reload} />
       {canManageDrivers && <DriversTab event={event} drivers={drivers} isStaff={isStaff} reload={reload} />}
       {isAdmin && <SettingsTab event={event} onSaved={reload} />}
     </div>

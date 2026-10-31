@@ -467,3 +467,18 @@ tr.st-closed td:first-child { box-shadow: inset 3px 0 #2dd36f; }
 .tab .cnt.live { background: #3ad06b; color: #000; animation: funkp 1s infinite; }
 @keyframes funkb { 0%, 100% { height: 8px; } 50% { height: 40px; } }
 @keyframes funkp { 50% { filter: brightness(1.35); } }
+
+/* Anmeldeliste nach Teams */
+.roster { display: flex; flex-direction: column; }
+.rteam { border-bottom: 1px solid var(--line); }
+.rhead { display: grid; grid-template-columns: 20px 60px minmax(0, 1fr) 110px 150px; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; background: none; border: 0; border-radius: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.rhead:hover { background: var(--panel2); }
+.rst { text-align: right; }
+.rmembers { list-style: none; margin: 0; padding: 4px 14px 10px 94px; display: flex; flex-direction: column; gap: 2px; }
+.rmembers li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 5px 0; border-top: 1px dashed var(--line); }
+.rmembers li:first-child { border-top: 0; }
+@media (max-width: 700px) { .rhead { grid-template-columns: 20px 52px minmax(0, 1fr); } .rcls, .rst { display: none; } .rmembers { padding-left: 30px; } }
+.sessionstack > * { flex: none !important; min-height: auto !important; }
+.sessionstack .split, .sessionstack .col { height: auto !important; overflow: visible !important; }
+.sessionstack .split > .panel, .sessionstack .box, .sessionstack .box-b { overflow: visible !important; height: auto !important; max-height: none !important; }
+.sessionstack .split { display: grid; }

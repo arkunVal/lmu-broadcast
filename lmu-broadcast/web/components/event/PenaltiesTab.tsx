@@ -34,7 +34,7 @@ export default function PenaltiesTab({
           {penalties.map((p) => (
             <tr key={p.id} style={p.status === "revoked" ? { opacity: 0.5 } : undefined}>
               <td>{p.car_number != null && <CarNo num={p.car_number} cls={drivers.find((d) => d.car_number === p.car_number)?.car_class} />} {p.ingame_name}</td>
-              <td><b>{penaltyText(p.kind, p.amount)}</b></td>
+              <td><b>{penaltyText(p.kind, p.amount)}</b>{p.after_race && <span className="muted"> · nach dem Rennen</span>}</td>
               <td className="brk">{p.reason || "–"}</td>
               <td className="num">{p.lap ?? "–"}{p.session_time != null && <> <ReplayLink event={event} sessionTime={p.session_time} focus={{ num: p.car_number, name: p.ingame_name }} small /></>}</td>
               {isStaff && (
