@@ -447,3 +447,7 @@ tr.st-closed td:first-child { box-shadow: inset 3px 0 #2dd36f; }
   .tabbody > .bigmap { flex: 1 1 0; }
   .bigmap > .mpanel svg { height: 0; }
 }
+.vsel { display: flex; flex-direction: column; gap: 8px; margin: 6px 0 4px; }
+.vsel-h { font-weight: 800; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+.vgroup { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.vgroup > span:first-child { width: 60px; flex: none; }

@@ -17,8 +17,8 @@
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 
 export type PeerMeta = { uid: string; name: string; role: string; team: string | null; cls: string | null; num: number | null };
-type Kind = "hello" | "rc-here" | "bye" | "offer" | "answer" | "ice" | "talk";
-type Sig = { kind: Kind; from: string; to?: string; meta?: PeerMeta; data?: unknown; on?: boolean; targets?: string[] };
+type Kind = "hello" | "rc-here" | "bye" | "offer" | "answer" | "ice" | "talk" | "msg";
+type Sig = { kind: Kind; from: string; to?: string; meta?: PeerMeta; data?: unknown; on?: boolean; targets?: string[]; text?: string };
 
 const HELLO_MS = 8000;
 const STALE_MS = 25000;
@@ -56,7 +56,10 @@ export class VoiceHost {
   private stream: MediaStream | null = null;
   private track: MediaStreamTrack | null = null;
   private peers = new Map<string, { meta: PeerMeta; pc: RTCPeerConnection; sender: RTCRtpSender | null; lastSeen: number; pending: RTCIceCandidateInit[]; remoteSet: boolean }>();
+  private overlays = new Map<string, { meta: PeerMeta; lastSeen: number }>();
   private timer: ReturnType<typeof setInterval>;
+  private talkTimer: ReturnType<typeof setInterval> | null = null;
+  private talkTargets: string[] = [];
   private talking = false;
   ready = false;
 
@@ -81,7 +84,16 @@ export class VoiceHost {
   get isTalking() { return this.talking; }
 
   list(): PeerInfo[] {
-    return [...this.peers.values()].map((p) => ({ meta: p.meta, state: p.pc.connectionState, lastSeen: p.lastSeen }));
+    const out: PeerInfo[] = [...this.peers.values()].map((p) => ({ meta: p.meta, state: p.pc.connectionState, lastSeen: p.lastSeen }));
+    for (const [uid, o] of this.overlays) if (!this.peers.has(uid)) out.push({ meta: o.meta, state: "overlay", lastSeen: o.lastSeen });
+    return out;
+  }
+
+  /** Kurznachricht ans Fahrer-Overlay (kein Ton). */
+  message(text: string, match: (m: PeerMeta) => boolean): number {
+    const targets = this.list().filter((p) => match(p.meta)).map((p) => p.meta.uid);
+    if (targets.length) this.net.send({ kind: "msg", from: this.me.uid, text: text.slice(0, 200), targets });
+    return targets.length;
   }
 
   /** Nur Fahrer, auf die `match` zutrifft, hoeren die Durchsage. null = Sprechtaste losgelassen. */
@@ -92,8 +104,12 @@ export class VoiceHost {
       if (on) targets.push(uid);
       void p.sender?.replaceTrack(on ? this.track : null).catch(() => {});
     }
+    for (const [uid, o] of this.overlays) if (match && match(o.meta) && !targets.includes(uid)) targets.push(uid);
     this.talking = !!match && targets.length > 0;
+    this.talkTargets = targets;
     this.net.send({ kind: "talk", from: this.me.uid, on: this.talking, targets });
+    if (this.talkTimer) { clearInterval(this.talkTimer); this.talkTimer = null; }
+    if (this.talking) this.talkTimer = setInterval(() => this.net.send({ kind: "talk", from: this.me.uid, on: true, targets: this.talkTargets }), 4000);
     this.onChange();
     return targets.length;
   }
@@ -122,7 +138,10 @@ export class VoiceHost {
 
   private onSig(s: Sig) {
     if (s.to && s.to !== this.me.uid) return;
-    if (s.kind === "hello" && s.meta) {
+    if (s.kind === "hello" && s.meta?.role === "overlay") {
+      this.overlays.set(s.from, { meta: s.meta, lastSeen: Date.now() });
+      this.onChange();
+    } else if (s.kind === "hello" && s.meta) {
       const p = this.peers.get(s.from);
       if (p) {
         p.lastSeen = Date.now();
@@ -156,11 +175,13 @@ export class VoiceHost {
     for (const [uid, p] of this.peers) {
       if (now - p.lastSeen > STALE_MS) { p.pc.close(); this.peers.delete(uid); changed = true; }
     }
+    for (const [uid, o] of this.overlays) if (now - o.lastSeen > STALE_MS) { this.overlays.delete(uid); changed = true; }
     if (changed) this.onChange();
   }
 
   stop() {
     clearInterval(this.timer);
+    if (this.talkTimer) clearInterval(this.talkTimer);
     this.talk(null);
     for (const p of this.peers.values()) p.pc.close();
     this.peers.clear();
@@ -245,5 +266,53 @@ export class VoiceListener {
     for (const p of this.pcs.values()) { p.pc.close(); p.audio.srcObject = null; }
     this.pcs.clear();
     setTimeout(() => this.net.close(), 200);
+  }
+}
+
+export type OverlayVoiceState = { talking: boolean; toMe: boolean; onlyMe: boolean; message: string | null };
+
+/** Fahrer-Overlay (SimHub): hoert nur die Hinweise der Rennleitung ("spricht gerade", Kurznachricht), kein Ton. */
+export class OverlayVoice {
+  private net: Net;
+  private timer: ReturnType<typeof setInterval>;
+  private talkAt = 0;
+  private msgAt = 0;
+  private st: OverlayVoiceState = { talking: false, toMe: false, onlyMe: false, message: null };
+
+  constructor(supabase: SupabaseClient, eventId: string, private me: PeerMeta, private onChange: (s: OverlayVoiceState) => void) {
+    this.net = new Net(supabase, eventId, (s) => this.onSig(s), (ok) => { if (ok) this.hello(); });
+    this.timer = setInterval(() => { this.hello(); this.expire(); }, 3000);
+  }
+
+  private hello() {
+    this.net.send({ kind: "hello", from: this.me.uid, meta: { ...this.me, role: "overlay" } });
+  }
+
+  private set(p: Partial<OverlayVoiceState>) {
+    this.st = { ...this.st, ...p };
+    this.onChange(this.st);
+  }
+
+  private expire() {
+    const now = Date.now();
+    if (this.st.talking && now - this.talkAt > 10000) this.set({ talking: false, toMe: false, onlyMe: false });
+    if (this.st.message && now - this.msgAt > 15000) this.set({ message: null });
+  }
+
+  private onSig(s: Sig) {
+    if (s.kind === "rc-here") this.hello();
+    else if (s.kind === "talk") {
+      const toMe = !!s.on && !!s.targets?.includes(this.me.uid);
+      this.talkAt = Date.now();
+      this.set({ talking: toMe, toMe, onlyMe: toMe && (s.targets?.length ?? 0) === 1 });
+    } else if (s.kind === "msg" && s.targets?.includes(this.me.uid) && s.text) {
+      this.msgAt = Date.now();
+      this.set({ message: s.text });
+    }
+  }
+
+  stop() {
+    clearInterval(this.timer);
+    this.net.close();
   }
 }

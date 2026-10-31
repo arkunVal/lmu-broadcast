@@ -16,13 +16,14 @@ type Ctx = {
   micOn: boolean;
   talking: boolean;
   talk: (match: ((m: PeerMeta) => boolean) | null) => number;
+  message: (text: string, match: (m: PeerMeta) => boolean) => number;
   listener: ListenerState;
   setVolume: (v: number) => void;
 };
 
 const none: Ctx = {
   mode: null, active: false, error: "", join: async () => {}, leave: () => {}, peers: [], micOn: false, talking: false,
-  talk: () => 0, listener: { connected: false, talkingToMe: false, receiving: false }, setVolume: () => {},
+  talk: () => 0, message: () => 0, listener: { connected: false, talkingToMe: false, receiving: false }, setVolume: () => {},
 };
 const VoiceCtx = createContext<Ctx>(none);
 export const useVoice = () => useContext(VoiceCtx);
@@ -93,6 +94,7 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
     micOn: host.current?.micOn ?? false,
     talking: host.current?.isTalking ?? false,
     talk: (m) => host.current?.talk(m) ?? 0,
+    message: (t, m) => host.current?.message(t, m) ?? 0,
     listener,
     setVolume: (v) => lis.current?.setVolume(v),
   };

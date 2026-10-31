@@ -1,6 +1,7 @@
 "use client";
 
 import type { EventDriver, EventRow, Incident, Penalty } from "@/lib/labels";
+import DriverOverlayPanel from "./DriverOverlayPanel";
 import DriversTab from "./DriversTab";
 import OverviewTab from "./OverviewTab";
 import SettingsTab from "./SettingsTab";
@@ -14,6 +15,7 @@ export default function SessionTab({
 }) {
   return (
     <div className="scrollarea stack">
+      <DriverOverlayPanel event={event} />
       <OverviewTab event={event} incidents={incidents} penalties={penalties} drivers={drivers} isStaff={isStaff} isAdmin={isAdmin} go={go} />
       {canManageDrivers && <DriversTab event={event} drivers={drivers} isStaff={isStaff} reload={reload} />}
       {isAdmin && <SettingsTab event={event} onSaved={reload} />}
