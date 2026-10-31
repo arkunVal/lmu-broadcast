@@ -223,6 +223,7 @@ create table public.penalties (
   reason      text not null default '',
   lap         int,
   session_time double precision,
+  after_race  boolean not null default false,
   status      public.penalty_status not null default 'issued',
   issued_by   uuid references public.profiles (id) default auth.uid(),
   created_at  timestamptz not null default now()
@@ -610,7 +611,12 @@ grant execute on function public.team_remove_member(uuid) to authenticated;
 -- ============== Befehle: Sprung, Auto anwaehlen, zurueck zu Live; Vorfaelle nur fuer Rennleitung ==============
 alter table public.replay_commands add column if not exists kind text not null default 'jump';
 alter table public.replay_commands drop constraint if exists replay_commands_kind_check;
-alter table public.replay_commands add constraint replay_commands_kind_check check (kind in ('jump', 'focus', 'live', 'next', 'prev'));
+alter table public.replay_commands add constraint replay_commands_kind_check check (kind in ('jump', 'focus', 'live', 'next', 'prev', 'transport'));
+
+-- Replay-Knoepfe (Play, Pause ...): Befehlsart "transport" mit Namen in "command"
+alter table public.replay_commands add column if not exists command text;
+alter table public.replay_commands drop constraint if exists replay_commands_kind_check;
+alter table public.replay_commands add constraint replay_commands_kind_check check (kind in ('jump', 'focus', 'live', 'next', 'prev', 'transport'));
 alter table public.replay_commands alter column target_time drop not null;
 
 drop policy if exists replay_commands_select on public.replay_commands;
@@ -627,6 +633,25 @@ create policy incidents_select on public.incidents for select to authenticated
     or (public.my_role() = 'broadcaster' and not (source = 'auto' and status = 'open') and public.can_see_event(event_id))
   );
 
+
+-- ============== Fahrer-Overlay (SimHub): persoenlicher Schluessel ==============
+create table if not exists public.driver_overlay_keys (
+  profile_id uuid primary key references public.profiles (id) on delete cascade,
+  key        text not null unique default replace(gen_random_uuid()::text, '-', '')
+);
+alter table public.driver_overlay_keys enable row level security;
+-- Keine Policies: nur die Funktion unten (und der Server mit Service-Key) kommt dran.
+
+create or replace function public.my_overlay_key() returns text
+language plpgsql security definer set search_path = public as $$
+declare k text;
+begin
+  if auth.uid() is null then raise exception 'Nicht angemeldet'; end if;
+  insert into public.driver_overlay_keys (profile_id) values (auth.uid()) on conflict do nothing;
+  select key into k from public.driver_overlay_keys where profile_id = auth.uid();
+  return k;
+end $$;
+grant execute on function public.my_overlay_key() to authenticated;
 
 alter publication supabase_realtime add table public.incidents, public.penalties;
 
