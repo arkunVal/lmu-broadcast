@@ -4,6 +4,8 @@
 -- Ursache: Konten, die vor dem Neuaufbau existierten, haben kein Profil mehr.
 -- Hier einfügen und Run. Gefahrlos mehrfach ausführbar. Löscht nichts.
 -- =====================================================================
+alter type public.incident_kind add value if not exists 'overtake';
+
 insert into public.profiles (id, display_name)
 select u.id, coalesce(nullif(u.raw_user_meta_data ->> 'full_name', ''), nullif(u.raw_user_meta_data ->> 'name', ''), split_part(coalesce(u.email, ''), '@', 1))
 from auth.users u

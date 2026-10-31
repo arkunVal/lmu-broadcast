@@ -5,7 +5,7 @@
 -- =====================================================================
 
 create type public.app_role as enum ('admin', 'steward', 'driver', 'broadcaster');
-create type public.incident_kind as enum ('offtrack', 'track_limits', 'contact', 'spin', 'impact', 'other');
+create type public.incident_kind as enum ('offtrack', 'track_limits', 'contact', 'spin', 'impact', 'overtake', 'other');
 create type public.incident_status as enum ('open', 'reviewing', 'closed');
 create type public.penalty_kind as enum (
   'warning', 'time', 'drive_through', 'stop_go', 'grid', 'dq', 'race_ban', 'quali_ban'
