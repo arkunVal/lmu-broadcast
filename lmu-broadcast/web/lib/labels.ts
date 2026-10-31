@@ -4,6 +4,7 @@ export const INCIDENT_KINDS: Record<string, string> = {
   contact: "Kontakt",
   spin: "Dreher",
   impact: "Aufprall",
+  overtake: "Überholmanöver",
   other: "Sonstiges",
 };
 

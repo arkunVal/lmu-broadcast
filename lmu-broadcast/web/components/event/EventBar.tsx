@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import type { EventRow } from "@/lib/labels";
 import { fmtClock } from "@/lib/format";
 import { flagInfo, useLive } from "@/lib/liveContext";
 import { sessionLabel } from "@/lib/standings";
+import ListenerButton from "./ListenerButton";
 
 const STATUS: Record<string, string> = { planned: "Geplant", live: "Live", finished: "Beendet" };
 
@@ -20,10 +20,10 @@ export default function EventBar({ event, showLive }: { event: EventRow; showLiv
   return (
     <div className="evbar">
       <div className="evbar-l">
-        <Link href="/events" className="btn back">← Alle Events</Link>
         <h1>{event.name}</h1>
         <span className="evt-sub">{event.track ?? "Strecke noch offen"}</span>
         <span className={`badge ${event.status === "live" ? "live" : ""}`}>{STATUS[event.status]}</span>
+        <ListenerButton />
       </div>
       {showLive && (
         <div className="sbar">

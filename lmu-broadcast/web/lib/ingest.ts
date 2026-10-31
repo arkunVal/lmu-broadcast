@@ -1,6 +1,6 @@
 // Prueft und wandelt die Hinweise des Readers (POST /api/ingest) in Datenbankzeilen um.
 
-export const HINT_KINDS = ["offtrack", "track_limits", "contact", "spin", "impact"] as const;
+export const HINT_KINDS = ["offtrack", "track_limits", "contact", "spin", "impact", "overtake"] as const;
 const CONFIDENCE = ["low", "medium", "high"] as const;
 const ROLES = ["involved", "possible"] as const;
 
@@ -68,6 +68,7 @@ export function describe(h: CleanHint): string {
     contact: "Moeglicher Kontakt erkannt",
     spin: "Dreher erkannt",
     impact: "Aufprall erkannt",
+    overtake: "Ueberholmanoever erkannt (nur zum Ansehen)",
   };
   return `${labels[h.kind]}${who ? `: ${who}` : ""}. Automatischer Hinweis, bitte pruefen.`;
 }

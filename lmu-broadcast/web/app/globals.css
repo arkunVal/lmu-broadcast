@@ -430,3 +430,20 @@ tr.pick:hover td { background: rgba(255, 252, 64, 0.08); }
 tr.st-open td:first-child { box-shadow: inset 3px 0 var(--bad); }
 tr.st-reviewing td:first-child { box-shadow: inset 3px 0 var(--accent); }
 tr.st-closed td:first-child { box-shadow: inset 3px 0 #2dd36f; }
+
+/* ---- Event-Navigation oben, Controls, große Karte ---- */
+.shell.inevent .hdr-l a.btn.back { margin: 0; }
+.navtabs { gap: 6px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; width: fit-content; max-width: 100%; margin: 4px 0 12px; overflow-x: auto; flex-wrap: nowrap; }
+.navtabs .tab { border-radius: 999px; padding: 8px 20px; white-space: nowrap; background: none; font: inherit; font-weight: 600; cursor: pointer; }
+.navtabs .tab.active { background: var(--accent); color: #000; }
+.stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.stack > .panel, .stack > .cardgrid { margin-bottom: 0; }
+.bigmap { flex: 1 1 auto; min-height: 0; display: flex; }
+.bigmap > .mpanel { flex: 1 1 auto; display: flex; flex-direction: column; margin: 0; min-height: 0; }
+.bigmap > .mpanel svg { flex: 1 1 auto; min-height: 0; width: 100%; }
+.ptt { min-width: 200px; padding: 14px 22px; font-size: 16px; font-weight: 800; }
+.ptt.on { background: var(--bad); color: #fff; border-color: var(--bad); }
+@media (min-width: 1101px) and (min-height: 640px) {
+  .tabbody > .bigmap { flex: 1 1 0; }
+  .bigmap > .mpanel svg { height: 0; }
+}
