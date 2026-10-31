@@ -21,9 +21,11 @@ export default function Login() {
     if (new URLSearchParams(window.location.search).get("neu") === "1") setMode("up");
   }, []);
 
+  const [fresh, setFresh] = useState(false);
+  // Nur nach einem Login hier weiterleiten. Wer schon angemeldet ist und den Link öffnet, bleibt auf der Startseite.
   useEffect(() => {
-    if (!loading && session) router.replace("/events");
-  }, [loading, session, router]);
+    if (!loading && session && fresh) router.replace("/events");
+  }, [loading, session, fresh, router]);
 
   if (!supabase) {
     return <div className="notice">Supabase ist nicht konfiguriert (NEXT_PUBLIC_SUPABASE_URL / _ANON_KEY fehlen).</div>;
@@ -38,6 +40,7 @@ export default function Login() {
     if (mode === "in") {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setError(error.message);
+      else setFresh(true);
     } else {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -58,6 +61,17 @@ export default function Login() {
       options: { redirectTo: `${window.location.origin}/events` },
     });
     if (error) setError(error.message);
+  }
+
+  if (!loading && session && !fresh) {
+    return (
+      <div className="panel auth-box">
+        <h2>Willkommen zurück</h2>
+        <p className="muted" style={{ margin: "4px 0 14px" }}>Du bist angemeldet.</p>
+        <button className="primary" style={{ width: "100%", padding: 10 }} onClick={() => router.push("/events")}>Zu den Events</button>
+        <button style={{ width: "100%", padding: 10, marginTop: 8 }} onClick={() => supabase.auth.signOut()}>Abmelden</button>
+      </div>
+    );
   }
 
   return (

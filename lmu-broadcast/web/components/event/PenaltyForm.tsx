@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { fmtClock } from "@/lib/format";
-import { PENALTY_KINDS, PENALTY_REASONS, type EventDriver, type PenaltyKind } from "@/lib/labels";
+import { PENALTY_KINDS, PENALTY_REASONS, type EventDriver, type Incident, type PenaltyKind } from "@/lib/labels";
 import { useLive } from "@/lib/liveContext";
 import { getSupabase } from "@/lib/supabase";
 
@@ -13,6 +13,7 @@ export default function PenaltyForm({
   eventId,
   drivers,
   incidentId,
+  reviewing,
   names,
   lap: lapDefault,
   sessionTime,
@@ -23,6 +24,7 @@ export default function PenaltyForm({
   eventId: string;
   drivers: EventDriver[];
   incidentId?: string;
+  reviewing?: Incident[]; // Vorfaelle "in Bearbeitung": der passende wird mit der Strafe abgeschlossen
   names?: string[]; // Vorschläge (z. B. Beteiligte des Vorfalls)
   lap?: number | null;
   sessionTime?: number | null;
@@ -75,7 +77,7 @@ export default function PenaltyForm({
       .split(":")
       .reverse()
       .reduce((sum, part, i) => sum + (Number(part) || 0) * 60 ** i, 0);
-    const { error } = await supabase.from("penalties").insert({
+    const { data: created, error } = await supabase.from("penalties").insert({
       event_id: eventId,
       incident_id: incidentId ?? null,
       ingame_name: name.trim(),
@@ -86,9 +88,20 @@ export default function PenaltyForm({
       lap: lap.trim() ? Number(lap) || null : null,
       session_time: stamp.trim() && stampSeconds > 0 ? stampSeconds : null,
       after_race: kind === "time" && afterRace,
-    });
+    }).select("id").single();
     if (error) setError(error.message);
     else {
+      // Strafe zu einem Vorfall: Vorfall ist damit abgeschlossen. Ohne Vorfall-Auswahl: der Vorfall "in Bearbeitung" dieses Fahrers.
+      const nm = name.trim().toLowerCase();
+      const carNo = car.trim() ? Number(car) || null : (driver?.car_number ?? null);
+      const target = incidentId ?? (reviewing ?? []).find((i) => i.incident_drivers.some((d) => d.role === "involved" && (d.ingame_name.trim().toLowerCase() === nm || (carNo != null && d.car_number === carNo))))?.id;
+      if (target) {
+        const text = [PENALTY_KINDS[kind].label, unit && amount ? `${amount} ${unit}` : ""].filter(Boolean).join(" ");
+        const r1 = await supabase.from("incidents").update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", target);
+        if (r1.error) setError(`Strafe gespeichert, aber der Vorfall konnte nicht abgeschlossen werden: ${r1.error.message}`);
+        await supabase.from("incidents").update({ decision: text }).eq("id", target).is("decision", null);
+        if (!incidentId && created) await supabase.from("penalties").update({ incident_id: target }).eq("id", (created as { id: string }).id);
+      }
       setReason("");
       setPreset("");
       onDone();

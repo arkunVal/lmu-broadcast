@@ -5,6 +5,7 @@ import { sendCommand } from "@/lib/commands";
 import type { Focus } from "@/lib/focus";
 import type { EventRow } from "@/lib/labels";
 import { replayStamp } from "@/lib/replay";
+import { setLooked } from "@/lib/looked";
 import { getSupabase } from "@/lib/supabase";
 
 type Props = {
@@ -24,7 +25,6 @@ type Props = {
 export default function HintButtons({ ids, keepId, summary, overtakeOnly, jump, reload, onGone }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
 
   async function confirm() {
     const supabase = getSupabase()!;
@@ -61,9 +61,8 @@ export default function HintButtons({ ids, keepId, summary, overtakeOnly, jump, 
     if (!supabase || !jump || t == null) return;
     setBusy(true);
     setError("");
-    setInfo("");
     const r = await sendCommand(supabase, jump.event.id, { kind: "jump", time: t, car: jump.focus?.num ?? null, driver: jump.focus?.name ?? null });
-    if (r.ok) setInfo(r.text);
+    if (r.ok) setLooked(jump.sessionTime);
     else setError(r.text);
     setBusy(false);
   }
@@ -81,7 +80,6 @@ export default function HintButtons({ ids, keepId, summary, overtakeOnly, jump, 
           <button className="danger" disabled={busy} onClick={dismiss} title="Hinweis wird gelöscht">Kein Vorfall</button>
         </>
       )}
-      {info && <span className="okmsg" style={{ margin: 0 }}>✓ {info}</span>}
       {error && <span className="err" style={{ margin: 0 }}>{error}</span>}
     </span>
   );

@@ -9,6 +9,7 @@ import { replayStamp } from "@/lib/replay";
 import type { Focus } from "@/lib/focus";
 import { sendCommand } from "@/lib/commands";
 import { getSupabase } from "@/lib/supabase";
+import { setLooked } from "@/lib/looked";
 
 type State = { kind: "idle" } | { kind: "wait" } | { kind: "ok"; text: string } | { kind: "fail"; text: string };
 
@@ -30,7 +31,8 @@ export default function ReplayLink({ event, sessionTime, small, focus, noCopy }:
     if (!supabase || t == null) return;
     setState({ kind: "wait" });
     const r = await sendCommand(supabase, event.id, { kind: "jump", time: t, car: focus?.num ?? null, driver: focus?.name ?? null });
-    setState(r.ok ? { kind: "ok", text: r.text } : { kind: "fail", text: r.text });
+    if (r.ok) setLooked(sessionTime);
+    setState(r.ok ? { kind: "idle" } : { kind: "fail", text: r.text });
   }
 
   return (
@@ -43,7 +45,6 @@ export default function ReplayLink({ event, sessionTime, small, focus, noCopy }:
         </button>
       )}
       {!noCopy && <span style={small ? { fontSize: 13 } : undefined}><CopyButton text={text} label="Kopieren" /></span>}
-      {state.kind === "ok" && !small && <span className="okmsg" style={{ margin: 0 }}>✓ {state.text}</span>}
       {state.kind === "fail" && <span className="err" style={{ margin: 0 }}>{state.text}</span>}
     </span>
   );

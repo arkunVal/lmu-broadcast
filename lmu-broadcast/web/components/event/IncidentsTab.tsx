@@ -12,6 +12,7 @@ import PenaltyForm from "./PenaltyForm";
 import { pickFocus } from "@/lib/focus";
 import HintButtons from "./HintButtons";
 import { driversLine, groupHints } from "@/lib/hints";
+import { Looked } from "@/lib/looked";
 import ReplayLink from "./ReplayLink";
 
 function driversText(i: Incident): string {
@@ -325,7 +326,7 @@ export default function IncidentsTab({
           <h3>Auto-Hinweise ({groups.length})</h3>
           <p className="muted" style={{ margin: "2px 0 8px", fontSize: 13 }}>Hinweise kurz nacheinander am selben Fahrer sind zusammengefasst. „Ist Vorfall“ setzt auf „In Bearbeitung“, „Kein Vorfall“ löscht. Überholmanöver sind nur zum Ansehen.</p>
           {groups.map((g) => (
-            <div key={g.id} className="hint-item" style={g.items.some((x) => x.id === selectedId) ? { background: "var(--sel)" } : undefined}>
+            <Looked key={g.id} t={g.first.session_time} className="hint-item" style={g.items.some((x) => x.id === selectedId) ? { background: "var(--sel)" } : undefined}>
               <div className="row" style={{ justifyContent: "space-between" }}>
                 <span>
                   <b>{g.text}</b>{" "}
@@ -338,7 +339,7 @@ export default function IncidentsTab({
                 </span>
               </div>
               <div style={{ marginTop: 6 }}><ReplayLink event={event} sessionTime={g.first.session_time} focus={pickFocus(g.first)} small /></div>
-            </div>
+            </Looked>
           ))}
         </div>
       )}
@@ -352,7 +353,7 @@ export default function IncidentsTab({
             <tbody>
               {shown.length === 0 && <tr><td colSpan={4} className="muted">Keine Vorfälle.</td></tr>}
               {shown.map((i) => (
-                <tr key={i.id} className={`st-${i.status}`} onClick={() => setSelectedId(i.id)} style={{ cursor: "pointer", background: i.id === selectedId ? "var(--sel)" : undefined }}>
+                <Looked as="tr" key={i.id} t={i.session_time} className={`st-${i.status}`} onClick={() => setSelectedId(i.id)} style={{ cursor: "pointer", background: i.id === selectedId ? "var(--sel)" : undefined }}>
                   <td>{i.session_time != null ? fmtClock(i.session_time) : "–"}{i.lap != null && <span className="muted"> · R{i.lap}</span>}</td>
                   <td>
                     {INCIDENT_KINDS[i.kind] ?? i.kind}{" "}
@@ -360,7 +361,7 @@ export default function IncidentsTab({
                   </td>
                   <td className="brk">{driversText(i)}</td>
                   <td><span className={`badge ${i.status}`}>{INCIDENT_STATUS[i.status]}</span></td>
-                </tr>
+                </Looked>
               ))}
             </tbody>
           </table>

@@ -5,6 +5,7 @@ import CarNo from "@/components/CarNo";
 import { INCIDENT_KINDS, PENALTY_STATUS, penaltyText, sameName, type EventDriver, type EventRow, type Incident, type Penalty } from "@/lib/labels";
 import { getSupabase } from "@/lib/supabase";
 import PenaltyForm from "./PenaltyForm";
+import { Looked } from "@/lib/looked";
 import ReplayLink from "./ReplayLink";
 
 export default function PenaltiesTab({
@@ -32,7 +33,7 @@ export default function PenaltiesTab({
         <tbody>
           {penalties.length === 0 && <tr><td colSpan={7} className="muted">Noch keine Strafen.</td></tr>}
           {penalties.map((p) => (
-            <tr key={p.id} style={p.status === "revoked" ? { opacity: 0.5 } : undefined}>
+            <Looked as="tr" key={p.id} t={p.session_time} style={p.status === "revoked" ? { opacity: 0.5 } : undefined}>
               <td>{p.car_number != null && <CarNo num={p.car_number} cls={drivers.find((d) => d.car_number === p.car_number)?.car_class} />} {p.ingame_name}</td>
               <td><b>{penaltyText(p.kind, p.amount)}</b>{p.after_race && <span className="muted"> · nach dem Rennen</span>}</td>
               <td className="brk">{p.reason || "–"}</td>
@@ -50,7 +51,7 @@ export default function PenaltiesTab({
                   </div>
                 </td>
               )}
-            </tr>
+            </Looked>
           ))}
         </tbody>
       </table>
@@ -78,7 +79,7 @@ export default function PenaltiesTab({
   return (
     <div className="split b">
       <div className="panel">
-        <PenaltyForm eventId={event.id} drivers={drivers} onDone={reload} />
+        <PenaltyForm eventId={event.id} drivers={drivers} reviewing={incidents.filter((i) => i.status === "reviewing")} onDone={reload} />
       </div>
       <div className="col">
         {error && <div className="err">{error}</div>}
