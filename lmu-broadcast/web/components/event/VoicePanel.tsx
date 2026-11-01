@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useVoice } from "@/lib/voiceContext";
-import type { PeerMeta, Scope } from "@/lib/voice";
+import type { PeerMeta, Scope, Who } from "@/lib/voice";
 
 const STATE: Record<string, string> = { overlay: "nur Overlay", connected: "verbunden", connecting: "verbindet", new: "verbindet", disconnected: "unterbrochen", failed: "Fehler", closed: "getrennt" };
 
@@ -23,24 +23,41 @@ function Inbox() {
   );
 }
 
-function Interview({ match, label, target }: { match: (m: PeerMeta) => boolean; label: string; target: string }) {
+function Interview() {
   const v = useVoice();
   const [topic, setTopic] = useState("");
+  const [sel, setSel] = useState<string[]>([]);   // "all" | "cls:X" | "team:Y" | "drv:uid" (Fahrer mehrfach)
   const iv = v.interview;
   const ST = { invited: "gerufen …", live: "im Gespräch", declined: "abgelehnt" } as const;
+  const classes = [...new Set(v.peers.map((p) => p.meta.cls).filter(Boolean) as string[])].sort();
+  const teams = [...new Set(v.peers.map((p) => p.meta.team).filter(Boolean) as string[])].sort();
+  const pick = (t: string) => setSel((c) => (t.startsWith("drv:") ? [...c.filter((x) => x.startsWith("drv:")).filter((x) => x !== t), ...(c.includes(t) ? [] : [t])] : c.length === 1 && c[0] === t ? [] : [t]));
+  const match = (m: PeerMeta) => sel.some((t) => t === "all" || (t.startsWith("cls:") && m.cls === t.slice(4)) || (t.startsWith("team:") && m.team === t.slice(5)) || t === `drv:${m.uid}`);
+  const who: Who = sel[0] === "all" ? { k: "all" } : sel[0]?.startsWith("cls:") ? { k: "cls", label: sel[0].slice(4) } : sel[0]?.startsWith("team:") ? { k: "team", label: sel[0].slice(5) } : { k: "drivers" };
+  const n = v.peers.filter((p) => match(p.meta)).length;
+  const Chip = ({ t, children }: { t: string; children: React.ReactNode }) => <button type="button" className={sel.includes(t) ? "primary" : ""} onClick={() => pick(t)}>{children}</button>;
   return (
     <div className="ivbox" data-testid="ivbox">
-      <div className="vsel-h">3. Interview (Fahrer in ein Gespräch bitten)</div>
+      <div className="vsel-h">3. Anhörung (Fahrer zu einem Gespräch bitten)</div>
       {!iv ? (
-        <form className="row" style={{ gap: 8, margin: "6px 0" }} onSubmit={(e) => { e.preventDefault(); if (!target) return; v.invite(match, topic.trim() || "Gespräch mit der Rennleitung"); setTopic(""); }}>
-          <input value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={160} placeholder="Thema, z. B. Vorfall Runde 7 erklären" style={{ flex: 1, minWidth: 200 }} disabled={!target} />
-          <button className="primary" disabled={!target}>{target ? `${label} ins Interview bitten` : "Erst Empfänger wählen"}</button>
-        </form>
+        <>
+          <div className="vsel">
+            <div className="vgroup"><span className="muted">Alle</span><Chip t="all">Alle Fahrer</Chip></div>
+            {classes.length > 0 && <div className="vgroup"><span className="muted">Klasse</span>{classes.map((c) => <Chip key={c} t={`cls:${c}`}>{c}</Chip>)}</div>}
+            {teams.length > 0 && <div className="vgroup"><span className="muted">Team</span>{teams.map((t) => <Chip key={t} t={`team:${t}`}>{t}</Chip>)}</div>
+            }
+            <div className="vgroup"><span className="muted">Fahrer (mehrere möglich)</span>{v.peers.map((p) => <Chip key={p.meta.uid} t={`drv:${p.meta.uid}`}>{p.meta.num != null ? `#${p.meta.num} ` : ""}{p.meta.name}</Chip>)}</div>
+          </div>
+          <form className="row" style={{ gap: 8, margin: "6px 0" }} onSubmit={(e) => { e.preventDefault(); if (!n) return; v.invite(match, topic.trim() || "Gespräch mit der Rennleitung", who); setTopic(""); }}>
+            <input value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={160} placeholder="Thema, z. B. Vorfall Runde 7 erklären" style={{ flex: 1, minWidth: 200 }} disabled={!n} />
+            <button className="primary" disabled={!n}>{n ? `Anhörung starten (${n})` : "Erst Empfänger wählen"}</button>
+          </form>
+        </>
       ) : (
         <div className="ivlive">
-          <div><b>Interview:</b> {iv.topic}</div>
+          <div><b>Anhörung:</b> {iv.topic}</div>
           {iv.people.map((p) => <div key={p.meta.uid}><i className={`dot ${p.status === "live" ? "ok" : "warn"}`} />{p.meta.num != null ? `#${p.meta.num} ` : ""}{p.meta.name} · {ST[p.status]}</div>)}
-          <button onClick={v.endInterview} style={{ marginTop: 6 }}>Interview beenden</button>
+          <button onClick={v.endInterview} style={{ marginTop: 6 }}>Anhörung beenden</button>
           <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>Wer annimmt, spricht frei mit dir. Nur diese Fahrer sehen die Einblendung im Overlay.</div>
         </div>
       )}
@@ -155,7 +172,7 @@ export default function VoicePanel() {
             </label>
             <button onClick={v.leave}>Funk beenden</button>
           </div>
-          <Interview match={match} label={label} target={target} />
+          <Interview />
           <Inbox />
           <table className="plain">
             <thead><tr><th>Fahrer</th><th>Team</th><th>Klasse</th><th>Verbindung</th></tr></thead>

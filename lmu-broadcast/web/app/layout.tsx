@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { LangProvider } from "@/lib/i18n";
 import PwaRegister from "@/components/PwaRegister";
 import "./globals.css";
 
@@ -19,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body>{children}<PwaRegister /></body>
+      <body><LangProvider>{children}</LangProvider><PwaRegister /></body>
     </html>
   );
 }

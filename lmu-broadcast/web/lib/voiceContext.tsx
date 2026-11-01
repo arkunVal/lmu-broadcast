@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useAuth } from "./auth";
 import type { EventDriver, EventRow } from "./labels";
 import { getSupabase } from "./supabase";
-import { VoiceHost, VoiceListener, type InboxItem, type InterviewState, type ListenerState, type PeerInfo, type PeerMeta, type Scope } from "./voice";
+import { VoiceHost, VoiceListener, type InboxItem, type InterviewState, type ListenerState, type PeerInfo, type PeerMeta, type Scope, type Who } from "./voice";
 
 type Ctx = {
   mode: "host" | "listener" | null;   // host = Rennleitung (spricht), listener = Fahrer (hört)
@@ -23,10 +23,11 @@ type Ctx = {
   chime: boolean;
   setChime: (on: boolean) => void;
   beep: () => void;
+  myName: string;
   staff: boolean;                       // admin/steward: darf sprechen und Interviews starten
   inbox: InboxItem[];                   // Nachrichten der Fahrer an die Rennleitung
   dismissInbox: (id: string) => void;
-  invite: (match: (m: PeerMeta) => boolean, topic: string) => number;
+  invite: (match: (m: PeerMeta) => boolean, topic: string, who: Who) => number;
   endInterview: () => void;
   interview: InterviewState | null;
   sendToRC: (text: string) => string | null;
@@ -36,7 +37,7 @@ type Ctx = {
 
 const none: Ctx = {
   mode: null, active: false, error: "", join: async () => {}, leave: () => {}, peers: [], micOn: false, talking: false,
-  talk: () => 0, message: () => 0, listener: { connected: false, talkingToMe: false, receiving: false, scope: null, hostOnline: false, invite: null, interview: false, acked: null }, staff: false, inbox: [], dismissInbox: () => {}, invite: () => 0, endInterview: () => {}, interview: null, sendToRC: () => null, acceptInvite: async () => {}, declineInvite: () => {}, setVolume: () => {}, volume: 1, chime: true, setChime: () => {}, beep: () => {},
+  talk: () => 0, message: () => 0, listener: { connected: false, talkingToMe: false, receiving: false, scope: null, hostOnline: false, invite: null, interview: false, acked: null }, staff: false, myName: "", inbox: [], dismissInbox: () => {}, invite: () => 0, endInterview: () => {}, interview: null, sendToRC: () => null, acceptInvite: async () => {}, declineInvite: () => {}, setVolume: () => {}, volume: 1, chime: true, setChime: () => {}, beep: () => {},
 };
 const VoiceCtx = createContext<Ctx>(none);
 export const useVoice = () => useContext(VoiceCtx);
@@ -59,14 +60,19 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
     try {
       const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const ctx = new AC();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.frequency.value = 880;
-      g.gain.setValueAtTime(0.15, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-      o.connect(g); g.connect(ctx.destination);
-      o.start(); o.stop(ctx.currentTime + 0.4);
-      setTimeout(() => void ctx.close(), 600);
+      // Zwei weiche Toene (E5, B5), wie ein Bordsignal: kurz, leise, ohne scharfen Anschlag
+      [[659.25, 0], [987.77, 0.16]].forEach(([f, t]) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sine";
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+        g.gain.exponentialRampToValueAtTime(0.09, ctx.currentTime + t + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.4);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.45);
+      });
+      setTimeout(() => void ctx.close(), 900);
     } catch {}
   }, []);
   const invId = listener.invite?.id;
@@ -136,10 +142,10 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
     message: (t, m) => host.current?.message(t, m) ?? 0,
     listener,
     setVolume: (v) => { setVol(v); lis.current?.setVolume(v); },
-    volume, chime, beep, staff,
+    volume, chime, beep, staff, myName: me?.name ?? "",
     inbox: host.current?.inbox ?? [],
     dismissInbox: (id) => host.current?.dismiss(id),
-    invite: (m, t) => host.current?.invite(m, t) ?? 0,
+    invite: (m, t, w) => host.current?.invite(m, t, w) ?? 0,
     endInterview: () => host.current?.endInterview(),
     interview: host.current?.interview ?? null,
     sendToRC: (t) => lis.current?.sendToRC(t) ?? null,

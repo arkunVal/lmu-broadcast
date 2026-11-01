@@ -625,3 +625,6 @@ a { color: var(--cream); }
 .bcsw i { width: 10px; height: 10px; border-radius: 50%; background: #555a6e; }
 .bcsw.on { background: rgba(63,185,80,.15); border-color: #3fb950; color: #fff; }
 .bcsw.on i { background: #3fb950; box-shadow: 0 0 8px #3fb950; }
+.langsw { display: inline-flex; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid rgba(112,128,205,.25); }
+.langsw button { padding: 5px 14px; border-radius: 999px; border: 0; background: transparent; color: var(--muted, #9aa); font-weight: 600; cursor: pointer; }
+.langsw button.on { background: var(--blue, #3F51C7); color: #fff; }

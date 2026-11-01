@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { LangSwitch } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 
@@ -18,7 +19,7 @@ function Frame({ children }: { children: React.ReactNode }) {
           <li><i />Broadcast-Overlays direkt für OBS</li>
         </ul>
       </div>
-      <div className="auth-card">{children}</div>
+      <div className="auth-card"><div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}><LangSwitch /></div>{children}</div>
     </div>
   );
 }

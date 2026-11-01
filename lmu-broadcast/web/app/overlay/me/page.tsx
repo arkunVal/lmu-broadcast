@@ -1,5 +1,6 @@
 "use client";
 
+import { callText } from "@/lib/voice";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
@@ -69,6 +70,7 @@ function Inner() {
   const e = q.get("e") ?? "";
   const scale = Number(q.get("scale")) || 1;
   const demo = q.get("demo") === "1";
+  const de = q.get("lang") === "de";
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState("");
   const [voice, setVoice] = useState<OverlayVoiceState>({ talking: false, toMe: false, onlyMe: false, message: null, interview: null });
@@ -90,7 +92,7 @@ function Inner() {
         reviews: [{ id: "i1", kind: "contact", lap: 9, drivers: [{ name: "Lena Vogt", num: 50, team: "Beta" }], createdAt: t }],
         cleared: [{ id: "c1", lap: 5, drivers: [{ name: "Tom Weber", num: 12, team: "Delta" }], closedAt: t }],
       });
-      setVoice({ talking: true, toMe: true, onlyMe: true, message: "Box this lap please", interview: { topic: "Incident lap 7, Turn 1", live: false } });
+      setVoice({ talking: true, toMe: true, onlyMe: true, message: "Box this lap please", interview: { topic: "Incident lap 7, Turn 1", live: false, who: { k: "drivers", names: ["Max Becker", "Lena Vogt"] } } });
       return;
     }
     if (!k || !e) { setError("Link unvollständig. Den Link im Event unter „Session“ kopieren."); return; }
@@ -145,10 +147,10 @@ function Inner() {
       )}
       {voice.interview && (
         <div className={`oc oc-iv${voice.interview.live ? " live" : ""}`} data-testid="iv-card">
-          <div className="oc-top"><span className="oc-tag"><span className="oc-dot" />Race Control · Interview</span></div>
-          <div className="oc-main">{voice.interview.live ? "Interview live" : "Called to Race Control"}</div>
-          <div className="oc-reason"><span>Topic</span>{voice.interview.topic}</div>
-          {!voice.interview.live && <div className="oc-status">Open the Funk tab to answer</div>}
+          <div className="oc-top"><span className="oc-tag"><span className="oc-dot" />Race Control · Hearing</span></div>
+          <div className="oc-main">{voice.interview.live ? (de ? "Anhörung läuft" : "Hearing in progress") : callText(voice.interview.who, feed.me.name, de ? "de" : "en")}</div>
+          <div className="oc-reason"><span>{de ? "Thema" : "Topic"}</span>{voice.interview.topic}</div>
+          {!voice.interview.live && <div className="oc-status">{de ? "Zum Antworten den Tab „Funk“ öffnen" : "Open the Funk tab to answer"}</div>}
         </div>
       )}
       {voice.message && (

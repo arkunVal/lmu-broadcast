@@ -19,7 +19,8 @@ import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 export type PeerMeta = { uid: string; name: string; role: string; team: string | null; cls: string | null; num: number | null };
 export type Scope = "all" | "group" | "one";
 type Kind = "hello" | "rc-here" | "bye" | "offer" | "answer" | "ice" | "talk" | "msg" | "dmsg" | "ack" | "alive" | "invite" | "accept" | "decline" | "end";
-type Sig = { id?: string; kind: Kind; from: string; to?: string; meta?: PeerMeta; data?: unknown; on?: boolean; targets?: string[]; text?: string; scope?: Scope };
+export type Who = { k: "all" | "cls" | "team" | "drivers"; label?: string; names?: string[] };
+type Sig = { who?: Who; id?: string; kind: Kind; from: string; to?: string; meta?: PeerMeta; data?: unknown; on?: boolean; targets?: string[]; text?: string; scope?: Scope };
 
 const HELLO_MS = 8000;
 const STALE_MS = 25000;
@@ -50,7 +51,18 @@ class Net {
 }
 
 export type InboxItem = { id: string; from: PeerMeta; text: string; at: number };
-export type InterviewState = { id: string; topic: string; people: { meta: PeerMeta; status: "invited" | "live" | "declined" }[] };
+export type InterviewState = { id: string; topic: string; who: Who; people: { meta: PeerMeta; status: "invited" | "live" | "declined" }[] };
+/** Text fuer den Gerufenen: wer wird zur Anhoerung gebeten (je nach Auswahl der Rennleitung). */
+export function callText(who: Who | undefined, myName: string, lang: "de" | "en"): string {
+  const en = lang === "en";
+  const others = (who?.names ?? []).filter((n) => n !== myName);
+  if (!who || who.k === "all") return en ? "All drivers are called to a hearing" : "Alle Fahrer werden zur Anhörung gebeten";
+  if (who.k === "team") return en ? `Your team (${who.label}) is called to a hearing` : `Dein Team (${who.label}) wird zur Anhörung gebeten`;
+  if (who.k === "cls") return en ? `Your class (${who.label}) is called to a hearing` : `Deine Klasse (${who.label}) wird zur Anhörung gebeten`;
+  if (!others.length) return en ? "You are called to a hearing" : "Du wirst zur Anhörung gebeten";
+  const list = others.length === 1 ? others[0] : `${others.slice(0, -1).join(", ")} ${en ? "and" : "und"} ${others[others.length - 1]}`;
+  return en ? `You and ${list} are called to a hearing` : `Du und ${list} werden zur Anhörung gebeten`;
+}
 const newId = () => Math.random().toString(36).slice(2, 10);
 const mediaOk = () => navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
 
@@ -69,7 +81,7 @@ export class VoiceHost {
   private talkScope: Scope = "all";
   private talking = false;
   inbox: InboxItem[] = [];
-  private iv: { id: string; topic: string; people: Map<string, { meta: PeerMeta; status: "invited" | "live" | "declined" }>; targets: string[] } | null = null;
+  private iv: { who: Who; id: string; topic: string; people: Map<string, { meta: PeerMeta; status: "invited" | "live" | "declined" }>; targets: string[] } | null = null;
   private ivTimer: ReturnType<typeof setInterval> | null = null;
   ready = false;
 
@@ -131,18 +143,18 @@ export class VoiceHost {
   }
 
   get interview(): InterviewState | null {
-    return this.iv ? { id: this.iv.id, topic: this.iv.topic, people: [...this.iv.people.values()] } : null;
+    return this.iv ? { who: this.iv.who, id: this.iv.id, topic: this.iv.topic, people: [...this.iv.people.values()] } : null;
   }
 
   /** Fahrer ins Interview bitten. Nur die Gerufenen (und ihre Overlays) sehen die Anfrage. */
-  invite(match: (m: PeerMeta) => boolean, topic: string): number {
+  invite(match: (m: PeerMeta) => boolean, topic: string, who: Who): number {
     this.endInterview();
     const people = new Map<string, { meta: PeerMeta; status: "invited" | "live" | "declined" }>();
     for (const [uid, p] of this.peers) if (match(p.meta)) people.set(uid, { meta: p.meta, status: "invited" });
     const targets = this.list().filter((p) => match(p.meta)).map((p) => p.meta.uid);
     if (!people.size) return 0;
-    this.iv = { id: newId(), topic: topic.slice(0, 160), people, targets };
-    const send = () => this.iv && this.net.send({ kind: "invite", from: this.me.uid, id: this.iv.id, text: this.iv.topic, targets: this.iv.targets });
+    this.iv = { who: { ...who, names: [...people.values()].map((x) => x.meta.name) }, id: newId(), topic: topic.slice(0, 160), people, targets };
+    const send = () => this.iv && this.net.send({ kind: "invite", from: this.me.uid, id: this.iv.id, text: this.iv.topic, who: this.iv.who, targets: this.iv.targets });
     send();
     this.ivTimer = setInterval(send, 8000);
     this.onChange();
@@ -264,7 +276,7 @@ export class VoiceHost {
   }
 }
 
-export type ListenerState = { connected: boolean; talkingToMe: boolean; receiving: boolean; scope: Scope | null; hostOnline: boolean; invite: { id: string; topic: string } | null; interview: boolean; acked: string | null };
+export type ListenerState = { connected: boolean; talkingToMe: boolean; receiving: boolean; scope: Scope | null; hostOnline: boolean; invite: { id: string; topic: string; who?: Who } | null; interview: boolean; acked: string | null };
 
 /** Fahrer: meldet sich an, spielt die Durchsagen der Rennleitung ab. */
 export class VoiceListener {
@@ -306,7 +318,7 @@ export class VoiceListener {
     if (["rc-here", "offer", "alive", "talk", "ack", "invite", "end"].includes(s.kind)) { this.lastHost = Date.now(); if (!this.state.hostOnline) this.set({ hostOnline: true }); }
     if (s.kind === "ack" && s.id) this.set({ acked: s.id });
     else if (s.kind === "invite" && fromHost && s.targets?.includes(this.me.uid) && s.id && !this.seen.has(s.id)) {
-      if (!this.state.invite && !this.state.interview) this.set({ invite: { id: s.id, topic: s.text ?? "" } });
+      if (!this.state.invite && !this.state.interview) this.set({ invite: { id: s.id, topic: s.text ?? "", who: s.who } });
       this.hostUid = s.from;
     } else if (s.kind === "end" && fromHost && s.targets?.includes(this.me.uid)) {
       this.stopMic();
@@ -397,7 +409,7 @@ export class VoiceListener {
   }
 }
 
-export type OverlayVoiceState = { talking: boolean; toMe: boolean; onlyMe: boolean; message: string | null; interview: { topic: string; live: boolean } | null };
+export type OverlayVoiceState = { talking: boolean; toMe: boolean; onlyMe: boolean; message: string | null; interview: { topic: string; live: boolean; who?: Who } | null };
 
 /** Fahrer-Overlay (SimHub): hoert nur die Hinweise der Rennleitung ("spricht gerade", Kurznachricht), kein Ton. */
 export class OverlayVoice {
@@ -434,11 +446,11 @@ export class OverlayVoice {
     if (s.kind === "rc-here") this.hello();
     else if (s.kind === "invite" && s.targets?.includes(this.me.uid)) {
       this.ivAt = Date.now();
-      if (this.ivId !== s.id) { this.ivId = s.id ?? ""; this.set({ interview: { topic: s.text ?? "", live: false } }); }
-      else if (!this.st.interview) this.set({ interview: { topic: s.text ?? "", live: false } });
+      if (this.ivId !== s.id) { this.ivId = s.id ?? ""; this.set({ interview: { topic: s.text ?? "", live: false, who: s.who } }); }
+      else if (!this.st.interview) this.set({ interview: { topic: s.text ?? "", live: false, who: s.who } });
     } else if (s.kind === "accept" && s.from === this.me.uid && s.id === this.ivId) {
       this.ivAt = Date.now();
-      this.set({ interview: { topic: this.st.interview?.topic ?? "", live: true } });
+      this.set({ interview: { topic: this.st.interview?.topic ?? "", live: true, who: this.st.interview?.who } });
     } else if ((s.kind === "end" || (s.kind === "decline" && s.from === this.me.uid)) && this.st.interview) {
       this.ivId = "";
       this.set({ interview: null });

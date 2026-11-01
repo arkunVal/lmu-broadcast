@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { useVoice } from "@/lib/voiceContext";
+import { useLang } from "@/lib/i18n";
+import { callText } from "@/lib/voice";
 
 /** Funk für Fahrer: groß und klar, ob die Rennleitung gerade spricht. */
 export default function FunkTab() {
   const v = useVoice();
+  const { lang } = useLang();
   const l = v.listener;
   const [text, setText] = useState("");
   const [sentId, setSentId] = useState<string | null>(null);
@@ -45,8 +48,8 @@ export default function FunkTab() {
       {v.error && <div className="err">{v.error}</div>}
 
       {l.invite && (
-        <div className="invitebox" role="alertdialog" aria-label="Interview-Anfrage" data-testid="invite">
-          <div className="funk-t">Die Rennleitung bittet dich ins Interview</div>
+        <div className="invitebox" role="alertdialog" aria-label="Anhörung" data-testid="invite">
+          <div className="funk-t" data-no-i18n>{callText(l.invite.who, v.myName, lang)}</div>
           <div className="funk-s">Thema: {l.invite.topic}</div>
           <div className="row" style={{ gap: 10, marginTop: 10 }}>
             <button className="primary big" onClick={() => void v.acceptInvite()}>🎙 Annehmen</button>
@@ -57,7 +60,7 @@ export default function FunkTab() {
       {l.interview && (
         <div className="invitebox live" data-testid="iv-live">
           <div className="funk-bars"><i /><i /><i /><i /><i /></div>
-          <div className="funk-t">Interview läuft</div>
+          <div className="funk-t">Anhörung läuft</div>
           <div className="funk-s">Du sprichst frei mit der Rennleitung. Mikrofon ist an. Wenn die Rennleitung beendet, ist es wieder aus.</div>
           <button onClick={v.declineInvite} style={{ marginTop: 8 }}>Verlassen</button>
         </div>

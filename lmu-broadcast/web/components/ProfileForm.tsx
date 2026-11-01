@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LangSwitch } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { ROLES } from "@/lib/labels";
 import { getSupabase } from "@/lib/supabase";
@@ -55,6 +56,10 @@ export default function ProfileForm({ embedded }: { embedded?: boolean }) {
         </div>
       )}
       {embedded && <p className="muted" style={{ margin: "0 0 10px" }}>Rolle: {profile?.role ? ROLES[profile.role] : "–"}</p>}
+      <div className="panel" style={{ maxWidth: 520, marginBottom: 12 }}>
+        <label style={{ marginTop: 0 }}>Sprache</label>
+        <LangSwitch />
+      </div>
       <form className="panel" onSubmit={save} style={{ maxWidth: 520 }}>
         <label style={{ marginTop: 0 }}>Anzeigename</label>
         <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} style={{ width: "100%" }} />
