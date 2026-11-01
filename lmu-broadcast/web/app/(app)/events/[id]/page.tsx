@@ -1,8 +1,9 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
+import { createPortal } from "react-dom";
 import AccountTab from "@/components/event/AccountTab";
 import ControlsTab from "@/components/event/ControlsTab";
 import FunkTab from "@/components/event/FunkTab";
@@ -35,6 +36,8 @@ function EventView() {
   const isCaptain = drivers.some((d) => d.is_captain && d.profile_id && d.profile_id === profile?.id);
   const [tab, setTab] = useState<Tab | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => { setSlot(document.getElementById("side-event")); });
 
   if (!loaded) return <div className="notice">Lade …</div>;
   if (!event) return <div className="notice">Event nicht gefunden. Du bist eventuell noch nicht beigetreten. {error}</div>;
@@ -57,15 +60,24 @@ function EventView() {
       <VoiceProvider event={event} drivers={drivers}>
         <EventBar event={event} showLive={isTeam} />
         {error && <div className="err">{error}</div>}
-        <div className="tabs navtabs" role="tablist">
-          {tabs.map(([key, label, count]) => (
-            <button key={key} role="tab" aria-selected={current === key} className={`tab ${current === key ? "active" : ""}`} onClick={() => setTab(key)}>
-              {label}
-              {key === "voice" && <FunkDot />}
-              {!!count && <span className="cnt" title={`${openCount} offen, ${hintCount} Auto-Hinweise`}>{count}</span>}
-            </button>
-          ))}
-        </div>
+        {slot && createPortal(
+          <nav aria-label="Event-Menü" role="tablist">
+            {(isTeam ? [["Rennleitung", tabs.filter(([k]) => ["live", "controls", "map", "incidents"].includes(k))]] : []).concat([["Event", tabs.filter(([k]) => !["live", "controls", "map", "incidents"].includes(k))]] as never[]).map(([group, items]) => (
+              <div key={group as string}>
+                <div className="sidelabel">{group as string}</div>
+                {(items as [Tab, string, number?][]).map(([key, label, count]) => (
+                  <button key={key} role="tab" aria-selected={current === key} className={`navlink tab${current === key ? " on active" : ""}`} onClick={() => setTab(key)}>
+                    <span className="dot" />
+                    <span>{label}</span>
+                    {key === "voice" && <FunkDot />}
+                    {!!count && <span className="cnt" title={`${openCount} offen, ${hintCount} Auto-Hinweise`}>{count}</span>}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </nav>,
+          slot,
+        )}
         <div className="tabbody">
           {current === "live" && isTeam && <LiveTab event={event} drivers={drivers} />}
           {current === "controls" && isTeam && <ControlsTab event={event} />}

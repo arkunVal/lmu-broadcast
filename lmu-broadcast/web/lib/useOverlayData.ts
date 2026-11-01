@@ -25,7 +25,7 @@ export function useOverlayData() {
     [live.snapshot, fresh, debug],
   );
 
-  return { params, room, snapshot, connection: live.connection, ageMs, debug };
+  return { params, room, snapshot, receivedAt: live.receivedAt, connection: live.connection, ageMs, debug };
 }
 
 export function num(params: URLSearchParams | null, key: string, fallback: number): number {

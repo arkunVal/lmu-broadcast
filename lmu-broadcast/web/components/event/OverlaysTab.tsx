@@ -11,6 +11,46 @@ const ITEMS = [
   { path: "map", title: "Streckenkarte", size: "420 × 300", extra: "", note: "Zeigt die gespeicherte Streckenkarte mit allen Autos." },
 ];
 
+const VIEWS: [string, string][] = [
+  ["tower", "Tower"], ["driver", "Fahrerkarte"], ["h2h", "Head to Head"], ["battle", "Onboard Battle"],
+  ["telemetry", "Onboard Telemetry"], ["energy", "Virtual Energy"], ["replay", "Replay-Marke"],
+];
+
+/** Ein Link fuer das FLM-Broadcast-Overlay: Ansichten ankreuzen, Link kopieren (eine OBS-Quelle je Szene). */
+function BroadcastCard({ origin, room }: { origin: string; room: string }) {
+  const [on, setOn] = useState<string[]>(["tower", "driver"]);
+  const [car, setCar] = useState("");
+  const [vs, setVs] = useState("");
+  const url = `${origin}/overlay/broadcast?room=${encodeURIComponent(room)}&view=${on.join(",")}${car ? `&car=${car}` : ""}${vs ? `&vs=${vs}` : ""}`;
+  return (
+    <div className="panel wide">
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <h3>FLM Broadcast</h3>
+        <span className="muted">OBS-Größe 1920 × 1080</span>
+      </div>
+      <p className="muted" style={{ margin: "4px 0 10px" }}>
+        Ganze TV-Grafik auf einer Fläche. Ansichten ankreuzen, Link kopieren, pro OBS-Szene eine Quelle. Ohne Nummer folgt es dem Auto, das im Spiel angeschaut wird.
+        Head to Head und Battle wählen automatisch das Auto mit dem kleineren Abstand dazu.
+      </p>
+      <div className="row" style={{ flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
+        {VIEWS.map(([k, label]) => (
+          <label key={k} className="row" style={{ gap: 6, textTransform: "none", letterSpacing: 0, margin: 0, fontWeight: 500 }}>
+            <input type="checkbox" checked={on.includes(k)} onChange={(e) => setOn(e.target.checked ? [...on, k] : on.filter((x) => x !== k))} />
+            {label}
+          </label>
+        ))}
+        <input placeholder="Auto Nr. (optional)" value={car} onChange={(e) => setCar(e.target.value.replace(/\D/g, ""))} style={{ width: 150 }} />
+        <input placeholder="Gegner Nr. (optional)" value={vs} onChange={(e) => setVs(e.target.value.replace(/\D/g, ""))} style={{ width: 160 }} />
+      </div>
+      <div className="row">
+        <input readOnly value={url} style={{ flex: 1, minWidth: 260 }} onFocus={(e) => e.currentTarget.select()} />
+        <CopyButton text={url} />
+        <a className="btn" href={url + "&debug=1"} target="_blank" rel="noreferrer">Öffnen</a>
+      </div>
+    </div>
+  );
+}
+
 export default function OverlaysTab({ event }: { event: EventRow }) {
   const [origin, setOrigin] = useState("");
   useEffect(() => setOrigin(window.location.origin), []);
@@ -21,6 +61,7 @@ export default function OverlaysTab({ event }: { event: EventRow }) {
         In OBS: Quelle hinzufügen, „Browser“ wählen, den Link einfügen und die Größe wie angegeben setzen. Der Hintergrund ist transparent.
       </div>
       <div className="cardgrid">
+      <BroadcastCard origin={origin} room={event.room} />
       {ITEMS.map((it) => {
         const url = `${origin}/overlay/${it.path}?room=${encodeURIComponent(event.room)}${it.extra}`;
         return (

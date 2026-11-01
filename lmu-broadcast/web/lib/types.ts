@@ -35,6 +35,20 @@ export type Car = {
   yellowCause: boolean;
   finish: number;
   tire: Tire | null;
+  // Broadcast-Werte vom Reader (aeltere Reader liefern sie nicht)
+  lapStart?: number;
+  energy?: number | null;
+  prevLap?: number | null;
+  splits?: Record<string, (number | null)[]>;
+  bestS1?: number | null;
+  bestS2?: number | null;
+  bestS3?: number | null;
+  cPos?: number | null;
+  cGapLeader?: number | null;
+  cLapsLeader?: number;
+  cGapAhead?: number | null;
+  cLapsAhead?: number;
+  cAheadId?: number | null;
 };
 
 export type Session = {
@@ -52,6 +66,7 @@ export type Session = {
   trackTemp: number;
   airTemp: number;
   cars: number;
+  focusId?: number | null;
 };
 
 export type Snapshot = {

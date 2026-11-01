@@ -9,9 +9,9 @@
   --ok: #3ddc84;
   --warn: #f5a524;
   --bad: #ff5a5f;
-  --accent: #fffc40;
-  --accent2: #fffd66;
-  --blue: #fffc40;
+  --accent: #d5dae2;
+  --accent2: #eef1f5;
+  --blue: #d5dae2;
   --purple: #b46cff;
   --flag: #fffc40;
   --pit: #f5a524;
@@ -104,7 +104,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.ctr, th.ctr { text-align: center; }
 tr.player td { background: rgba(255,252,64,.07); }
 tr.yellow td { background: #3a3210; }
-td.brk { white-space: normal; }
+td.brk { white-space: nowrap; max-width: 360px; overflow: hidden; text-overflow: ellipsis; }
 table.plain { min-width: 0; }
 tr.click { cursor: pointer; }
 tr.click:hover td { background: var(--sel); }
@@ -365,8 +365,8 @@ a.btn.back:hover { color: var(--accent); }
 
 /* Live-Tabelle: Klick auf ein Auto stellt die Kamera im Spiel um */
 tr.pick { cursor: pointer; }
-tr.pick:hover td { background: rgba(255, 252, 64, 0.08); }
-tr.picked td { box-shadow: inset 0 -2px 0 var(--accent, #FFFC40); }
+tr.pick:hover td { background: rgba(213, 218, 226, 0.07); }
+tr.picked td { box-shadow: inset 0 -2px 0 var(--accent); }
 
 /* Live-Seite v4: oben links Streckenkarte (halbe Breite), rechts Infos und Hinweise-Tabelle, darunter das Dashboard */
 .live-grid { display: flex; flex-direction: column; gap: 16px; }
@@ -380,7 +380,7 @@ tr.picked td { box-shadow: inset 0 -2px 0 var(--accent, #FFFC40); }
 .live-info .hints { flex: 1 1 auto; min-height: 120px; overflow: auto; margin-bottom: 0; padding: 12px 14px; }
 .hints table.plain { font-size: 13px; }
 .hints table.plain th, .hints table.plain td { padding: 6px 8px; white-space: nowrap; }
-.hints table.plain td:nth-child(3) { white-space: normal; min-width: 140px; }
+.hints table.plain td:nth-child(3) { white-space: nowrap; }
 .hints h3 { margin: 0 0 8px; }
 @media (max-width: 1100px) { .live-top { grid-template-columns: 1fr; } }
 @media (min-width: 1101px) and (min-height: 640px) {
@@ -390,7 +390,7 @@ tr.picked td { box-shadow: inset 0 -2px 0 var(--accent, #FFFC40); }
   .live-classes { flex: 1 1 0; min-height: 0; overflow: auto; padding-right: 4px; }
   .live-top > .mpanel svg { height: 0; }
 }
-tr.pick:hover td { background: rgba(255, 252, 64, 0.08); }
+tr.pick:hover td { background: rgba(213, 218, 226, 0.07); }
 @media (min-width: 1101px) and (min-height: 640px) { .live-info { overflow: auto; } }
 .hints td > span { flex-wrap: nowrap !important; }
 .hints td { vertical-align: middle; }
@@ -503,20 +503,37 @@ button, a.btn { border-radius: 6px; }
 .funkbox, .notice { border-radius: 6px; }
 
 /* Zuletzt im Replay angesprungene Stelle: ganze Zeile hervorheben */
-.looked { background: rgba(255, 252, 64, 0.12) !important; box-shadow: inset 3px 0 0 var(--accent, #FFFC40); }
-tr.looked td { background: rgba(255, 252, 64, 0.12) !important; }
-tr.looked td:first-child { box-shadow: inset 3px 0 0 var(--accent, #FFFC40); }
+.looked { background: rgba(213, 218, 226, 0.10) !important; box-shadow: inset 3px 0 0 var(--accent); }
+tr.looked td { background: rgba(213, 218, 226, 0.10) !important; }
+tr.looked td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .hint-item.looked { border-radius: 8px; }
 
-/* Schmale Fenster: nichts darf die Seite seitwärts schieben */
+/* Tabellen brechen nie um. Zu breit = die Tabelle scrollt in sich, nie die Seite. */
 html, body { max-width: 100%; overflow-x: hidden; }
 .wrap, .tabbody, .split > *, .col > *, .cardgrid > * { min-width: 0; }
-.tablewrap:not(.cls-card .tablewrap) > table { min-width: 0; }
-.tablewrap td, .tablewrap th { overflow-wrap: anywhere; }
-.tablewrap td.num, .tablewrap th.num { white-space: nowrap; }
-.tablewrap td.brk { min-width: 140px; overflow-wrap: anywhere; }
-@media (max-width: 1500px) {
-  .split.b { grid-template-columns: minmax(0, 1fr); }
-  .split.a { grid-template-columns: minmax(0, 1fr); }
-}
+.tablewrap { overflow-x: auto; }
+.tablewrap th, .tablewrap td { white-space: nowrap; }
+.tablewrap td.brk { max-width: 360px; overflow: hidden; text-overflow: ellipsis; }
+/* Strafen: Formular oben, Tabelle darunter in voller Breite */
+.split.b { grid-template-columns: minmax(0, 1fr) !important; }
+.split.b > .panel .grid2 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important; }
 .evbar, .evbar-l { flex-wrap: wrap; }
+@media (min-width: 1101px) and (min-height: 640px) {
+  .split.b { grid-template-rows: auto minmax(0, 1fr); }
+}
+
+/* ===== Feste Sidebar: globale Navigation + Event-Menue. Farbe nur fuer Status (FCY gelb, Strafen rot, ok gruen) ===== */
+.side { overflow-y: auto; overflow-x: hidden; background: #0a0b0d; }
+.shell.inevent .side { display: flex; }
+.sidelabel { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); padding: 14px 12px 4px; white-space: nowrap; }
+.shell.coll .side .sidelabel { opacity: 0; height: 8px; padding: 0; }
+.side-event nav > div { display: flex; flex-direction: column; gap: 2px; }
+.side .navlink.tab { position: relative; background: none; border: 0; height: 40px; }
+.side .navlink .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; margin: 0 6px; }
+.side .navlink.on { background: var(--panel2); color: #fff; box-shadow: inset 2px 0 0 var(--accent); }
+.side .navlink.on .dot { background: var(--accent); }
+.side .navlink .cnt { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; position: static; }
+.shell.coll .side .navlink .cnt { position: absolute; top: 4px; right: 6px; }
+button.primary, .btn.primary { background: var(--accent); color: #0b0c0e; border-color: var(--accent); }
+.shell.inevent .hdr-l a.btn.back { display: none; }
+@media (max-width: 860px) { .shell.inevent .side { display: flex; } }

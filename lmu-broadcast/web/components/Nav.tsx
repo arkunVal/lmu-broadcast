@@ -53,15 +53,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`shell${ready && coll ? " coll" : ""}${mopen ? " mopen" : ""}${ready ? "" : " guest"}${inEvent ? " inevent" : ""}`}>
-      {ready && !inEvent && (
+      {ready && (
         <>
           <aside className="side" aria-label="Navigation">
             <button className="navlink toggle" onClick={toggle} title={coll ? "Menü ausklappen" : "Menü einklappen"} aria-expanded={!coll}>
               {I.chev}<span>Menü einklappen</span>
             </button>
-            {link("/events", "Events", I.events, path.startsWith("/events"))}
+            <div className="sidelabel">Navigation</div>
+            {link("/events", "Alle Events", I.events, path === "/events")}
             {profile?.role === "admin" && link("/admin", "Admin", I.admin, path.startsWith("/admin"))}
             {link("/profil", "Profil", I.user, path === "/profil")}
+            <div id="side-event" className="side-event" />
             <div className="sp" />
             <button
               className="navlink out"
@@ -80,14 +82,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <div className="main">
         <header className="hdr">
           <div className="hdr-l">
-            {inEvent ? (
-              <Link href="/events" className="btn back" title="Event verlassen">← Zurück</Link>
-            ) : (
-              <>
-                {ready && <button className="burger" aria-label="Menü" onClick={() => setMopen((v) => !v)}>{I.burger}</button>}
-                <Logo href={ready ? "/events" : "/"} />
-              </>
-            )}
+            {ready && <button className="burger" aria-label="Menü" onClick={() => setMopen((v) => !v)}>{I.burger}</button>}
+            <Logo href={ready ? "/events" : "/"} />
           </div>
           <div className="hdr-r">
             {ready ? (
