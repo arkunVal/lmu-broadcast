@@ -31,7 +31,9 @@ from reader_key import decode_key
 from sender import Sender
 from track_recorder import TrackRecorder
 
-HERE = Path(__file__).resolve().parent
+# Als .exe (PyInstaller) liegt config.json neben der .exe, nicht im Temp-Ordner
+FROZEN = bool(getattr(sys, "frozen", False))
+HERE = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent
 DEFAULT_CONFIG = HERE / "config.json"
 
 
@@ -331,4 +333,11 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    code = main()
+    if FROZEN:
+        # Doppelklick-Start: Fenster offen lassen, damit man Meldungen lesen kann
+        try:
+            input("\nEnter zum Schliessen ...")
+        except (EOFError, KeyboardInterrupt):
+            pass
+    sys.exit(code)
