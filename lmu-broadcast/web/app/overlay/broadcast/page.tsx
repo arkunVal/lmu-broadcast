@@ -11,10 +11,11 @@ import { fmtClock } from "@/lib/format";
 import { sessionKind, sessionLabel } from "@/lib/standings";
 import type { Car, Snapshot } from "@/lib/types";
 import { num, useOverlayData } from "@/lib/useOverlayData";
+import { useLiveViews } from "@/lib/bcSwitch";
 
 /**
  * FLM Broadcast: Timing-Tower, Fahrerkarte, Head to Head, Onboard Battle, Onboard Telemetry, Virtual Energy, Replay.
- * URL: ?room=CODE&view=tower,driver  (view: tower driver h2h battle telemetry energy replay)
+ * URL: ?room=CODE&view=live (Ansichten per Knopf in Controls umschaltbar) oder view=tower,driver  (view: tower driver h2h battle telemetry energy replay)
  *   car=NUM  Auto fest waehlen (sonst: das im Spiel angeschaute Auto)
  *   vs=NUM   Gegner fuer h2h/battle fest waehlen (sonst automatisch der Nachbar mit dem kleineren Abstand)
  *   cars=7,94,35  Autos fuer die Sektor-Karten (telemetry); sonst Fokus-Auto plus Nachbarn
@@ -23,9 +24,12 @@ import { num, useOverlayData } from "@/lib/useOverlayData";
 export default function Broadcast() {
   const { params, snapshot, receivedAt, connection, debug } = useOverlayData();
   const timers = useLapTimers(snapshot, receivedAt);
+  const viewParam = params?.get("view") ?? "tower,driver";
+  const liveMode = viewParam === "live";
+  const liveViews = useLiveViews(params?.get("room") ?? "", liveMode, ["tower"]);
   if (!snapshot) return debug ? <div className="bc" style={{ padding: 20 }}>Broadcast: keine Live-Daten ({connection})</div> : null;
 
-  const views = new Set((params?.get("view") ?? "tower,driver").split(",").map((v) => v.trim()));
+  const views = new Set(liveMode ? liveViews : viewParam.split(",").map((v) => v.trim()));
   const scale = num(params, "scale", 1);
   const carNo = params?.get("car") ? num(params, "car", 0) : null;
   const vsNo = params?.get("vs") ? num(params, "vs", 0) : null;

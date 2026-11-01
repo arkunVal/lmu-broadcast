@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { BC_VIEWS as VIEWS, startController } from "@/lib/bcSwitch";
+import { getSupabase } from "@/lib/supabase";
 import CopyButton from "@/components/CopyButton";
 import type { EventRow } from "@/lib/labels";
 
@@ -11,17 +13,32 @@ const ITEMS = [
   { path: "map", title: "Streckenkarte", size: "420 × 300", extra: "", note: "Zeigt die gespeicherte Streckenkarte mit allen Autos." },
 ];
 
-const VIEWS: [string, string][] = [
-  ["tower", "Tower"], ["driver", "Fahrerkarte"], ["h2h", "Head to Head"], ["battle", "Onboard Battle"],
-  ["telemetry", "Onboard Telemetry"], ["energy", "Virtual Energy"], ["replay", "Replay-Marke"],
-];
-
 /** Ein Link fuer das FLM-Broadcast-Overlay: Ansichten ankreuzen, Link kopieren (eine OBS-Quelle je Szene). */
 function BroadcastCard({ origin, room }: { origin: string; room: string }) {
   const [on, setOn] = useState<string[]>(["tower", "driver"]);
   const [car, setCar] = useState("");
   const [vs, setVs] = useState("");
-  const url = `${origin}/overlay/broadcast?room=${encodeURIComponent(room)}&view=${on.join(",")}${car ? `&car=${car}` : ""}${vs ? `&vs=${vs}` : ""}`;
+  const [fixed, setFixed] = useState(false);
+  const onRef = useRef(on);
+  const ctl = useRef<ReturnType<typeof startController> | null>(null);
+  onRef.current = on;
+  useEffect(() => {
+    const supabase = getSupabase();
+    if (!supabase || !room) return;
+    try { const s = localStorage.getItem(`bcv-ctl-${room}`); if (s) setOn(JSON.parse(s)); } catch {}
+    ctl.current = startController(supabase, room, () => onRef.current);
+    return () => { ctl.current?.stop(); ctl.current = null; };
+  }, [room]);
+  function toggle(k: string) {
+    const next = on.includes(k) ? on.filter((x) => x !== k) : [...on, k];
+    setOn(next);
+    onRef.current = next;
+    try { localStorage.setItem(`bcv-ctl-${room}`, JSON.stringify(next)); } catch {}
+    ctl.current?.push();
+  }
+  const extra = `${car ? `&car=${car}` : ""}${vs ? `&vs=${vs}` : ""}`;
+  const base = `${origin}/overlay/broadcast?room=${encodeURIComponent(room)}`;
+  const url = fixed ? `${base}&view=${on.join(",")}${extra}` : `${base}&view=live${extra}`;
   return (
     <div className="panel wide">
       <div className="row" style={{ justifyContent: "space-between" }}>
@@ -29,18 +46,21 @@ function BroadcastCard({ origin, room }: { origin: string; room: string }) {
         <span className="muted">OBS-Größe 1920 × 1080</span>
       </div>
       <p className="muted" style={{ margin: "4px 0 10px" }}>
-        Ganze TV-Grafik auf einer Fläche. Ansichten ankreuzen, Link kopieren, pro OBS-Szene eine Quelle. Ohne Nummer folgt es dem Auto, das im Spiel angeschaut wird.
-        Head to Head und Battle wählen automatisch das Auto mit dem kleineren Abstand dazu.
+        Eine OBS-Quelle, ein Link. Mit den Knöpfen schaltest du Ansichten live an und aus, ohne OBS anzufassen. Diese Seite (Controls) muss dafür offen sein. Ohne Nummer folgt das Overlay dem Auto, das im Spiel angeschaut wird.
       </p>
-      <div className="row" style={{ flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
+      <div className="bcswitch" role="group" aria-label="Ansichten im Overlay">
         {VIEWS.map(([k, label]) => (
-          <label key={k} className="row" style={{ gap: 6, textTransform: "none", letterSpacing: 0, margin: 0, fontWeight: 500 }}>
-            <input type="checkbox" checked={on.includes(k)} onChange={(e) => setOn(e.target.checked ? [...on, k] : on.filter((x) => x !== k))} />
-            {label}
-          </label>
+          <button key={k} type="button" className={`bcsw${on.includes(k) ? " on" : ""}`} aria-pressed={on.includes(k)} onClick={() => toggle(k)}>
+            <i />{label}
+          </button>
         ))}
+      </div>
+      <div className="row" style={{ flexWrap: "wrap", gap: 12, margin: "10px 0" }}>
         <input placeholder="Auto Nr. (optional)" value={car} onChange={(e) => setCar(e.target.value.replace(/\D/g, ""))} style={{ width: 150 }} />
         <input placeholder="Gegner Nr. (optional)" value={vs} onChange={(e) => setVs(e.target.value.replace(/\D/g, ""))} style={{ width: 160 }} />
+        <label className="row" style={{ gap: 6, textTransform: "none", letterSpacing: 0, margin: 0, fontWeight: 500 }}>
+          <input type="checkbox" checked={fixed} onChange={(e) => setFixed(e.target.checked)} style={{ width: "auto" }} /> Fester Link (ohne Umschalten, aktuelle Auswahl)
+        </label>
       </div>
       <div className="row">
         <input readOnly value={url} style={{ flex: 1, minWidth: 260 }} onFocus={(e) => e.currentTarget.select()} />

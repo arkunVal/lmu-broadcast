@@ -620,3 +620,8 @@ a { color: var(--cream); }
 .inbox-i { padding: 8px 10px; margin: 6px 0; border-radius: 8px; background: rgba(123,140,216,.12); }
 .invitebox { margin: 12px 0; padding: 16px; border-radius: 12px; border: 2px solid #F4A62A; background: rgba(244,166,42,.1); }
 .invitebox.live { border-color: #3fb950; background: rgba(63,185,80,.1); }
+.bcswitch { display: flex; flex-wrap: wrap; gap: 8px; }
+.bcsw { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; font-weight: 600; background: var(--panel2); border: 1px solid rgba(112,128,205,.25); color: var(--muted, #9aa); cursor: pointer; }
+.bcsw i { width: 10px; height: 10px; border-radius: 50%; background: #555a6e; }
+.bcsw.on { background: rgba(63,185,80,.15); border-color: #3fb950; color: #fff; }
+.bcsw.on i { background: #3fb950; box-shadow: 0 0 8px #3fb950; }
