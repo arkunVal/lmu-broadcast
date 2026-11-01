@@ -77,7 +77,7 @@ export default function PenaltiesTab({
     );
   }
   return (
-    <div className="split b">
+    <div className="split b stackform">
       <div className="panel">
         <PenaltyForm eventId={event.id} drivers={drivers} reviewing={incidents.filter((i) => i.status === "reviewing")} onDone={reload} />
       </div>

@@ -71,7 +71,7 @@ function Inner() {
   const demo = q.get("demo") === "1";
   const [feed, setFeed] = useState<Feed | null>(null);
   const [error, setError] = useState("");
-  const [voice, setVoice] = useState<OverlayVoiceState>({ talking: false, toMe: false, onlyMe: false, message: null });
+  const [voice, setVoice] = useState<OverlayVoiceState>({ talking: false, toMe: false, onlyMe: false, message: null, interview: null });
   const [now, setNow] = useState(Date.now());
   const seen = useRef<Map<string, number>>(new Map());
   const first = useRef(true);
@@ -90,7 +90,7 @@ function Inner() {
         reviews: [{ id: "i1", kind: "contact", lap: 9, drivers: [{ name: "Lena Vogt", num: 50, team: "Beta" }], createdAt: t }],
         cleared: [{ id: "c1", lap: 5, drivers: [{ name: "Tom Weber", num: 12, team: "Delta" }], closedAt: t }],
       });
-      setVoice({ talking: true, toMe: true, onlyMe: true, message: "Box this lap please" });
+      setVoice({ talking: true, toMe: true, onlyMe: true, message: "Box this lap please", interview: { topic: "Incident lap 7, Turn 1", live: false } });
       return;
     }
     if (!k || !e) { setError("Link unvollständig. Den Link im Event unter „Session“ kopieren."); return; }
@@ -133,7 +133,7 @@ function Inner() {
   const penShown = feed.penalties.filter((p) => demo || p.persist || live(`p:${p.id}`));
   const revShown = feed.reviews.filter((r) => demo || live(`r:${r.id}`));
   const clrShown = feed.cleared.filter((c) => demo || live(`c:${c.id}`));
-  const empty = !voice.talking && !voice.message && penShown.length + revShown.length + clrShown.length === 0;
+  const empty = !voice.talking && !voice.message && !voice.interview && penShown.length + revShown.length + clrShown.length === 0;
 
   return (
     <div className="dov" style={{ zoom: scale }} data-testid="dov">
@@ -141,6 +141,14 @@ function Inner() {
         <div className="oc oc-radio">
           <div className="oc-top"><span className="oc-tag"><span className="oc-dot" />Race Control · Radio</span></div>
           <div className="oc-main">{voice.onlyMe ? "Speaking to you only" : "Speaking"}</div>
+        </div>
+      )}
+      {voice.interview && (
+        <div className={`oc oc-iv${voice.interview.live ? " live" : ""}`} data-testid="iv-card">
+          <div className="oc-top"><span className="oc-tag"><span className="oc-dot" />Race Control · Interview</span></div>
+          <div className="oc-main">{voice.interview.live ? "Interview live" : "Called to Race Control"}</div>
+          <div className="oc-reason"><span>Topic</span>{voice.interview.topic}</div>
+          {!voice.interview.live && <div className="oc-status">Open the Funk tab to answer</div>}
         </div>
       )}
       {voice.message && (

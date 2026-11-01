@@ -126,3 +126,6 @@
 .st-bar.red { background: #c0272d; }
 .st-info { background: var(--glass); box-shadow: var(--glow); border-radius: .35em; }
 .mp { background: var(--glass); box-shadow: var(--glow), inset 0 -.18em 0 #fffc40; border-bottom: 0; border-radius: .35em; }
+.oc-iv { --acc: #7b8cd8; }
+.oc-iv.live { --acc: #3fb950; }
+.oc-iv .oc-main { font-size: 1.25em; }

@@ -53,7 +53,7 @@ export default function ControlsTab({ event }: { event: EventRow }) {
               {tMsg && <span className={tMsg.ok ? "okmsg" : "err"} style={{ margin: 0 }}>{tMsg.ok ? "✓ " : ""}{tMsg.text}</span>}
             </div>
           </div>
-          {staff && <VoicePanel />}
+          {(staff || profile?.role === "broadcaster") && <VoicePanel />}
         </div>
         <div className="stack">
           <h3 style={{ margin: "0 0 2px" }}>OBS-Overlays</h3>

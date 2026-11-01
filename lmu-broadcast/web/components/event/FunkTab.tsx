@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { useVoice } from "@/lib/voiceContext";
 
 /** Funk für Fahrer: groß und klar, ob die Rennleitung gerade spricht. */
 export default function FunkTab() {
   const v = useVoice();
   const l = v.listener;
+  const [text, setText] = useState("");
+  const [sentId, setSentId] = useState<string | null>(null);
   const state = !v.active ? "off" : l.talkingToMe ? "talk" : l.connected ? "ok" : "wait";
 
   return (
@@ -40,6 +43,37 @@ export default function FunkTab() {
       </div>
 
       {v.error && <div className="err">{v.error}</div>}
+
+      {l.invite && (
+        <div className="invitebox" role="alertdialog" aria-label="Interview-Anfrage" data-testid="invite">
+          <div className="funk-t">Die Rennleitung bittet dich ins Interview</div>
+          <div className="funk-s">Thema: {l.invite.topic}</div>
+          <div className="row" style={{ gap: 10, marginTop: 10 }}>
+            <button className="primary big" onClick={() => void v.acceptInvite()}>🎙 Annehmen</button>
+            <button onClick={v.declineInvite}>Ablehnen</button>
+          </div>
+        </div>
+      )}
+      {l.interview && (
+        <div className="invitebox live" data-testid="iv-live">
+          <div className="funk-bars"><i /><i /><i /><i /><i /></div>
+          <div className="funk-t">Interview läuft</div>
+          <div className="funk-s">Du sprichst frei mit der Rennleitung. Mikrofon ist an. Wenn die Rennleitung beendet, ist es wieder aus.</div>
+          <button onClick={v.declineInvite} style={{ marginTop: 8 }}>Verlassen</button>
+        </div>
+      )}
+
+      {v.active && (
+        <div className="panel">
+          <h3>Nachricht an die Rennleitung</h3>
+          <form className="row" style={{ gap: 8 }} onSubmit={(e) => { e.preventDefault(); const id = v.sendToRC(text); if (id) { setSentId(id); setText(""); } }}>
+            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={300} placeholder={l.hostOnline ? "z. B. Wurde in Kurve 1 abgeschossen" : "Rennleitung ist gerade nicht im Funk"} disabled={!l.hostOnline} style={{ flex: 1, minWidth: 200 }} />
+            <button disabled={!l.hostOnline || !text.trim()}>Senden</button>
+          </form>
+          {sentId && l.acked === sentId && <div className="okmsg" style={{ marginTop: 6 }}>✓ Angekommen bei der Rennleitung</div>}
+          {!l.hostOnline && <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>Nachrichten gehen nur, wenn die Rennleitung oder der Broadcaster im Funk ist.</div>}
+        </div>
+      )}
 
       {v.active && (
         <div className="panel">

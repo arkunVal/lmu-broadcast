@@ -6,6 +6,48 @@ import type { PeerMeta, Scope } from "@/lib/voice";
 
 const STATE: Record<string, string> = { overlay: "nur Overlay", connected: "verbunden", connecting: "verbindet", new: "verbindet", disconnected: "unterbrochen", failed: "Fehler", closed: "getrennt" };
 
+function Inbox() {
+  const v = useVoice();
+  return (
+    <div className="inbox" data-testid="inbox">
+      <div className="vsel-h">Nachrichten der Fahrer</div>
+      {v.inbox.length === 0 && <div className="muted" style={{ fontSize: 13 }}>Keine Nachrichten.</div>}
+      {v.inbox.map((i) => (
+        <div className="inbox-i" key={i.id}>
+          <div className="inbox-h"><b>{i.from.num != null ? `#${i.from.num} ` : ""}{i.from.name}</b><span className="muted"> · {i.from.team ?? "–"} · {new Date(i.at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span></div>
+          <div>{i.text}</div>
+          <button onClick={() => v.dismissInbox(i.id)} style={{ marginTop: 4 }}>Erledigt</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Interview({ match, label, target }: { match: (m: PeerMeta) => boolean; label: string; target: string }) {
+  const v = useVoice();
+  const [topic, setTopic] = useState("");
+  const iv = v.interview;
+  const ST = { invited: "gerufen …", live: "im Gespräch", declined: "abgelehnt" } as const;
+  return (
+    <div className="ivbox" data-testid="ivbox">
+      <div className="vsel-h">3. Interview (Fahrer in ein Gespräch bitten)</div>
+      {!iv ? (
+        <form className="row" style={{ gap: 8, margin: "6px 0" }} onSubmit={(e) => { e.preventDefault(); if (!target) return; v.invite(match, topic.trim() || "Gespräch mit der Rennleitung"); setTopic(""); }}>
+          <input value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={160} placeholder="Thema, z. B. Vorfall Runde 7 erklären" style={{ flex: 1, minWidth: 200 }} disabled={!target} />
+          <button className="primary" disabled={!target}>{target ? `${label} ins Interview bitten` : "Erst Empfänger wählen"}</button>
+        </form>
+      ) : (
+        <div className="ivlive">
+          <div><b>Interview:</b> {iv.topic}</div>
+          {iv.people.map((p) => <div key={p.meta.uid}><i className={`dot ${p.status === "live" ? "ok" : "warn"}`} />{p.meta.num != null ? `#${p.meta.num} ` : ""}{p.meta.name} · {ST[p.status]}</div>)}
+          <button onClick={v.endInterview} style={{ marginTop: 6 }}>Interview beenden</button>
+          <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>Wer annimmt, spricht frei mit dir. Nur diese Fahrer sehen die Einblendung im Overlay.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Sprechfunk der Rennleitung: an alle, eine Klasse, ein Team oder einen Fahrer. */
 export default function VoicePanel() {
   const v = useVoice();
@@ -53,6 +95,13 @@ export default function VoicePanel() {
   useEffect(() => { if (!latch && !down) v.talk(null); }, [latch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (v.mode !== "host") return <div className="panel"><h3>Sprechfunk</h3><div className="muted">Nur Rennleitung (Admin, Steward) kann sprechen.</div></div>;
+  if (!v.staff) return (
+    <div className="panel voice">
+      <h3>Fahrer-Nachrichten</h3>
+      {!v.active ? <button className="primary" onClick={v.join}>Mitlesen starten</button> : <><Inbox /><button onClick={v.leave} style={{ marginTop: 8 }}>Beenden</button></>}
+      {v.error && <div className="err">{v.error}</div>}
+    </div>
+  );
 
   const count = v.peers.filter((p) => match(p.meta)).length;
   const label = !target ? "" : target === "all" ? "Alle Fahrer" : target.startsWith("cls:") ? `Klasse ${target.slice(4)}` : target.startsWith("team:") ? `Team ${target.slice(5)}` : (v.peers.find((p) => `drv:${p.meta.uid}` === target)?.meta.name ?? "Fahrer");
@@ -106,6 +155,8 @@ export default function VoicePanel() {
             </label>
             <button onClick={v.leave}>Funk beenden</button>
           </div>
+          <Interview match={match} label={label} target={target} />
+          <Inbox />
           <table className="plain">
             <thead><tr><th>Fahrer</th><th>Team</th><th>Klasse</th><th>Verbindung</th></tr></thead>
             <tbody>

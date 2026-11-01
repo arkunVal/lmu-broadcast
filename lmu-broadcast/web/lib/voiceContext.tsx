@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useAuth } from "./auth";
 import type { EventDriver, EventRow } from "./labels";
 import { getSupabase } from "./supabase";
-import { VoiceHost, VoiceListener, type ListenerState, type PeerInfo, type PeerMeta, type Scope } from "./voice";
+import { VoiceHost, VoiceListener, type InboxItem, type InterviewState, type ListenerState, type PeerInfo, type PeerMeta, type Scope } from "./voice";
 
 type Ctx = {
   mode: "host" | "listener" | null;   // host = Rennleitung (spricht), listener = Fahrer (hört)
@@ -23,11 +23,20 @@ type Ctx = {
   chime: boolean;
   setChime: (on: boolean) => void;
   beep: () => void;
+  staff: boolean;                       // admin/steward: darf sprechen und Interviews starten
+  inbox: InboxItem[];                   // Nachrichten der Fahrer an die Rennleitung
+  dismissInbox: (id: string) => void;
+  invite: (match: (m: PeerMeta) => boolean, topic: string) => number;
+  endInterview: () => void;
+  interview: InterviewState | null;
+  sendToRC: (text: string) => string | null;
+  acceptInvite: () => Promise<void>;
+  declineInvite: () => void;
 };
 
 const none: Ctx = {
   mode: null, active: false, error: "", join: async () => {}, leave: () => {}, peers: [], micOn: false, talking: false,
-  talk: () => 0, message: () => 0, listener: { connected: false, talkingToMe: false, receiving: false, scope: null }, setVolume: () => {}, volume: 1, chime: true, setChime: () => {}, beep: () => {},
+  talk: () => 0, message: () => 0, listener: { connected: false, talkingToMe: false, receiving: false, scope: null, hostOnline: false, invite: null, interview: false, acked: null }, staff: false, inbox: [], dismissInbox: () => {}, invite: () => 0, endInterview: () => {}, interview: null, sendToRC: () => null, acceptInvite: async () => {}, declineInvite: () => {}, setVolume: () => {}, volume: 1, chime: true, setChime: () => {}, beep: () => {},
 };
 const VoiceCtx = createContext<Ctx>(none);
 export const useVoice = () => useContext(VoiceCtx);
@@ -35,7 +44,8 @@ export const useVoice = () => useContext(VoiceCtx);
 /** Hält die Sprechfunk-Verbindung, solange man im Event ist (auch beim Wechsel der Tabs). */
 export function VoiceProvider({ event, drivers, children }: { event: EventRow; drivers: EventDriver[]; children: React.ReactNode }) {
   const { profile } = useAuth();
-  const mode: Ctx["mode"] = profile?.role === "admin" || profile?.role === "steward" ? "host" : profile?.role === "driver" ? "listener" : null;
+  const staff = profile?.role === "admin" || profile?.role === "steward";
+  const mode: Ctx["mode"] = staff || profile?.role === "broadcaster" ? "host" : profile?.role === "driver" ? "listener" : null;
   const host = useRef<VoiceHost | null>(null);
   const lis = useRef<VoiceListener | null>(null);
   const [active, setActive] = useState(false);
@@ -59,6 +69,11 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
       setTimeout(() => void ctx.close(), 600);
     } catch {}
   }, []);
+  const invId = listener.invite?.id;
+  useEffect(() => { if (invId) beep(); }, [invId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const inboxN = host.current?.inbox.length ?? 0;
+  const lastInbox = useRef(0);
+  useEffect(() => { if (inboxN > lastInbox.current && chime) beep(); lastInbox.current = inboxN; }); // eslint-disable-line react-hooks/exhaustive-deps
   const talkingToMe = listener.talkingToMe;
   useEffect(() => { if (talkingToMe && chime) beep(); }, [talkingToMe]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -92,7 +107,7 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
       if (mode === "host") {
         const h = new VoiceHost(supabase, event.id, me, () => bump((n) => n + 1));
         host.current = h;
-        await h.startMic();
+        if (staff) await h.startMic();   // Broadcaster hoert nur mit (Posteingang), ohne Mikrofon
       } else {
         lis.current = new VoiceListener(supabase, event.id, me, setListener);
         lis.current.setVolume(volume);
@@ -103,7 +118,7 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
       host.current = null;
       setError(e instanceof Error && e.name === "NotAllowedError" ? "Mikrofon wurde nicht erlaubt. Im Browser freigeben und erneut versuchen." : e instanceof Error && e.name === "NotFoundError" ? "Kein Mikrofon gefunden." : `Sprechfunk-Fehler: ${e instanceof Error ? e.message : e}`);
     }
-  }, [me, mode, active, event.id, volume]);
+  }, [me, mode, staff, active, event.id, volume]);
 
   useEffect(() => () => leave(), [leave]);
   useEffect(() => {
@@ -121,7 +136,15 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
     message: (t, m) => host.current?.message(t, m) ?? 0,
     listener,
     setVolume: (v) => { setVol(v); lis.current?.setVolume(v); },
-    volume, chime, beep,
+    volume, chime, beep, staff,
+    inbox: host.current?.inbox ?? [],
+    dismissInbox: (id) => host.current?.dismiss(id),
+    invite: (m, t) => host.current?.invite(m, t) ?? 0,
+    endInterview: () => host.current?.endInterview(),
+    interview: host.current?.interview ?? null,
+    sendToRC: (t) => lis.current?.sendToRC(t) ?? null,
+    acceptInvite: async () => { try { await lis.current?.acceptInvite(); } catch (e) { setError(e instanceof Error && e.name === "NotAllowedError" ? "Mikrofon wurde nicht erlaubt." : "Mikrofon nicht verfügbar."); lis.current?.declineInvite(); } },
+    declineInvite: () => lis.current?.declineInvite(),
     setChime: (on) => { setChimeState(on); try { localStorage.setItem("flm-chime", on ? "1" : "0"); } catch {} },
   };
   return <VoiceCtx.Provider value={value}>{children}</VoiceCtx.Provider>;

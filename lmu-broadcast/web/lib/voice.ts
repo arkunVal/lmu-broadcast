@@ -18,8 +18,8 @@ import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 
 export type PeerMeta = { uid: string; name: string; role: string; team: string | null; cls: string | null; num: number | null };
 export type Scope = "all" | "group" | "one";
-type Kind = "hello" | "rc-here" | "bye" | "offer" | "answer" | "ice" | "talk" | "msg";
-type Sig = { kind: Kind; from: string; to?: string; meta?: PeerMeta; data?: unknown; on?: boolean; targets?: string[]; text?: string; scope?: Scope };
+type Kind = "hello" | "rc-here" | "bye" | "offer" | "answer" | "ice" | "talk" | "msg" | "dmsg" | "ack" | "alive" | "invite" | "accept" | "decline" | "end";
+type Sig = { id?: string; kind: Kind; from: string; to?: string; meta?: PeerMeta; data?: unknown; on?: boolean; targets?: string[]; text?: string; scope?: Scope };
 
 const HELLO_MS = 8000;
 const STALE_MS = 25000;
@@ -49,6 +49,11 @@ class Net {
   }
 }
 
+export type InboxItem = { id: string; from: PeerMeta; text: string; at: number };
+export type InterviewState = { id: string; topic: string; people: { meta: PeerMeta; status: "invited" | "live" | "declined" }[] };
+const newId = () => Math.random().toString(36).slice(2, 10);
+const mediaOk = () => navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+
 export type PeerInfo = { meta: PeerMeta; state: string; lastSeen: number };
 
 /** Rennleitung: Mikrofon, Verbindung zu jedem Fahrer, gezielt sprechen. */
@@ -56,13 +61,16 @@ export class VoiceHost {
   private net: Net;
   private stream: MediaStream | null = null;
   private track: MediaStreamTrack | null = null;
-  private peers = new Map<string, { meta: PeerMeta; pc: RTCPeerConnection; sender: RTCRtpSender | null; lastSeen: number; pending: RTCIceCandidateInit[]; remoteSet: boolean }>();
+  private peers = new Map<string, { meta: PeerMeta; pc: RTCPeerConnection; sender: RTCRtpSender | null; lastSeen: number; pending: RTCIceCandidateInit[]; remoteSet: boolean; audio: HTMLAudioElement | null }>();
   private overlays = new Map<string, { meta: PeerMeta; lastSeen: number }>();
   private timer: ReturnType<typeof setInterval>;
   private talkTimer: ReturnType<typeof setInterval> | null = null;
   private talkTargets: string[] = [];
   private talkScope: Scope = "all";
   private talking = false;
+  inbox: InboxItem[] = [];
+  private iv: { id: string; topic: string; people: Map<string, { meta: PeerMeta; status: "invited" | "live" | "declined" }>; targets: string[] } | null = null;
+  private ivTimer: ReturnType<typeof setInterval> | null = null;
   ready = false;
 
   constructor(supabase: SupabaseClient, eventId: string, private me: PeerMeta, private onChange: () => void) {
@@ -75,7 +83,7 @@ export class VoiceHost {
   }
 
   async startMic(): Promise<void> {
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    this.stream = await mediaOk();
     this.track = this.stream.getAudioTracks()[0];
     for (const p of this.peers.values()) this.attach(p);
     this.net.send({ kind: "rc-here", from: this.me.uid });
@@ -117,6 +125,46 @@ export class VoiceHost {
     return targets.length;
   }
 
+  dismiss(id: string) {
+    this.inbox = this.inbox.filter((i) => i.id !== id);
+    this.onChange();
+  }
+
+  get interview(): InterviewState | null {
+    return this.iv ? { id: this.iv.id, topic: this.iv.topic, people: [...this.iv.people.values()] } : null;
+  }
+
+  /** Fahrer ins Interview bitten. Nur die Gerufenen (und ihre Overlays) sehen die Anfrage. */
+  invite(match: (m: PeerMeta) => boolean, topic: string): number {
+    this.endInterview();
+    const people = new Map<string, { meta: PeerMeta; status: "invited" | "live" | "declined" }>();
+    for (const [uid, p] of this.peers) if (match(p.meta)) people.set(uid, { meta: p.meta, status: "invited" });
+    const targets = this.list().filter((p) => match(p.meta)).map((p) => p.meta.uid);
+    if (!people.size) return 0;
+    this.iv = { id: newId(), topic: topic.slice(0, 160), people, targets };
+    const send = () => this.iv && this.net.send({ kind: "invite", from: this.me.uid, id: this.iv.id, text: this.iv.topic, targets: this.iv.targets });
+    send();
+    this.ivTimer = setInterval(send, 8000);
+    this.onChange();
+    return people.size;
+  }
+
+  endInterview() {
+    if (!this.iv) return;
+    this.net.send({ kind: "end", from: this.me.uid, id: this.iv.id, targets: this.iv.targets });
+    if (this.ivTimer) clearInterval(this.ivTimer);
+    this.ivTimer = null;
+    this.iv = null;
+    for (const p of this.peers.values()) if (p.audio) p.audio.muted = true;
+    this.talk(null);
+  }
+
+  // Waehrend des Interviews ist das Mikrofon der Rennleitung fuer alle Zugesagten offen.
+  private syncInterviewTalk() {
+    const live = new Set([...(this.iv?.people ?? [])].filter(([, v]) => v.status === "live").map(([k]) => k));
+    this.talk(live.size ? (m) => live.has(m.uid) : null, "group");
+  }
+
   private attach(p: { pc: RTCPeerConnection; sender: RTCRtpSender | null }) {
     if (!this.stream || !this.track || p.sender) return;
     p.sender = p.pc.addTrack(this.track, this.stream);
@@ -127,10 +175,18 @@ export class VoiceHost {
     const old = this.peers.get(meta.uid);
     if (old) old.pc.close();
     const pc = new RTCPeerConnection({ iceServers: iceServers() });
-    const entry = { meta, pc, sender: null as RTCRtpSender | null, lastSeen: Date.now(), pending: [] as RTCIceCandidateInit[], remoteSet: false };
+    const entry = { meta, pc, sender: null as RTCRtpSender | null, lastSeen: Date.now(), pending: [] as RTCIceCandidateInit[], remoteSet: false, audio: null as HTMLAudioElement | null };
     this.peers.set(meta.uid, entry);
     if (this.track) this.attach(entry);
-    else pc.addTransceiver("audio", { direction: "sendonly" });
+    else pc.addTransceiver("audio", { direction: "sendrecv" });
+    // Antwort des Fahrers (nur im Interview hoerbar, sonst stumm)
+    pc.ontrack = (e) => {
+      const a = new Audio();
+      a.srcObject = e.streams[0] ?? new MediaStream([e.track]);
+      a.muted = this.iv?.people.get(meta.uid)?.status !== "live";
+      entry.audio = a;
+      void a.play().catch(() => {});
+    };
     pc.onicecandidate = (e) => { if (e.candidate) this.net.send({ kind: "ice", from: this.me.uid, to: meta.uid, data: e.candidate.toJSON() }); };
     pc.onconnectionstatechange = () => this.onChange();
     const offer = await pc.createOffer();
@@ -141,7 +197,21 @@ export class VoiceHost {
 
   private onSig(s: Sig) {
     if (s.to && s.to !== this.me.uid) return;
-    if (s.kind === "hello" && s.meta?.role === "overlay") {
+    if (s.kind === "hello") this.net.send({ kind: "alive", from: this.me.uid, to: s.from });
+    if (s.kind === "dmsg" && s.meta && s.text) {
+      const item = { id: s.id ?? newId(), from: s.meta, text: String(s.text).slice(0, 300), at: Date.now() };
+      if (!this.inbox.some((i) => i.id === item.id)) this.inbox = [item, ...this.inbox].slice(0, 50);
+      this.net.send({ kind: "ack", from: this.me.uid, to: s.from, id: item.id });
+      this.onChange();
+    } else if ((s.kind === "accept" || s.kind === "decline") && this.iv && s.id === this.iv.id) {
+      const who = this.iv.people.get(s.from);
+      if (!who) return;
+      who.status = s.kind === "accept" ? "live" : "declined";
+      const p = this.peers.get(s.from);
+      if (p?.audio) p.audio.muted = who.status !== "live";
+      this.syncInterviewTalk();
+      this.onChange();
+    } else if (s.kind === "hello" && s.meta?.role === "overlay") {
       this.overlays.set(s.from, { meta: s.meta, lastSeen: Date.now() });
       this.onChange();
     } else if (s.kind === "hello" && s.meta) {
@@ -184,6 +254,7 @@ export class VoiceHost {
 
   stop() {
     clearInterval(this.timer);
+    this.endInterview();
     if (this.talkTimer) clearInterval(this.talkTimer);
     this.talk(null);
     for (const p of this.peers.values()) p.pc.close();
@@ -193,21 +264,25 @@ export class VoiceHost {
   }
 }
 
-export type ListenerState = { connected: boolean; talkingToMe: boolean; receiving: boolean; scope: Scope | null };
+export type ListenerState = { connected: boolean; talkingToMe: boolean; receiving: boolean; scope: Scope | null; hostOnline: boolean; invite: { id: string; topic: string } | null; interview: boolean; acked: string | null };
 
 /** Fahrer: meldet sich an, spielt die Durchsagen der Rennleitung ab. */
 export class VoiceListener {
   private net: Net;
   private pcs = new Map<string, { pc: RTCPeerConnection; audio: HTMLAudioElement; pending: RTCIceCandidateInit[]; remoteSet: boolean }>();
   private timer: ReturnType<typeof setInterval>;
-  private state: ListenerState = { connected: false, talkingToMe: false, receiving: false, scope: null };
+  private state: ListenerState = { connected: false, talkingToMe: false, receiving: false, scope: null, hostOnline: false, invite: null, interview: false, acked: null };
   private volume = 1;
+  private lastHost = 0;
+  private mic: MediaStream | null = null;
+  private hostUid: string | null = null;
+  private seen = new Set<string>();
 
   constructor(supabase: SupabaseClient, eventId: string, private me: PeerMeta, private onChange: (s: ListenerState) => void) {
     this.net = new Net(supabase, eventId, (s) => this.onSig(s), (ok) => {
       if (ok) this.hello();
     });
-    this.timer = setInterval(() => this.hello(), HELLO_MS);
+    this.timer = setInterval(() => { this.hello(); this.set({ hostOnline: Date.now() - this.lastHost < 20000 }); }, HELLO_MS);
   }
 
   private set(p: Partial<ListenerState>) {
@@ -226,7 +301,17 @@ export class VoiceListener {
 
   private onSig(s: Sig) {
     if (s.to && s.to !== this.me.uid) return;
-    if (s.kind === "rc-here") {
+    // Nur Signale von Rennleitungen, mit denen wir verbunden sind (Offer gesehen), duerfen Interview-Aktionen ausloesen
+    const fromHost = this.pcs.has(s.from);
+    if (["rc-here", "offer", "alive", "talk", "ack", "invite", "end"].includes(s.kind)) { this.lastHost = Date.now(); if (!this.state.hostOnline) this.set({ hostOnline: true }); }
+    if (s.kind === "ack" && s.id) this.set({ acked: s.id });
+    else if (s.kind === "invite" && fromHost && s.targets?.includes(this.me.uid) && s.id && !this.seen.has(s.id)) {
+      if (!this.state.invite && !this.state.interview) this.set({ invite: { id: s.id, topic: s.text ?? "" } });
+      this.hostUid = s.from;
+    } else if (s.kind === "end" && fromHost && s.targets?.includes(this.me.uid)) {
+      this.stopMic();
+      this.set({ invite: null, interview: false });
+    } else if (s.kind === "rc-here") {
       this.hello();
     } else if (s.kind === "offer") {
       void this.answer(s.from, s.data as RTCSessionDescriptionInit);
@@ -259,13 +344,52 @@ export class VoiceListener {
     await pc.setRemoteDescription(offer);
     entry.remoteSet = true;
     for (const c of entry.pending.splice(0)) await pc.addIceCandidate(c).catch(() => {});
+    // Antwort-Audio erlauben (Interview): Mikrofon wird erst nach "Annehmen" eingesetzt
+    pc.getTransceivers().forEach((t) => { if (t.direction === "recvonly") t.direction = "sendrecv"; });
     const ans = await pc.createAnswer();
     await pc.setLocalDescription(ans);
     this.net.send({ kind: "answer", from: this.me.uid, to: from, data: { type: ans.type, sdp: ans.sdp } });
   }
 
+  /** Kurznachricht an die Rennleitung. Gibt die Nachrichten-ID zurueck, "acked" kommt, wenn sie angekommen ist. */
+  sendToRC(text: string): string | null {
+    if (!this.state.hostOnline || !text.trim()) return null;
+    const id = newId();
+    this.set({ acked: null });
+    this.net.send({ kind: "dmsg", from: this.me.uid, id, meta: this.me, text: text.trim().slice(0, 300) });
+    return id;
+  }
+
+  async acceptInvite(): Promise<void> {
+    const inv = this.state.invite;
+    const host = this.hostUid && this.pcs.get(this.hostUid);
+    if (!inv || !host) return;
+    this.mic = await mediaOk();
+    const sender = host.pc.getTransceivers().find((t) => t.receiver.track.kind === "audio")?.sender;
+    await sender?.replaceTrack(this.mic.getAudioTracks()[0]);
+    this.seen.add(inv.id);
+    this.set({ invite: null, interview: true });
+    this.net.send({ kind: "accept", from: this.me.uid, to: this.hostUid!, id: inv.id });
+  }
+
+  declineInvite() {
+    const inv = this.state.invite;
+    if (inv && this.hostUid) { this.seen.add(inv.id); this.net.send({ kind: "decline", from: this.me.uid, to: this.hostUid, id: inv.id }); }
+    this.stopMic();
+    this.set({ invite: null, interview: false });
+  }
+
+  private stopMic() {
+    const host = this.hostUid && this.pcs.get(this.hostUid);
+    const sender = host ? host.pc.getTransceivers().find((t) => t.receiver.track.kind === "audio")?.sender : null;
+    void sender?.replaceTrack(null).catch(() => {});
+    this.mic?.getTracks().forEach((t) => t.stop());
+    this.mic = null;
+  }
+
   leave() {
     clearInterval(this.timer);
+    this.stopMic();
     this.net.send({ kind: "bye", from: this.me.uid });
     for (const p of this.pcs.values()) { p.pc.close(); p.audio.srcObject = null; }
     this.pcs.clear();
@@ -273,7 +397,7 @@ export class VoiceListener {
   }
 }
 
-export type OverlayVoiceState = { talking: boolean; toMe: boolean; onlyMe: boolean; message: string | null };
+export type OverlayVoiceState = { talking: boolean; toMe: boolean; onlyMe: boolean; message: string | null; interview: { topic: string; live: boolean } | null };
 
 /** Fahrer-Overlay (SimHub): hoert nur die Hinweise der Rennleitung ("spricht gerade", Kurznachricht), kein Ton. */
 export class OverlayVoice {
@@ -281,7 +405,9 @@ export class OverlayVoice {
   private timer: ReturnType<typeof setInterval>;
   private talkAt = 0;
   private msgAt = 0;
-  private st: OverlayVoiceState = { talking: false, toMe: false, onlyMe: false, message: null };
+  private st: OverlayVoiceState = { talking: false, toMe: false, onlyMe: false, message: null, interview: null };
+  private ivAt = 0;
+  private ivId = "";
 
   constructor(supabase: SupabaseClient, eventId: string, private me: PeerMeta, private onChange: (s: OverlayVoiceState) => void) {
     this.net = new Net(supabase, eventId, (s) => this.onSig(s), (ok) => { if (ok) this.hello(); });
@@ -301,11 +427,22 @@ export class OverlayVoice {
     const now = Date.now();
     if (this.st.talking && now - this.talkAt > 10000) this.set({ talking: false, toMe: false, onlyMe: false });
     if (this.st.message && now - this.msgAt > 15000) this.set({ message: null });
+    if (this.st.interview && now - this.ivAt > 25000) this.set({ interview: null });
   }
 
   private onSig(s: Sig) {
     if (s.kind === "rc-here") this.hello();
-    else if (s.kind === "talk") {
+    else if (s.kind === "invite" && s.targets?.includes(this.me.uid)) {
+      this.ivAt = Date.now();
+      if (this.ivId !== s.id) { this.ivId = s.id ?? ""; this.set({ interview: { topic: s.text ?? "", live: false } }); }
+      else if (!this.st.interview) this.set({ interview: { topic: s.text ?? "", live: false } });
+    } else if (s.kind === "accept" && s.from === this.me.uid && s.id === this.ivId) {
+      this.ivAt = Date.now();
+      this.set({ interview: { topic: this.st.interview?.topic ?? "", live: true } });
+    } else if ((s.kind === "end" || (s.kind === "decline" && s.from === this.me.uid)) && this.st.interview) {
+      this.ivId = "";
+      this.set({ interview: null });
+    } else if (s.kind === "talk") {
       const toMe = !!s.on && !!s.targets?.includes(this.me.uid);
       this.talkAt = Date.now();
       this.set({ talking: toMe, toMe, onlyMe: toMe && s.scope === "one" });
