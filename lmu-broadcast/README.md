@@ -192,3 +192,82 @@ Technik: WebRTC (Audio direkt zwischen Browsern, Stern um die Rennleitung), Verb
 Team-Gespräche bleiben in Discord/TeamSpeak. Grenzen: kein Schutz gegen Mithören durch Event-Teilnehmer, etwa 30–40 Fahrer, hinter strengen
 Firmen-/Mobilnetzen kann ein TURN-Server nötig sein (optional: `NEXT_PUBLIC_TURN_URL`, `NEXT_PUBLIC_TURN_USER`, `NEXT_PUBLIC_TURN_PASS` in Vercel, z. B. Cloudflare Realtime TURN).
 Die Rennleitung muss den Tab offen lassen. Mikrofon-Freigabe im Browser erlauben.
+
+## Replay-Steuerung, Funk-Auswahl, Überholmanöver nur im Rennen
+
+- Controls → „Replay-Steuerung“: Zurück, Pause, Play, Zeitlupe, Vor. Der Reader probiert mehrere Schreibweisen der Spielbefehle und merkt sich die, die klappt.
+  Klappt ein Knopf nicht: `py lmu_reader.py --replay-probe` (Spiel im Replay) und die Ausgabe schicken, oder in config.json `replay_transport` eintragen.
+- Sprechfunk: erst Empfänger wählen (alle, Klasse, Team, Fahrer), erst dann ist der Sprechen-Knopf aktiv.
+- Überholmanöver-Hinweise gibt es nur im Rennen, nicht in Training/Quali.
+- **Wichtig:** `supabase/repair.sql` erneut ausführen (neue Befehlsart „transport“).
+
+## Replay-Knöpfe finden
+
+Das Spiel antwortet auf jeden Namen mit „HTTP 200“, auch auf falsche. Darum liest der Reader die erlaubten Befehle jetzt selbst aus dem Schema des Spiels.
+Klappt ein Knopf trotzdem nicht: `py lmu_reader.py --replay-commands` (Spiel läuft) und die Ausgabe schicken.
+Funk: Empfänger werden als Auswahl-Knöpfe gezeigt (Alle, Klasse, Team, Fahrer), erst danach „Sprechen“.
+
+## Fahrer-Overlay (SimHub)
+
+Jeder Fahrer hat im Event unter **Session** einen persönlichen Link (`/overlay/me?k=…&e=…`). Der Schlüssel `k` gehört nur ihm, nicht weitergeben.
+In SimHub: Dash Studio → Overlay → „Web page view“ → Link einfügen, „Click through“ an, Größe etwa 480 × 300.
+Angezeigt wird: **neue Strafe** (25 s groß, danach in „Offene Strafen“), **Vorfall in Bearbeitung** (nur wenn der Fahrer beteiligt ist),
+**„Rennleitung spricht“** (steht „nur zu dir“, wenn nur dieser Fahrer angesprochen wird, andere Fahrer sehen nichts) und **Kurznachrichten**
+der Rennleitung (Controls → Sprechfunk, Empfänger wählen, Text, Senden; 15 s sichtbar). Optionen: `scale=1.2`, `always=1` (zeigt „Alles ruhig“), `demo=1` (Vorschau).
+Technik: Der Overlay-Link holt alle 3 s Strafen/Vorfälle vom Server (`/api/driver-feed`, nur eigene Daten) und hört auf den Funkkanal. Ton kommt weiter über die Website („Funk beitreten“).
+Die Rennleitung sieht Fahrer, die nur das Overlay offen haben, im Sprechfunk als „nur Overlay“.
+Hinweis: Ob SimHub den transparenten Hintergrund der Webseite durchlässt, hängt von der SimHub-Version ab. Sonst bleibt ein dunkler Kasten.
+**Wichtig:** `supabase/repair.sql` erneut ausführen (Overlay-Schlüssel).
+
+## Fahrer-Overlay im Spiel-Stil und Funk-Tab
+
+- Das Overlay (`/overlay/me`) sieht aus wie die Einblendung im Spiel ("RACE DIRECTOR"). **Alle Fahrer** sehen jede neue Strafe (25 s): Zeile 1 Fahrer/Team, 2 Runde, 3 Strafe, 4 Grund.
+  Wird ein Vorfall geprüft, fehlt der Grund und unten steht **UNDER REVIEW**. Wird er ohne Strafe abgeschlossen, steht 90 s **NO FURTHER ACTION** da.
+- Die Entscheidung „Rennunfall, keine Strafe“ heißt jetzt „No further action“ (alte Einträge „Rennunfall, keine Strafe“/„Kein Vergehen“ zählen auch als solche).
+- Fahrer haben einen eigenen Tab **Funk** (zwischen Session und Account): großer Kasten (aus / wartet / verbunden / **RENNLEITUNG SPRICHT**), Lautstärke, Testton,
+  Signalton beim Sprechbeginn, Punkt am Tab bei Durchsage.
+
+## Funk-Anzeige und Anmeldeliste
+
+- Das Overlay zeigt „Speaking to you only“ nur, wenn die Rennleitung genau einen Fahrer wählt. Bei „Alle Fahrer“, Klasse oder Team steht „Speaking“ (auch wenn nur ein Fahrer im Funk ist).
+- Anmeldeliste (Session): Teams als Zeilen mit Startnummer, Klasse und „x/y angemeldet“. Klick auf ein Team zeigt die Fahrer. Die doppelte Tabelle ist weg.
+
+## Overlay-Zeiten
+
+- „Penalty applied“, „Under review“ und „No further action“ stehen je **20 s** im Bild (Ablaufbalken unten). Wer das Overlay erst später öffnet, sieht Älteres nicht.
+- Die eigene Strafe bleibt stehen („Penalty · to serve“), bis die Rennleitung sie auf „Abgesessen“ setzt. Gilt für Zeitstrafe, Drive-Through, Stop-and-Go.
+- Nur 20 s: alles, was nicht im Rennen abzusitzen ist (Verwarnung, Plätze zurück, DQ, Rennsperre, Qualisperre) und Zeitstrafen mit dem Häkchen **„Wird nach dem Rennen zur Zeit addiert“** (neu im Strafformular).
+- **Wichtig:** `supabase/repair.sql` erneut ausführen (neue Spalte `after_race`).
+
+## Strafe schliesst Vorfall
+Wenn im Penalties-Tab eine Strafe vergeben wird, geht der passende Vorfall mit Status "In Bearbeitung" (oder der gewählte Vorfall) automatisch auf "Abgeschlossen" und bekommt die Strafe als Entscheidung. Im Replay-Tab erscheint er dann als abgeschlossen.
+
+## Einheitlicher Stil
+Website und alle Overlays (Tower, Fahrer, Status, Karte) nutzen denselben Stil wie das Fahrer-Overlay: dunkle Glas-Karten, gelber Akzentstreifen, Großbuchstaben-Labels.
+
+## Startseite, schmale Fenster, Replay-Hervorhebung
+- Link öffnen (lmu-broadcast.vercel.app) zeigt immer die Startseite/Anmeldung. Wer angemeldet ist, sieht "Zu den Events". Weiterleitung nur direkt nach dem Login.
+- Tabellen brechen in schmalen Fenstern um, die Seite scrollt nicht mehr seitwärts (nur die Live-Tabelle scrollt in sich).
+- "Im Spiel anspringen" / "Angucken": keine grüne Meldung mehr. Die Zeile des Hinweises, Vorfalls oder der Strafe wird gelb hervorgehoben.
+
+## FLM Broadcast Overlay (neu)
+Link: `/overlay/broadcast?room=CODE&view=tower,driver` (Controls > OBS-Overlays > "FLM Broadcast" baut den Link per Ankreuzen). OBS-Größe 1920×1080, transparent.
+- `view`: tower, driver, h2h (Head to Head), battle (Onboard Battle mit Rundenzeiten), telemetry (Tempo, Energie, Sektor-Karten), energy (Tower zeigt Virtual Energy), replay (REPLAY-Marke).
+- `car=NR` Auto festlegen (sonst das im Spiel angeschaute Auto), `vs=NR` Gegner festlegen (sonst automatisch der Nachbar mit dem kleineren Abstand), `cars=7,94,35` Karten festlegen.
+- Alle Abstände kommen vom Reader (`reader/broadcast.py`): Klassenplatz, Abstand zum Führenden und zum Auto davor. Rennen: jede Sekunde neu. Quali/Training: nur wenn jemand über Start/Ziel fährt.
+- Head to Head unten (S1/S2/S3): Der Reader schickt je Auto die Durchfahrtszeiten an S1, S2, Start/Ziel der letzten Runden. Daraus rechnet die Website den Abstand für JEDES beliebige Paar.
+- Onboard Battle: Rundenzeit letzte und davor (`prevLap`) beider Autos, ebenfalls für jedes Paar.
+- Rundentimer: läuft glatt in der Website, startet neu bei jeder Start/Ziel-Überfahrt und synchronisiert sich mit dem Reader-Wert.
+- Virtual Energy: Reader liest `mVirtualEnergy` aus dem Telemetry-Block. Ob LMU den Wert auch für fremde Autos liefert, muss im echten Spiel geprüft werden (sonst steht "–").
+- Kamera-Fokus: Reader liest `playerVehicleIdx`. Wenn das im Zuschauermodus nicht das angeschaute Auto ist, `car=NR` nutzen.
+- Neuer Reader nötig (`reader/` ersetzen), `supabase/repair.sql` nicht.
+
+## Website: Sidebar und Look
+Feste linke Sidebar: oben globale Navigation (Alle Events, Admin, Profil), darunter das Event-Menü. Rennleitung/Admin sehen die Gruppe "Rennleitung" (Live Timings, Controls, Track Map, Replay), Fahrer nur "Event" (Penalties, Session, Funk, Account). Dunkles neutrales Design, Farbe nur für Status (Gelb/FCY, Rot/Strafen, Grün/ok). Tabellen brechen nie um, Strafen: Formular oben, Tabelle breit darunter.
+
+## App installieren, Reader als .exe, Palette
+- **Web-App:** In Chrome die Seite öffnen, rechts in der Adressleiste das Installieren-Symbol (oder Menü > "FLM Broadcast installieren"). Danach eigenes Fenster und Startmenü-Eintrag. Manifest, Icons und Service Worker sind dabei (`web/public/icons`, `web/public/sw.js`).
+- **Reader .exe:** `reader\build_exe.bat` doppelklicken (braucht einmal Python + Internet), Ergebnis `reader\dist\FLM-Reader.exe`. Oder bei GitHub: `.github/workflows/build-reader.yml` (Actions > "Build Reader EXE" > Run, dann Artifact laden). `config.json` liegt beim ersten Start neben der .exe. Start: Doppelklick, Demo: Verknüpfung mit `--demo`.
+- **Palette:** #1A1A1F, #2D2B55, #6A5ACD, #A678B9, #F0D9B5, #F4A62A (Orange = Hauptknöpfe/Auswahl). Status-Farben (Gelb/FCY, Rot, Grün) bleiben. Neue Anmeldeseite mit Glas-Karte.
+- **Alte "Livetest"-Seite:** `web/app/page.tsx` ersetzt die alte Startseite. Falls im GitHub-Repo noch alte Ordner aus Phase 1/2 liegen (z. B. `web/app/obs`, `web/app/rennleitung`), dort löschen.
+- **Logo:** gelbes FLM mit Linien + weißes BROADCAST (App-Icon aus deinem Bild: `web/public/icons`, `reader/flm.ico`).
