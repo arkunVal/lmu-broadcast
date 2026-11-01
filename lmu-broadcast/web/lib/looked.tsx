@@ -11,7 +11,7 @@ export function setLooked(t: number | null | undefined) {
   subs.forEach((f) => f());
 }
 
-export function useLooked(t: number | null | undefined): boolean {
+function useLooked(t: number | null | undefined): boolean {
   const cur = useSyncExternalStore(
     (f) => { subs.add(f); return () => { subs.delete(f); }; },
     () => current,

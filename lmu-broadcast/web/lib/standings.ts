@@ -18,7 +18,7 @@ export function sessionLabel(type: number): string {
   return "TRAINING";
 }
 
-export type Row = {
+type Row = {
   car: Car;
   classPos: number;
   /** Abstand zum Klassenfuehrer (Rennen) bzw. zur Klassenbestzeit (Training/Quali) */
@@ -106,7 +106,7 @@ export function shortName(full: string, mode: "full" | "short" | "tla"): string 
 
 export type TireInfo = { letter: string; color: string };
 
-export function compoundInfo(name: string | null | undefined): TireInfo | null {
+function compoundInfo(name: string | null | undefined): TireInfo | null {
   const n = (name ?? "").toLowerCase();
   if (!n) return null;
   if (n.startsWith("soft")) return { letter: "S", color: "#e5373d" };

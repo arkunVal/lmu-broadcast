@@ -1,6 +1,6 @@
 // Prueft und wandelt die Hinweise des Readers (POST /api/ingest) in Datenbankzeilen um.
 
-export const HINT_KINDS = ["offtrack", "track_limits", "contact", "spin", "impact", "overtake"] as const;
+const HINT_KINDS = ["offtrack", "track_limits", "contact", "spin", "impact", "overtake"] as const;
 const CONFIDENCE = ["low", "medium", "high"] as const;
 const ROLES = ["involved", "possible"] as const;
 

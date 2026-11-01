@@ -9,18 +9,6 @@ export function fmtGap(seconds: number | null | undefined): string {
   return seconds == null ? "–" : `+${seconds.toFixed(1)}`;
 }
 
-const SESSION_NAMES: [number, number, string][] = [
-  [0, 0, "Testtag"],
-  [1, 4, "Training"],
-  [5, 8, "Qualifying"],
-  [9, 9, "Warm-up"],
-  [10, 13, "Rennen"],
-];
-
-export function sessionName(type: number): string {
-  return SESSION_NAMES.find(([a, b]) => type >= a && type <= b)?.[2] ?? "Unbekannt";
-}
-
 const PHASES: Record<number, string> = {
   0: "Vor Sessionstart",
   1: "Aufklärungsrunden",

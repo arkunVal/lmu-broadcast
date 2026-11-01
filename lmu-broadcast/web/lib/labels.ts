@@ -135,7 +135,7 @@ export type EventDriver = {
   is_captain?: boolean;
 };
 
-export type IncidentDriver = { id: string; incident_id: string; ingame_name: string; car_number: number | null; role: "involved" | "possible" };
+type IncidentDriver = { id: string; incident_id: string; ingame_name: string; car_number: number | null; role: "involved" | "possible" };
 
 export type Incident = {
   id: string;

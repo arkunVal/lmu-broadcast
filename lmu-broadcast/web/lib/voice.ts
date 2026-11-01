@@ -24,7 +24,7 @@ type Sig = { kind: Kind; from: string; to?: string; meta?: PeerMeta; data?: unkn
 const HELLO_MS = 8000;
 const STALE_MS = 25000;
 
-export function iceServers(): RTCIceServer[] {
+function iceServers(): RTCIceServer[] {
   const list: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
   const url = process.env.NEXT_PUBLIC_TURN_URL;
   if (url) {

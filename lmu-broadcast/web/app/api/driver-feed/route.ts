@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { admin as db, blocked, err, limited, NOT_CONFIGURED } from "@/lib/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,25 +12,26 @@ const same = (a: string | null | undefined, b: string | null | undefined) => !!a
  * und eben abgeschlossene "No further action"-Faelle fuer ALLE Fahrer des Events (wie die TV-Einblendung).
  */
 export async function GET(req: Request) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return NextResponse.json({ error: "Server nicht konfiguriert (SUPABASE_SERVICE_ROLE_KEY fehlt)" }, { status: 500 });
+  const admin = db();
+  if (!admin) return NOT_CONFIGURED();
+  if (limited(req, "feed", 120)) return err("Zu viele Anfragen", 429);
+  if (blocked(req, "feed-bad", 20)) return err("Zu viele Anfragen", 429);
   const q = new URL(req.url).searchParams;
   const key = (q.get("k") ?? "").trim();
   const eventId = (q.get("e") ?? "").trim();
-  if (!/^[0-9a-f]{32}$/.test(key) || !/^[0-9a-f-]{36}$/.test(eventId)) return NextResponse.json({ error: "Link ungueltig" }, { status: 400 });
+  const bad = (m: string, st: number) => { limited(req, "feed-bad", 20); return err(m, st); };
+  if (!/^[0-9a-f]{32}$/.test(key) || !/^[0-9a-f-]{36}$/.test(eventId)) return bad("Link ungueltig", 400);
 
-  const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: k, error: kErr } = await admin.from("driver_overlay_keys").select("profile_id").eq("key", key).maybeSingle();
-  if (kErr) return NextResponse.json({ error: "Datenbankfehler" }, { status: 500 });
-  if (!k) return NextResponse.json({ error: "Schluessel unbekannt" }, { status: 401 });
+  if (kErr) return err("Datenbankfehler", 500);
+  if (!k) return bad("Schluessel unbekannt", 401);
   const profileId = (k as { profile_id: string }).profile_id;
 
   const [{ data: ev }, { data: drv }] = await Promise.all([
     admin.from("events").select("id, name").eq("id", eventId).maybeSingle(),
     admin.from("event_drivers").select("ingame_name, car_number, car_class, team").eq("event_id", eventId).eq("profile_id", profileId).maybeSingle(),
   ]);
-  if (!ev || !drv) return NextResponse.json({ error: "Du bist in diesem Event nicht als Fahrer angemeldet" }, { status: 403 });
+  if (!ev || !drv) return err("Du bist in diesem Event nicht als Fahrer angemeldet", 403);
   const me = drv as { ingame_name: string; car_number: number | null; car_class: string | null; team: string | null };
   const mine = (name: string | null, num: number | null) => same(name, me.ingame_name) || (me.car_number != null && num === me.car_number);
 
