@@ -85,7 +85,7 @@ function Logo() {
   return (
     <div className="bc-logo">
       <svg viewBox="0 0 24 24" width="1.6em" height="1.6em" aria-hidden><path d="M5 3l15 9-15 9z" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinejoin="round" /></svg>
-      <b>FLM <i>BROADCAST</i></b>
+      <b><span style={{ color: "#FFE600" }}>FLM</span> BROADCAST</b>
     </div>
   );
 }

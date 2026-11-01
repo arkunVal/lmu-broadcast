@@ -4,7 +4,8 @@ import Link from "next/link";
 export default function Logo({ href, small }: { href?: string; small?: boolean }) {
   const inner = (
     <>
-      <b>FLM</b>
+      <span className="lg-top"><i />
+        <b>FLM</b><i /></span>
       <small>Broadcast</small>
     </>
   );

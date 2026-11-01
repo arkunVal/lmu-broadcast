@@ -5,7 +5,26 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 
+function Frame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="authpage">
+      <div className="auth-hero">
+        <div className="auth-logo"><span className="lg-top"><i /><b>FLM</b><i /></span><small>Broadcast</small></div>
+        <h1>Dein Rennen.<br />Unter Kontrolle.</h1>
+        <p>Live-Daten, TV-Overlays und Rennleitung für Le Mans Ultimate. Im Browser, auf jedem Gerät.</p>
+        <ul>
+          <li><i />Live Timings und Streckenkarte</li>
+          <li><i />Vorfälle, Strafen und Funk für die Rennleitung</li>
+          <li><i />Broadcast-Overlays direkt für OBS</li>
+        </ul>
+      </div>
+      <div className="auth-card">{children}</div>
+    </div>
+  );
+}
+
 export default function Login() {
+  const [showPw, setShowPw] = useState(false);
   const supabase = getSupabase();
   const { session, loading } = useAuth();
   const router = useRouter();
@@ -65,23 +84,25 @@ export default function Login() {
 
   if (!loading && session && !fresh) {
     return (
-      <div className="panel auth-box">
+      <Frame>
         <h2>Willkommen zurück</h2>
-        <p className="muted" style={{ margin: "4px 0 14px" }}>Du bist angemeldet.</p>
-        <button className="primary" style={{ width: "100%", padding: 10 }} onClick={() => router.push("/events")}>Zu den Events</button>
-        <button style={{ width: "100%", padding: 10, marginTop: 8 }} onClick={() => supabase.auth.signOut()}>Abmelden</button>
-      </div>
+        <p className="muted" style={{ margin: "4px 0 18px" }}>Du bist angemeldet.</p>
+        <button className="primary" style={{ width: "100%", padding: 12 }} onClick={() => router.push("/events")}>Zu den Events</button>
+        <button style={{ width: "100%", padding: 12, marginTop: 10 }} onClick={() => supabase.auth.signOut()}>Abmelden</button>
+      </Frame>
     );
   }
 
   return (
-    <div className="panel auth-box">
-      <h2>{mode === "in" ? "Anmelden" : "Konto erstellen"}</h2>
-      <p className="muted" style={{ margin: "4px 0 14px" }}>
-        {mode === "in" ? "Willkommen zurück." : "Danach wählst du deine Rolle und gibst deinen Code ein."}
+    <Frame>
+      <h2>{mode === "in" ? "Willkommen zurück" : "Konto erstellen"}</h2>
+      <p className="muted" style={{ margin: "4px 0 16px" }}>
+        {mode === "in" ? "Melde dich an, um dein Event zu sehen." : "Danach wählst du deine Rolle und gibst deinen Code ein."}
       </p>
-      <button className="primary" style={{ width: "100%", padding: 10 }} onClick={discord}>Mit Discord fortfahren</button>
-      <div className="muted" style={{ textAlign: "center", margin: "14px 0 0" }}>oder mit E-Mail</div>
+      <div className="seg2" role="tablist">
+        <button type="button" role="tab" aria-selected={mode === "in"} className={mode === "in" ? "on" : ""} onClick={() => { setMode("in"); setError(""); setInfo(""); }}>Anmelden</button>
+        <button type="button" role="tab" aria-selected={mode === "up"} className={mode === "up" ? "on" : ""} onClick={() => { setMode("up"); setError(""); setInfo(""); }}>Registrieren</button>
+      </div>
       <form onSubmit={submit}>
         {mode === "up" && (
           <>
@@ -90,18 +111,20 @@ export default function Login() {
           </>
         )}
         <label>E-Mail</label>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%" }} />
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%" }} autoComplete="email" />
         <label>Passwort</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} style={{ width: "100%" }} />
-        {error && <div className="err">{error}</div>}
-        {info && <div className="okmsg">{info}</div>}
-        <div className="row" style={{ marginTop: 16, justifyContent: "space-between" }}>
-          <button className="primary" disabled={busy}>{mode === "in" ? "Anmelden" : "Registrieren"}</button>
-          <button type="button" onClick={() => { setMode(mode === "in" ? "up" : "in"); setError(""); setInfo(""); }}>
-            {mode === "in" ? "Neues Konto" : "Ich habe schon ein Konto"}
+        <div className="pwwrap">
+          <input type={showPw ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} style={{ width: "100%" }} autoComplete={mode === "in" ? "current-password" : "new-password"} />
+          <button type="button" className="eye" aria-label={showPw ? "Passwort verbergen" : "Passwort zeigen"} onClick={() => setShowPw((v) => !v)}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" />{showPw && <path d="M4 4l16 16" />}</svg>
           </button>
         </div>
+        {error && <div className="err">{error}</div>}
+        {info && <div className="okmsg">{info}</div>}
+        <button className="primary" disabled={busy} style={{ width: "100%", padding: 12, marginTop: 16 }}>{mode === "in" ? "Anmelden" : "Registrieren"}</button>
       </form>
-    </div>
+      <div className="or"><span>oder</span></div>
+      <button style={{ width: "100%", padding: 11 }} onClick={discord}>Mit Discord fortfahren</button>
+    </Frame>
   );
 }
