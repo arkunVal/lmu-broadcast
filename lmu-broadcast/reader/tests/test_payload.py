@@ -41,6 +41,9 @@ def make_data():
     d.telemetry.activeVehicles = 1
     t = d.telemetry.telemInfo[0]
     t.mID = 7
+    t.mVirtualEnergy = 0.8
+    d.telemetry.playerHasVehicle = True
+    d.telemetry.playerVehicleIdx = 0
     t.mFrontTireCompoundName = b"Medium"
     t.mRearTireCompoundName = b"Medium"
     # links Medium, rechts Soft (VL, VR, HL, HR)
@@ -50,6 +53,12 @@ def make_data():
 
 
 class PayloadTest(unittest.TestCase):
+    def test_energy_and_focus(self):
+        p = build_payload(make_data(), now_ms=1)
+        self.assertAlmostEqual(p["cars"][0]["energy"], 0.8, places=2)
+        self.assertIsNone(p["cars"][1]["energy"])
+        self.assertEqual(p["session"]["focusId"], 7)
+
     def test_basics(self):
         p = build_payload(make_data(), now_ms=1)
         self.assertEqual(p["status"], "live")

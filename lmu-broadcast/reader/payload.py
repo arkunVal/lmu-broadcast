@@ -87,6 +87,28 @@ def _tires_by_id(telemetry) -> dict:
     return tires
 
 
+def _energy_by_id(telemetry) -> dict:
+    """Virtual Energy (0..1) je Auto-ID aus dem Telemetry-Block, wenn das Spiel sie fuer das Auto liefert."""
+    out = {}
+    count = min(int(telemetry.activeVehicles), MAX_CARS)
+    for i in range(count):
+        t = telemetry.telemInfo[i]
+        e = float(t.mVirtualEnergy)
+        if 0.0 <= e <= 1.0001:
+            out[int(t.mID)] = round(min(e, 1.0), 4)
+    return out
+
+
+def _focus_id(telemetry):
+    """ID des Autos, das im Spiel gerade angeschaut/gefahren wird (Kamera-Fokus)."""
+    try:
+        if bool(telemetry.playerHasVehicle):
+            return int(telemetry.telemInfo[int(telemetry.playerVehicleIdx)].mID)
+    except Exception:
+        pass
+    return None
+
+
 def build_payload(data, now_ms: int | None = None) -> dict:
     """data: LMUObjectOut (Snapshot des Shared Memory)."""
     info = data.scoring.scoringInfo
@@ -119,6 +141,8 @@ def build_payload(data, now_ms: int | None = None) -> dict:
         return {"v": PAYLOAD_VERSION, "t": now_ms, "status": "idle", "session": session, "cars": []}
 
     tires = _tires_by_id(data.telemetry)
+    energy = _energy_by_id(data.telemetry)
+    session["focusId"] = _focus_id(data.telemetry)
     cars = []
     for i in range(count):
         v = data.scoring.vehScoringInfo[i]
@@ -161,6 +185,8 @@ def build_payload(data, now_ms: int | None = None) -> dict:
                 "lastS3": _diff(v.mLastLapTime, v.mLastSector2),
                 "curS1": _time(v.mCurSector1),
                 "curS2": _diff(v.mCurSector2, v.mCurSector1),
+                "lapStart": round(float(v.mLapStartET), 3),
+                "energy": energy.get(int(v.mID)),
                 "gapNext": _time(v.mTimeBehindNext),
                 "gapLeader": _time(v.mTimeBehindLeader),
                 "inPits": in_pits,

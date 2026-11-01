@@ -79,6 +79,8 @@ def demo_payload(start_time: float) -> dict:
                 "lastS3": round(base_lap * 0.33, 3) if laps > 0 else None,
                 "curS1": round(base_lap * 0.31, 3) if sector > 1 else None,
                 "curS2": round(base_lap * 0.36, 3) if sector > 2 else None,
+                "lapStart": round(t - lap_time, 3),
+                "energy": round(max(0.05, 0.95 - (t / 21600.0) * 0.8 - i * 0.01), 4),
                 "gapNext": None if i == 0 else round(1.5 + i * 0.7, 3),
                 "gapLeader": None if i == 0 else round(i * 3.2, 3),
                 "inPits": in_pits,
@@ -113,6 +115,7 @@ def demo_payload(start_time: float) -> dict:
             "trackTemp": 31.0,
             "airTemp": 22.0,
             "cars": len(cars),
+            "focusId": cars[0]["id"],
         },
         "cars": cars,
     }

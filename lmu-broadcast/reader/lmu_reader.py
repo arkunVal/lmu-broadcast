@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 
 from auto_track import AutoTrack
+from broadcast import BroadcastData
 from replay_control import ReplayControl, dump_commands, dump_endpoints, probe_commands
 from demo import demo_hint, demo_payload
 from hint_sender import HintSender
@@ -249,16 +250,18 @@ def main() -> int:
     last_demo_hint = time.time()
     next_tick = time.perf_counter()
     payload = None
+    bdata = BroadcastData()
 
     try:
         while True:
             now = time.perf_counter()
             data = None
             if args.demo:
-                payload = demo_payload(demo_start)
+                payload = bdata.update(demo_payload(demo_start), now)
             else:
                 data = source.read()
-                payload = build_payload(data) if now - last_send >= send_interval or payload is None else payload
+                if now - last_send >= send_interval or payload is None:
+                    payload = bdata.update(build_payload(data), now)
                 if replay is not None:
                     replay.set_cars(payload["cars"])
 
