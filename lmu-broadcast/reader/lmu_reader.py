@@ -194,6 +194,9 @@ def main() -> int:
     key = cfg.get("anon_key")
     site_url = cfg.get("site_url")
     ingest_token = cfg.get("ingest_token")
+    if site_url and not (site_url.startswith("https://") or site_url.startswith("http://localhost") or site_url.startswith("http://127.0.0.1")):
+        print("FEHLER: site_url muss mit https:// beginnen (sonst wuerde der geheime Token unverschluesselt gesendet).")
+        return 1
 
     if not args.dry_run and not (url and key and room):
         print("FEHLER: Einstellungen fehlen. Loesche config.json und starte neu, dann fragt der Reader nach dem Reader-Key.")
