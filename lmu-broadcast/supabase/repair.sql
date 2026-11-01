@@ -85,7 +85,7 @@ declare
 begin
   if auth.uid() is null then raise exception 'Nicht angemeldet'; end if;
   select * into e from public.events where code = upper(trim(coalesce(p_code, '')));
-  if e.id is null then raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
+  if e.id is null then perform pg_sleep(1.5); raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
   return json_build_object(
     'id', e.id, 'name', e.name, 'track', e.track,
     'classes', to_json(e.classes), 'is_team_event', e.is_team_event,
@@ -116,7 +116,7 @@ declare
 begin
   if uid is null then raise exception 'Nicht angemeldet'; end if;
   select * into e from public.events where code = upper(trim(coalesce(p_code, '')));
-  if e.id is null then raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
+  if e.id is null then perform pg_sleep(1.5); raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
   select * into me from public.profiles where id = uid;
   if me.id is null then raise exception 'Profil fehlt. Bitte neu anmelden.'; end if;
 
@@ -284,3 +284,75 @@ grant execute on function public.my_overlay_key() to authenticated;
 
 -- Kontrolle: du solltest hier dein Konto sehen (role leer = noch keine Rolle gewählt)
 select u.email, p.role from auth.users u left join public.profiles p on p.id = u.id;
+
+-- ===== Sicherheit: Fehlversuche bei Codes bremsen (1,5 s Pause), neue Event-Codes länger =====
+create or replace function public.redeem_access(p_role text, p_code text, p_ingame_name text, p_display_name text default null)
+returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := auth.uid();
+  v_code text := upper(trim(coalesce(p_code, '')));
+  v_name text := trim(coalesce(p_ingame_name, ''));
+  target public.app_role;
+  ev uuid;
+  cur public.app_role;
+begin
+  if uid is null then raise exception 'Nicht angemeldet'; end if;
+  if v_name = '' then raise exception 'Bitte deinen In-Game-Namen eintragen'; end if;
+  if p_role not in ('driver', 'admin', 'steward', 'broadcaster') then raise exception 'Unbekannte Rolle'; end if;
+  target := p_role::public.app_role;
+
+  if target = 'driver' then
+    select id into ev from public.events where code = v_code;
+    if ev is null then perform pg_sleep(1.5); raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
+  else
+    if not exists (select 1 from public.access_codes a where a.role = p_role and a.code = v_code) then
+      perform pg_sleep(1.5);
+      raise exception 'Key stimmt nicht';
+    end if;
+  end if;
+
+  select role into cur from public.profiles where id = uid;
+  begin
+    update public.profiles
+       set ingame_name  = v_name,
+           display_name = coalesce(nullif(trim(coalesce(p_display_name, '')), ''), display_name),
+           role         = case when cur is null or public.role_rank(target) > public.role_rank(cur) then target else cur end
+     where id = uid;
+  exception when unique_violation then
+    raise exception 'Dieser In-Game-Name ist schon vergeben';
+  end;
+
+  if target = 'driver' then
+    insert into public.event_members (event_id, profile_id) values (ev, uid) on conflict do nothing;
+  end if;
+
+  return (select role::text from public.profiles where id = uid);
+end $$;
+
+create or replace function public.join_event(p_code text) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  uid uuid := auth.uid();
+  ev uuid;
+begin
+  if uid is null then raise exception 'Nicht angemeldet'; end if;
+  if public.my_role() is null then raise exception 'Bitte zuerst die Anmeldung abschließen'; end if;
+  select id into ev from public.events where code = upper(trim(coalesce(p_code, '')));
+  if ev is null then perform pg_sleep(1.5); raise exception 'Event-Code unbekannt'; end if;
+  insert into public.event_members (event_id, profile_id) values (ev, uid) on conflict do nothing;
+  return ev;
+end $$;
+
+create or replace function public.regenerate_event_code(p_event uuid) returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  c text := public.gen_code('EVT', 3, 4);
+begin
+  if not public.is_admin() then raise exception 'Nur Admins'; end if;
+  update public.events set code = c where id = p_event;
+  if not found then raise exception 'Event nicht gefunden'; end if;
+  return c;
+end $$;
+
+alter table public.events alter column code set default public.gen_code('EVT', 3, 4);

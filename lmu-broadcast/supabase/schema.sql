@@ -117,7 +117,7 @@ create table public.events (
   name       text not null,
   track      text,
   track_slug text,
-  code       text not null unique default public.gen_code('EVT', 2, 4),   -- Fahrer-Beitrittscode
+  code       text not null unique default public.gen_code('EVT', 3, 4),   -- Fahrer-Beitrittscode
   room       text not null default substr(replace(gen_random_uuid()::text, '-', ''), 1, 12), -- intern, Live-Kanal
   starts_at  timestamptz,
   status     text not null default 'planned' check (status in ('planned', 'live', 'finished')),
@@ -252,9 +252,10 @@ begin
 
   if target = 'driver' then
     select id into ev from public.events where code = v_code;
-    if ev is null then raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
+    if ev is null then perform pg_sleep(1.5); raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
   else
     if not exists (select 1 from public.access_codes a where a.role = p_role and a.code = v_code) then
+      perform pg_sleep(1.5);
       raise exception 'Key stimmt nicht';
     end if;
   end if;
@@ -287,7 +288,7 @@ begin
   if uid is null then raise exception 'Nicht angemeldet'; end if;
   if public.my_role() is null then raise exception 'Bitte zuerst die Anmeldung abschließen'; end if;
   select id into ev from public.events where code = upper(trim(coalesce(p_code, '')));
-  if ev is null then raise exception 'Event-Code unbekannt'; end if;
+  if ev is null then perform pg_sleep(1.5); raise exception 'Event-Code unbekannt'; end if;
   insert into public.event_members (event_id, profile_id) values (ev, uid) on conflict do nothing;
   return ev;
 end $$;
@@ -307,7 +308,7 @@ end $$;
 create function public.regenerate_event_code(p_event uuid) returns text
 language plpgsql security definer set search_path = public as $$
 declare
-  c text := public.gen_code('EVT', 2, 4);
+  c text := public.gen_code('EVT', 3, 4);
 begin
   if not public.is_admin() then raise exception 'Nur Admins'; end if;
   update public.events set code = c where id = p_event;
@@ -456,7 +457,7 @@ declare
 begin
   if auth.uid() is null then raise exception 'Nicht angemeldet'; end if;
   select * into e from public.events where code = upper(trim(coalesce(p_code, '')));
-  if e.id is null then raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
+  if e.id is null then perform pg_sleep(1.5); raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
   return json_build_object(
     'id', e.id, 'name', e.name, 'track', e.track,
     'classes', to_json(e.classes), 'is_team_event', e.is_team_event,
@@ -487,7 +488,7 @@ declare
 begin
   if uid is null then raise exception 'Nicht angemeldet'; end if;
   select * into e from public.events where code = upper(trim(coalesce(p_code, '')));
-  if e.id is null then raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
+  if e.id is null then perform pg_sleep(1.5); raise exception 'Event-Code unbekannt. Frag die Rennleitung nach dem Code.'; end if;
   select * into me from public.profiles where id = uid;
   if me.id is null then raise exception 'Profil fehlt. Bitte neu anmelden.'; end if;
 
