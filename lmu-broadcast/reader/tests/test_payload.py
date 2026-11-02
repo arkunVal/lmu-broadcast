@@ -66,7 +66,7 @@ class PayloadTest(unittest.TestCase):
         self.assertEqual(len(p["cars"]), 2)
         c = p["cars"][0]
         self.assertEqual(c["driver"], "Max Becker")
-        self.assertEqual(c["num"], 8)
+        self.assertEqual(c["num"], "8")
         self.assertAlmostEqual(c["speedKmh"], 180.0, places=1)
         self.assertAlmostEqual(c["lapFrac"], 0.5, places=3)
         self.assertEqual(c["sector"], 3)
@@ -89,7 +89,9 @@ class PayloadTest(unittest.TestCase):
         self.assertEqual(p["cars"], [])
 
     def test_car_number(self):
-        self.assertEqual(car_number("Team X #12"), 12)
+        self.assertEqual(car_number("Team X #12"), "12")
+        self.assertEqual(car_number("Team X #007"), "007")
+        self.assertNotEqual(car_number("A #07"), car_number("A #7"))
         self.assertIsNone(car_number("Team X"))
 
 

@@ -123,7 +123,7 @@ def resolve_car(cars: list[dict], number, name: str | None) -> dict | None:
     """Findet das Auto in den aktuellen Spieldaten: erst ueber die Startnummer, dann ueber den Fahrernamen."""
     if number is not None:
         for c in cars:
-            if c.get("num") == number:
+            if c.get("num") is not None and str(c.get("num")) == str(number):
                 return c
     if name:
         low = name.strip().lower()
@@ -309,6 +309,7 @@ class ReplayControl(threading.Thread):
         self._focus_override = focus_override if isinstance(focus_override, dict) and focus_override.get("path") else None
         self._focus_plan: dict | None = None
         self._focus_delay = focus_delay_s
+        self.on_focus = None   # Rueckruf(car_id oder None) nach einem Kamerawechsel
         self._transport = dict(TRANSPORT_DEFAULT)
         self._transport_loaded = False
         self._transport_cfg = {k for k, v in (transport or {}).items() if v} if isinstance(transport, dict) else set()
@@ -372,6 +373,8 @@ class ReplayControl(threading.Thread):
         except Exception as exc:
             return False, f"Fahrzeugwechsel: Spiel nicht erreichbar ({type(exc).__name__})"
         if 200 <= status < 300:
+            if self.on_focus:
+                self.on_focus((car or {}).get("id"))
             return True, f"Kamera auf {label}"
         return False, f"Fahrzeugwechsel: Spiel antwortet HTTP {status} auf {method} {plan['path']}: {text[:80]}"
 
@@ -411,6 +414,8 @@ class ReplayControl(threading.Thread):
         except Exception as exc:
             return False, f"Spiel nicht erreichbar ({type(exc).__name__})"
         if 200 <= status < 300:
+            if self.on_focus:
+                self.on_focus(None)
             return True, "Naechstes Auto" if forward else "Vorheriges Auto"
         return False, f"Spiel antwortet HTTP {status} auf PUT {path}: {text[:80]}"
 

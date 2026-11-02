@@ -58,13 +58,13 @@ def _diff(a: float, b: float):
 
 
 def car_number(vehicle_name: str):
-    """Versucht die Startnummer aus dem Fahrzeugnamen zu lesen, z. B. 'Team #8'.
+    """Versucht die Startnummer als Text aus dem Fahrzeugnamen zu lesen, z. B. 'Team #008' -> '008'.
 
     Das Spiel hat kein eigenes Nummernfeld im Scoring-Block. Ob der Name bei
     allen Autos eine '#nummer' enthaelt, muss mit echten Daten geprueft werden.
     """
     match = _NUMBER_RE.search(vehicle_name)
-    return int(match.group(1)) if match else None
+    return match.group(1) if match else None   # Text: 007, 07 und 7 sind verschiedene Autos
 
 
 def _tires_by_id(telemetry) -> dict:

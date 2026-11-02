@@ -57,7 +57,7 @@ def demo_payload(start_time: float) -> dict:
         cars.append(
             {
                 "id": i,
-                "num": int(vehicle.split("#")[1]),
+                "num": vehicle.split("#")[1],
                 "driver": driver,
                 "vehicle": vehicle,
                 "cls": cls,

@@ -112,19 +112,19 @@ class ReplayControlTests(unittest.TestCase):
         plan = rc.guess_focus_plan(SPEC)
         self.assertEqual(plan["path"], "/rest/watch/focus/{slot}")
         self.assertEqual(plan["where"], "path")
-        cars = [{"id": 3, "num": 50, "driver": "Lena Vogt"}, {"id": 7, "num": 8, "driver": "Max Becker"}]
-        self.assertEqual(rc.resolve_car(cars, 8, None)["id"], 7)
+        cars = [{"id": 3, "num": "50", "driver": "Lena Vogt"}, {"id": 7, "num": "8", "driver": "Max Becker"}]
+        self.assertEqual(rc.resolve_car(cars, "8", None)["id"], 7)
         self.assertEqual(rc.resolve_car(cars, None, "lena vogt")["id"], 3)
         self.assertEqual(rc.resolve_car(cars, 99, "Max Becker")["id"], 7)  # Nummer unbekannt, Name passt
         self.assertIsNone(rc.resolve_car(cars, 99, "Niemand"))
-        self.assertEqual(rc.focus_value({"by": "number"}, None, 12, None), 12)
+        self.assertEqual(rc.focus_value({"by": "number"}, None, "12", None), "12")
         self.assertEqual(rc.focus_value({"by": "name"}, None, None, "X"), "X")
         self.assertEqual(rc.build_focus_call(plan, 3), ("POST", "/rest/watch/focus/3", None))
 
     def test_jump_then_focus_end_to_end(self):
         ctl = rc.ReplayControl(f"http://127.0.0.1:{self.port}", "x" * 24, focus_delay_s=0)
-        ctl.set_cars([{"id": 3, "num": 50, "driver": "Lena Vogt"}])
-        Handler.commands = [{"id": "c9", "time": 100.0, "car": 50, "driver": "Lena Vogt"}]
+        ctl.set_cars([{"id": 3, "num": "50", "driver": "Lena Vogt"}])
+        Handler.commands = [{"id": "c9", "time": 100.0, "car": "50", "driver": "Lena Vogt"}]
         ctl.poll_once()
         self.assertEqual(Handler.log, ["/rest/replay/seek?time=100", "/rest/watch/focus/3"])
         self.assertEqual(Handler.reports[0]["status"], "done")
@@ -155,12 +155,12 @@ class ReplayControlTests(unittest.TestCase):
     def _ctl(self):
         ctl = rc.ReplayControl(f"http://127.0.0.1:{self.port}", "x" * 24, focus_delay_s=0)
         ctl._enter_delay = 0
-        ctl.set_cars([{"id": 3, "num": 50, "driver": "Lena Vogt"}])
+        ctl.set_cars([{"id": 3, "num": "50", "driver": "Lena Vogt"}])
         return ctl
 
     def test_focus_only_command(self):
         ctl = self._ctl()
-        Handler.commands = [{"id": "f1", "kind": "focus", "time": None, "car": 50, "driver": "Lena Vogt"}]
+        Handler.commands = [{"id": "f1", "kind": "focus", "time": None, "car": "50", "driver": "Lena Vogt"}]
         ctl.poll_once()
         self.assertEqual(Handler.log, ["/rest/watch/focus/3"])
         self.assertEqual(Handler.reports[0]["status"], "done")
@@ -198,7 +198,7 @@ class ReplayControlTests(unittest.TestCase):
     def test_jump_opens_replay_when_live(self):
         ctl = self._ctl()
         Handler.active = False
-        Handler.commands = [{"id": "j1", "kind": "jump", "time": 60.0, "car": 50, "driver": "Lena Vogt"}]
+        Handler.commands = [{"id": "j1", "kind": "jump", "time": 60.0, "car": "50", "driver": "Lena Vogt"}]
         ctl.poll_once()
         self.assertEqual(Handler.log, ["/rest/replay/toggleactive", "/rest/replay/seek?time=60", "/rest/watch/focus/3"])
         self.assertIn("Replay geoeffnet", Handler.reports[0]["message"])

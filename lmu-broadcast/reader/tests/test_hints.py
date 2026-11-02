@@ -75,7 +75,7 @@ class HintTests(unittest.TestCase):
         self.assertEqual(h["details"]["source"], "lateral")
         self.assertGreater(h["details"]["durationS"], 1.5)
         self.assertEqual(h["drivers"][0]["name"], "Fahrer1")
-        self.assertEqual(h["drivers"][0]["num"], 1)
+        self.assertEqual(h["drivers"][0]["num"], "1")
 
     def test_offtrack_wheels(self):
         det = HintDetector()

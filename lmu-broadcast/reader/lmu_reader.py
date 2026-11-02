@@ -25,6 +25,7 @@ from replay_control import ReplayControl, dump_commands, dump_endpoints, probe_c
 from demo import demo_hint, demo_payload
 from hint_sender import HintSender
 from hints import HintDetector
+from focus import FocusTracker
 from payload import build_payload
 from pylmu.lmu_data import LMUConstants, LMUObjectOut
 from reader_key import decode_key
@@ -256,6 +257,11 @@ def main() -> int:
     next_tick = time.perf_counter()
     payload = None
     bdata = BroadcastData()
+    focus = None
+    if replay is not None:
+        focus = FocusTracker()
+        focus.start()
+        replay.on_focus = focus.note_command
 
     try:
         while True:
@@ -267,8 +273,11 @@ def main() -> int:
                 data = source.read()
                 if now - last_send >= send_interval or payload is None:
                     payload = bdata.update(build_payload(data), now)
+                    if focus is not None:
+                        focus.apply(payload)
                 if replay is not None:
                     replay.set_cars(payload["cars"])
+
 
             # Vorfall-Hinweise: bei jedem Lese-Takt
             if detector is not None and data is not None:
