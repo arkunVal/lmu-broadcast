@@ -35,3 +35,19 @@ class FocusTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReplayFlagTests(unittest.TestCase):
+    def test_parse_bool_and_apply(self):
+        from focus import parse_bool
+        import time
+        self.assertIs(parse_bool("true"), True)
+        self.assertIs(parse_bool('{"active": false}'), False)
+        self.assertIsNone(parse_bool("?"))
+        ft = FocusTracker()
+        p = {"cars": CARS, "session": {}}
+        ft.apply(p)
+        self.assertIsNone(p["session"]["replay"])
+        ft._replay = (True, time.time())
+        ft.apply(p)
+        self.assertIs(p["session"]["replay"], True)

@@ -57,6 +57,21 @@ def parse_focus(text: str, cars: list[dict]):
     return None
 
 
+def parse_bool(text: str):
+    t = text.strip().lower()
+    if t in ("true", "1"):
+        return True
+    if t in ("false", "0"):
+        return False
+    try:
+        v = json.loads(text)
+    except ValueError:
+        return None
+    if isinstance(v, dict):
+        v = next((x for x in v.values() if isinstance(x, bool)), None)
+    return v if isinstance(v, bool) else None
+
+
 class FocusTracker:
     def __init__(self, poll_s: float = 1.0, request=_game_request):
         self._req = request
@@ -65,6 +80,7 @@ class FocusTracker:
         self._rest: tuple[int, float] | None = None
         self._cmd: int | None = None
         self._path_ok: str | None = None
+        self._replay: tuple[bool, float] | None = None
         self._fails = 0
         self._last_src = ""
         self._stop = False
@@ -97,6 +113,13 @@ class FocusTracker:
                     self._fails += 1
             except Exception:
                 self._fails += 1
+            try:   # Ist das Spiel gerade im Replay? (fuer die REPLAY-Blende im Overlay)
+                status, text = self._req("GET", "/rest/replay/isActive", None, 2.0)
+                v = parse_bool(text) if status == 200 else None
+                if v is not None:
+                    self._replay = (v, time.time())
+            except Exception:
+                pass
             time.sleep(self._poll if self._fails < 5 else 10.0)
 
     def apply(self, payload: dict) -> None:
@@ -110,6 +133,7 @@ class FocusTracker:
         elif self._cmd in ids:
             src, fid = "command", self._cmd
         s["focusId"], s["focusSrc"] = fid, src
+        s["replay"] = self._replay[0] if self._replay and time.time() - self._replay[1] < 5 else None
         if src != self._last_src:
             self._last_src = src
             print(f"[Fokus] Quelle: {src} (game = vom Spiel gemeldet, command = per Website gewaehlt, memory = eigenes Auto)")
