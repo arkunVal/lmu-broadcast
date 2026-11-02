@@ -36,7 +36,7 @@ export default function ReplayLink({ event, sessionTime, small, focus, noCopy }:
   }
 
   return (
-    <span style={{ display: "inline-flex", flexWrap: small ? "nowrap" : "wrap", alignItems: "center", gap: 8 }} title="Replay von Le Mans Ultimate, 8 Sekunden vor dem Vorfall">
+    <span style={{ display: "inline-flex", flexWrap: small ? "nowrap" : "wrap", alignItems: "center", gap: 8 }} title="Replay von Le Mans Ultimate, 7 Sekunden vor dem Vorfall">
       <span className="muted">{small ? "⏪" : "⏪ LMU-Replay ab"}</span>
       <b className="num">{text}</b>
       {canJump && (

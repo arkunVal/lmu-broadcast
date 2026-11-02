@@ -31,7 +31,7 @@ export default function ControlsTab({ event }: { event: EventRow }) {
         <div className="stack">
           <div className="panel">
             <h3>Kamera im Spiel</h3>
-            <p className="muted" style={{ margin: "0 0 10px", fontSize: 13 }}>Wirkt am Rennrechner. Ein Auto direkt wählst du in „Live Timings“ per Klick auf die Zeile.</p>
+            <p className="muted" style={{ margin: "0 0 10px", fontSize: 13 }}>Wirkt am Rennrechner. Ein Auto direkt wählst du in „Broadcast“ per Klick auf die Zeile.</p>
             <div className="camrow">
               <button onClick={() => control("prev")} disabled={busy} title="Vorheriges Auto im Spiel anwählen">◀ Voriges Auto</button>
               <button onClick={() => control("next")} disabled={busy} title="Nächstes Auto im Spiel anwählen">Nächstes Auto ▶</button>

@@ -68,6 +68,7 @@ type Session = {
   cars: number;
   focusId?: number | null;
   focusSrc?: "game" | "command" | "memory";
+  replay?: boolean | null;
 };
 
 export type Snapshot = {

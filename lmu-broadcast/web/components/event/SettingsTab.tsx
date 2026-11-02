@@ -141,7 +141,7 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
           <input type="number" value={replayOffset} onChange={(e) => setReplayOffset(e.target.value)} />
         </div>
         <p className="muted" style={{ fontSize: 13, margin: "6px 0 0" }}>
-          Der Reader liest bei jedem Vorfall die Session-Uhr des Spiels. Im Replay von Le Mans Ultimate springst du diese Zeit an (8 Sekunden vorher). Läuft die Replay-Uhr bei dir anders, trägst du hier einmal den Unterschied in Sekunden ein.
+          Der Reader liest bei jedem Vorfall die Session-Uhr des Spiels. Im Replay von Le Mans Ultimate springst du diese Zeit an (7 Sekunden vorher). Läuft die Replay-Uhr bei dir anders, trägst du hier einmal den Unterschied in Sekunden ein.
         </p>
         <div className="row" style={{ marginTop: 12 }}>
           <button className="primary" onClick={save}>Speichern</button>

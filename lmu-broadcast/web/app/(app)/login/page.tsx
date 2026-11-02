@@ -14,7 +14,7 @@ function Frame({ children }: { children: React.ReactNode }) {
         <h1>Dein Rennen.<br />Unter Kontrolle.</h1>
         <p>Live-Daten, TV-Overlays und Rennleitung für Le Mans Ultimate. Im Browser, auf jedem Gerät.</p>
         <ul>
-          <li><i />Live Timings und Streckenkarte</li>
+          <li><i />Broadcast und Streckenkarte</li>
           <li><i />Vorfälle, Strafen und Funk für die Rennleitung</li>
           <li><i />Broadcast-Overlays direkt für OBS</li>
         </ul>

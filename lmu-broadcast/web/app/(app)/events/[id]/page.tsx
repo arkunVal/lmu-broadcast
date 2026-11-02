@@ -9,7 +9,7 @@ import ControlsTab from "@/components/event/ControlsTab";
 import FunkTab from "@/components/event/FunkTab";
 import EventBar from "@/components/event/EventBar";
 import IncidentsTab from "@/components/event/IncidentsTab";
-import LiveTab from "@/components/event/LiveTab";
+import BroadcastTab from "@/components/event/BroadcastTab";
 import MapTab from "@/components/event/MapTab";
 import PenaltiesTab from "@/components/event/PenaltiesTab";
 import SessionTab from "@/components/event/SessionTab";
@@ -45,7 +45,7 @@ function EventView() {
   const openCount = incidents.filter((i) => i.status !== "closed" && !isHint(i)).length;
   const hintCount = groupHints(incidents.filter(isHint)).length;
   const tabs: [Tab, string, number?][] = [
-    ...(isTeam ? ([["live", "Live Timings"], ["controls", "Controls"], ["map", "Track Map"], ["incidents", "Replay", isStaff ? openCount + hintCount : 0]] as [Tab, string, number?][]) : []),
+    ...(isTeam ? ([["live", "Broadcast"], ["controls", "Controls"], ["map", "Track Map"], ["incidents", "Replay", isStaff ? openCount + hintCount : 0]] as [Tab, string, number?][]) : []),
     ["penalties", "Penalties"],
     ["session", "Session"],
     ...(profile?.role === "driver" ? ([["voice", "Funk"]] as [Tab, string][]) : []),
@@ -79,7 +79,7 @@ function EventView() {
           slot,
         )}
         <div className="tabbody">
-          {current === "live" && isTeam && <LiveTab event={event} drivers={drivers} />}
+          {current === "live" && isTeam && <BroadcastTab event={event} drivers={drivers} incidents={incidents} />}
           {current === "controls" && isTeam && <ControlsTab event={event} />}
           {current === "map" && isTeam && <MapTab />}
           {current === "incidents" && isTeam && (

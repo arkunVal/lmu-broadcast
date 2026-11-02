@@ -1,6 +1,6 @@
 import type { EventRow } from "./labels";
 
-const LEAD_S = 8; // so viele Sekunden vor dem Vorfall anspringen, damit man die Entstehung sieht
+const LEAD_S = 7; // so viele Sekunden vor dem Vorfall anspringen, damit man die Entstehung sieht
 
 /**
  * Zeit, die man im Replay von Le Mans Ultimate anspringt.

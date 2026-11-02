@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { BC_VIEWS as VIEWS, startController } from "@/lib/bcSwitch";
-import { getSupabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
+import { BC_VIEWS as VIEWS, useBcController } from "@/lib/bcSwitch";
 import CopyButton from "@/components/CopyButton";
 import type { EventRow } from "@/lib/labels";
 
@@ -15,27 +14,10 @@ const ITEMS = [
 
 /** Ein Link fuer das FLM-Broadcast-Overlay: Ansichten ankreuzen, Link kopieren (eine OBS-Quelle je Szene). */
 function BroadcastCard({ origin, room }: { origin: string; room: string }) {
-  const [on, setOn] = useState<string[]>(["tower", "driver"]);
   const [car, setCar] = useState("");
   const [vs, setVs] = useState("");
   const [fixed, setFixed] = useState(false);
-  const onRef = useRef(on);
-  const ctl = useRef<ReturnType<typeof startController> | null>(null);
-  onRef.current = on;
-  useEffect(() => {
-    const supabase = getSupabase();
-    if (!supabase || !room) return;
-    try { const s = localStorage.getItem(`bcv-ctl-${room}`); if (s) setOn(JSON.parse(s)); } catch {}
-    ctl.current = startController(supabase, room, () => onRef.current);
-    return () => { ctl.current?.stop(); ctl.current = null; };
-  }, [room]);
-  function toggle(k: string) {
-    const next = on.includes(k) ? on.filter((x) => x !== k) : [...on, k];
-    setOn(next);
-    onRef.current = next;
-    try { localStorage.setItem(`bcv-ctl-${room}`, JSON.stringify(next)); } catch {}
-    ctl.current?.push();
-  }
+  const { on, toggle } = useBcController(room);
   const extra = `${car ? `&car=${car}` : ""}${vs ? `&vs=${vs}` : ""}`;
   const base = `${origin}/overlay/broadcast?room=${encodeURIComponent(room)}`;
   const url = fixed ? `${base}&view=${on.join(",")}${extra}` : `${base}&view=live${extra}`;
@@ -46,7 +28,7 @@ function BroadcastCard({ origin, room }: { origin: string; room: string }) {
         <span className="muted">OBS-Größe 1920 × 1080</span>
       </div>
       <p className="muted" style={{ margin: "4px 0 10px" }}>
-        Eine OBS-Quelle, ein Link. Mit den Knöpfen schaltest du Ansichten live an und aus, ohne OBS anzufassen. Diese Seite (Controls) muss dafür offen sein. Ohne Nummer folgt das Overlay dem Auto, das im Spiel angeschaut wird.
+        Eine OBS-Quelle, ein Link. Mit den Knöpfen schaltest du Ansichten live an und aus, ohne OBS anzufassen. Dafür muss „Broadcast“ oder „Controls“ offen sein. Ohne Nummer folgt das Overlay dem Auto, das im Spiel angeschaut wird.
       </p>
       <div className="bcswitch" role="group" aria-label="Ansichten im Overlay">
         {VIEWS.map(([k, label]) => (

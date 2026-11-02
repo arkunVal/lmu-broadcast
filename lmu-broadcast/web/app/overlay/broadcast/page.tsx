@@ -26,10 +26,12 @@ export default function Broadcast() {
   const timers = useLapTimers(snapshot, receivedAt);
   const viewParam = params?.get("view") ?? "tower,driver";
   const liveMode = viewParam === "live";
-  const liveViews = useLiveViews(params?.get("room") ?? "", liveMode, ["tower"]);
+  const ctl = useLiveViews(params?.get("room") ?? "", liveMode, ["tower"]);
   if (!snapshot) return debug ? <div className="bc" style={{ padding: 20 }}>Broadcast: keine Live-Daten ({connection})</div> : null;
 
-  const views = new Set(liveMode ? liveViews : viewParam.split(",").map((v) => v.trim()));
+  const views = new Set(liveMode ? ctl.views : viewParam.split(",").map((v) => v.trim()));
+  // Replay: das Spiel meldet es (Reader); sonst gilt der Schalter der Website. Dann alles ausblenden, nur das Banner zeigen.
+  const replayOn = views.has("replay") || (snapshot.session.replay != null ? snapshot.session.replay : ctl.replay);
   const scale = num(params, "scale", 1);
   const carNo = params?.get("car")?.trim() || null;   // Text: 007, 07 und 7 sind verschiedene Autos
   const vsNo = params?.get("vs")?.trim() || null;
@@ -40,15 +42,50 @@ export default function Broadcast() {
   const mode: "energy" | "battle" | "normal" = views.has("energy") ? "energy" : battle && pair ? "battle" : "normal";
   const listed = (params?.get("cars") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
 
+  const show = (v: boolean) => v && !replayOn;
   return (
     <div className="bc" style={{ fontSize: 16 * scale }}>
-      {views.has("replay") && <div className="bc-replay">REPLAY</div>}
-      {views.has("tower") && <Tower snap={snapshot} mode={mode} pair={pair} max={max} />}
-      {(views.has("telemetry") || views.has("battle")) && focus && <TelemetryTop car={focus} />}
-      {views.has("driver") && !battle && !views.has("telemetry") && focus && <DriverCard car={focus} red={mode === "energy"} />}
-      {battle && pair && <HeadToHead pair={pair} laps={views.has("battle")} />}
-      {views.has("telemetry") && !battle && focus && <SectorCards cars={cardCars(snapshot, focus, listed)} snap={snapshot} timers={timers} />}
+      <ReplayBanner on={replayOn} />
+      <Present show={show(views.has("tower"))} anim="left"><Tower snap={snapshot} mode={mode} pair={pair} max={max} /></Present>
+      <Present show={show((views.has("telemetry") || views.has("battle")) && !!focus)} anim="drop">{focus && <TelemetryTop car={focus} />}</Present>
+      <Present show={show(views.has("driver") && !battle && !views.has("telemetry") && !!focus)} anim="wipe">{focus && <DriverCard car={focus} red={mode === "energy"} />}</Present>
+      <Present show={show(battle && !!pair)} anim="rise">{pair && <HeadToHead pair={pair} laps={views.has("battle")} />}</Present>
+      <Present show={show(views.has("telemetry") && !battle && !!focus)} anim="rise">{focus && <SectorCards cars={cardCars(snapshot, focus, listed)} snap={snapshot} timers={timers} />}</Present>
     </div>
+  );
+}
+
+/** Ein-/Ausblenden mit Animation: bleibt beim Ausblenden kurz eingehaengt, damit die Ausblende-Animation laufen kann. */
+function Present({ show, anim, children }: { show: boolean; anim: "left" | "drop" | "wipe" | "rise" | "fade"; children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(show);
+  const last = useRef<React.ReactNode>(children);
+  if (show) last.current = children;   // beim Ausblenden den letzten Inhalt weiter zeigen
+  useEffect(() => {
+    if (show) { setMounted(true); return; }
+    const t = setTimeout(() => setMounted(false), 650);
+    return () => clearTimeout(t);
+  }, [show]);
+  if (!mounted && !show) return null;
+  return <div className={`bc-pres bc-a-${anim} ${show ? "in" : "out"}`}>{last.current}</div>;
+}
+
+/** Grosses REPLAY-Banner (rote Linien, Schrift schlaegt ein), danach kleine Marke oben links. */
+function ReplayBanner({ on }: { on: boolean }) {
+  const [phase, setPhase] = useState<"off" | "intro" | "badge">("off");
+  useEffect(() => {
+    if (!on) { setPhase((p) => (p === "off" ? p : "off")); return; }
+    setPhase("intro");
+    const t = setTimeout(() => setPhase("badge"), 2600);
+    return () => clearTimeout(t);
+  }, [on]);
+  return (
+    <Present show={on} anim="fade">
+      <div className={`bc-rp ${phase}`}>
+        <div className="bc-rp-line l" /><div className="bc-rp-word">REPLAY</div><div className="bc-rp-line r" />
+        <div className="bc-rp-sub">INSTANT REPLAY</div>
+        <div className="bc-rp-badge">REPLAY</div>
+      </div>
+    </Present>
   );
 }
 
@@ -124,7 +161,7 @@ function Tower({ snap, mode, pair, max }: { snap: Snapshot; mode: "energy" | "ba
             else right = i === 0 ? "INTERVAL" : gapText(c.cGapAhead, c.cLapsAhead);
             const st = !race && mode !== "energy" ? sectorStates(c, overall) : null;
             return (
-              <div className={`bc-row ${hl}`} key={c.id}>
+              <div className={`bc-row ${hl}`} key={c.id} style={{ ["--i" as string]: i }}>
                 <span className="bc-pos bc-num">{classPos(c)}</span>
                 <Brand car={c} />
                 <span className="bc-no bc-num">{c.num ?? "–"}</span>
