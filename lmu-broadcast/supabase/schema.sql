@@ -171,7 +171,7 @@ create table public.event_drivers (
   id          uuid primary key default gen_random_uuid(),
   event_id    uuid not null references public.events (id) on delete cascade,
   ingame_name text not null,
-  car_number  int,
+  car_number  text,
   car_class   text,
   team        text,
   created_at  timestamptz not null default now()
@@ -206,7 +206,7 @@ create table public.incident_drivers (
   id          uuid primary key default gen_random_uuid(),
   incident_id uuid not null references public.incidents (id) on delete cascade,
   ingame_name text not null,
-  car_number  int,
+  car_number  text,
   role        text not null default 'involved' check (role in ('involved', 'possible'))
 );
 create index incident_drivers_idx on public.incident_drivers (incident_id);
@@ -217,7 +217,7 @@ create table public.penalties (
   event_id    uuid not null references public.events (id) on delete cascade,
   incident_id uuid references public.incidents (id) on delete set null,
   ingame_name text not null,
-  car_number  int,
+  car_number  text,
   kind        public.penalty_kind not null,
   amount      int,
   reason      text not null default '',
@@ -428,7 +428,7 @@ create table if not exists public.event_teams (
   event_id    uuid not null references public.events (id) on delete cascade,
   name        text not null,
   car_class   text,
-  car_number  int,
+  car_number  text,
   captain_id  uuid references public.profiles (id) on delete set null,
   created_at  timestamptz not null default now()
 );
@@ -439,7 +439,7 @@ alter table public.event_drivers add column if not exists team_id uuid reference
 alter table public.event_drivers add column if not exists profile_id uuid references public.profiles (id) on delete set null;
 alter table public.event_drivers add column if not exists is_captain boolean not null default false;
 
-alter table public.replay_commands add column if not exists car_number int;
+alter table public.replay_commands add column if not exists car_number text;
 alter table public.replay_commands add column if not exists driver text;
 
 alter table public.event_teams enable row level security;
@@ -471,7 +471,7 @@ end $$;
 --  Team-Event:  p_team_name gesetzt = Team neu anlegen (Kapitän trägt Klasse, Nummer und Teammitglieder ein).
 --               p_team_name leer   = Teammitglied: wird dem Team zugeordnet, in das ihn der Kapitän mit seinem In-Game-Namen eingetragen hat.
 create or replace function public.register_for_event(
-  p_code text, p_ingame_name text default null, p_class text default null, p_number int default null,
+  p_code text, p_ingame_name text default null, p_class text default null, p_number text default null,
   p_team_name text default null, p_members text[] default '{}'
 ) returns uuid
 language plpgsql security definer set search_path = public as $$
@@ -523,8 +523,9 @@ begin
     select c into v_class from unnest(e.classes) c where lower(c) = lower(coalesce(v_class, '')) limit 1;
     if v_class is null then raise exception 'Bitte eine Klasse wählen'; end if;
   end if;
-  if p_number is null or p_number < 1 or p_number > 999 then
-    raise exception 'Bitte eine Startnummer zwischen 1 und 999 eintragen';
+  p_number := nullif(trim(coalesce(p_number, '')), '');
+  if p_number is null or p_number !~ '^[0-9]{1,3}$' or p_number !~ '[1-9]' then
+    raise exception 'Bitte eine Startnummer mit 1 bis 3 Ziffern eintragen (007, 07 und 7 sind verschiedene Nummern)';
   end if;
   if exists (select 1 from public.event_drivers d where d.event_id = e.id and d.car_number = p_number and lower(d.ingame_name) <> lower(v_name)) then
     raise exception 'Die Startnummer % ist in diesem Event schon vergeben', p_number;
@@ -601,11 +602,11 @@ begin
 end $$;
 
 revoke execute on function public.event_info(text) from public, anon;
-revoke execute on function public.register_for_event(text, text, text, int, text, text[]) from public, anon;
+revoke execute on function public.register_for_event(text, text, text, text, text, text[]) from public, anon;
 revoke execute on function public.team_add_member(uuid, text) from public, anon;
 revoke execute on function public.team_remove_member(uuid) from public, anon;
 grant execute on function public.event_info(text) to authenticated;
-grant execute on function public.register_for_event(text, text, text, int, text, text[]) to authenticated;
+grant execute on function public.register_for_event(text, text, text, text, text, text[]) to authenticated;
 grant execute on function public.team_add_member(uuid, text) to authenticated;
 grant execute on function public.team_remove_member(uuid) to authenticated;
 
