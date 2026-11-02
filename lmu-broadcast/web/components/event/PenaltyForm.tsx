@@ -81,7 +81,7 @@ export default function PenaltyForm({
       event_id: eventId,
       incident_id: incidentId ?? null,
       ingame_name: name.trim(),
-      car_number: car.trim() ? Number(car) || null : (driver?.car_number ?? null),
+      car_number: car.trim() || (driver?.car_number ?? null),
       kind,
       amount: unit ? Number(amount) || null : null,
       reason: [preset, reason.trim()].filter(Boolean).join(" – "),
@@ -93,7 +93,7 @@ export default function PenaltyForm({
     else {
       // Strafe zu einem Vorfall: Vorfall ist damit abgeschlossen. Ohne Vorfall-Auswahl: der Vorfall "in Bearbeitung" dieses Fahrers.
       const nm = name.trim().toLowerCase();
-      const carNo = car.trim() ? Number(car) || null : (driver?.car_number ?? null);
+      const carNo = car.trim() || (driver?.car_number ?? null);
       const target = incidentId ?? (reviewing ?? []).find((i) => i.incident_drivers.some((d) => d.role === "involved" && (d.ingame_name.trim().toLowerCase() === nm || (carNo != null && d.car_number === carNo))))?.id;
       if (target) {
         const text = [PENALTY_KINDS[kind].label, unit && amount ? `${amount} ${unit}` : ""].filter(Boolean).join(" ");
@@ -135,7 +135,7 @@ export default function PenaltyForm({
         </div>
         <div>
           <label>Startnummer</label>
-          <input type="number" min={0} value={car} onChange={(e) => setCar(e.target.value)} placeholder={String(drivers.find((d) => d.ingame_name.toLowerCase() === name.trim().toLowerCase())?.car_number ?? "")} />
+          <input inputMode="numeric" pattern="[0-9]{1,3}" maxLength={3} value={car} onChange={(e) => setCar(e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder={String(drivers.find((d) => d.ingame_name.toLowerCase() === name.trim().toLowerCase())?.car_number ?? "")} />
         </div>
         <div>
           <label>Strafe</label>

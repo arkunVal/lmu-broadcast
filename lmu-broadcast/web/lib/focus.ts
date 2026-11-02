@@ -1,6 +1,6 @@
 import type { Incident } from "./labels";
 
-export type Focus = { num: number | null; name: string };
+export type Focus = { num: string | null; name: string };
 
 /** Welches Auto im Replay angewaehlt werden soll: der erste Beteiligte ("involved"), sonst der erste moegliche. */
 export function pickFocus(incident: Pick<Incident, "incident_drivers">): Focus | null {

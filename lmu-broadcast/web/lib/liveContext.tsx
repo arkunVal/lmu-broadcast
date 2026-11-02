@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Snapshot } from "./types";
 import { useLiveData, type ConnectionState } from "./useLiveData";
 
-export type Watching = { num: number | null; name: string } | null;
+export type Watching = { num: string | null; name: string } | null;
 
 type LiveCtx = {
   snapshot: Snapshot | null;

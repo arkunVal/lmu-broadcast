@@ -127,7 +127,7 @@ export type EventDriver = {
   id: string;
   event_id: string;
   ingame_name: string;
-  car_number: number | null;
+  car_number: string | null;
   car_class: string | null;
   team: string | null;
   team_id?: string | null;
@@ -135,7 +135,7 @@ export type EventDriver = {
   is_captain?: boolean;
 };
 
-type IncidentDriver = { id: string; incident_id: string; ingame_name: string; car_number: number | null; role: "involved" | "possible" };
+type IncidentDriver = { id: string; incident_id: string; ingame_name: string; car_number: string | null; role: "involved" | "possible" };
 
 export type Incident = {
   id: string;
@@ -161,7 +161,7 @@ export type Penalty = {
   event_id: string;
   incident_id: string | null;
   ingame_name: string;
-  car_number: number | null;
+  car_number: string | null;
   kind: PenaltyKind;
   amount: number | null;
   reason: string;

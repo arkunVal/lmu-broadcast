@@ -8,7 +8,7 @@ export type HintGroup = {
   first: Incident;          // frühester Hinweis (dort springt das Replay hin)
   keep: Incident;           // wird bei "Ist Vorfall" der Vorfall
   text: string;             // z. B. "2x Kontakt & 1x Überholmanöver"
-  drivers: { name: string; num: number | null; possible: boolean }[];
+  drivers: { name: string; num: string | null; possible: boolean }[];
   overtakeOnly: boolean;
   lastTime: number;
 };
@@ -46,7 +46,7 @@ export function groupHints(hints: Incident[], windowS = MERGE_WINDOW_S): HintGro
       ? INCIDENT_KINDS[g.items[0].kind] ?? g.items[0].kind
       : kinds.map(([k, n]) => `${n}x ${INCIDENT_KINDS[k] ?? k}`).join(" & ");
     const keep = [...g.items].sort((a, b) => PRIORITY.indexOf(a.kind) - PRIORITY.indexOf(b.kind))[0];
-    const dr = new Map<string, { name: string; num: number | null; possible: boolean }>();
+    const dr = new Map<string, { name: string; num: string | null; possible: boolean }>();
     for (const i of g.items) {
       for (const d of i.incident_drivers ?? []) {
         const k = key(d.ingame_name);

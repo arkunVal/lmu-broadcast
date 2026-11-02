@@ -1,5 +1,6 @@
 "use client";
 
+import { cmpNo } from "@/lib/broadcast";
 import { useMemo, useState } from "react";
 import CarNo from "@/components/CarNo";
 import type { EventDriver } from "@/lib/labels";
@@ -22,7 +23,7 @@ export default function Roster({ drivers, canRemove, reload }: { drivers: EventD
         const first = g.members.find((m) => m.car_number != null) ?? g.members[0];
         return { ...g, num: first.car_number, cls: g.members.find((m) => m.car_class)?.car_class ?? null, joined: g.members.filter((m) => m.profile_id).length };
       })
-      .sort((a, b) => (a.cls ?? "~").localeCompare(b.cls ?? "~") || (a.num ?? 9999) - (b.num ?? 9999) || (a.team ?? a.members[0].ingame_name).localeCompare(b.team ?? b.members[0].ingame_name));
+      .sort((a, b) => (a.cls ?? "~").localeCompare(b.cls ?? "~") || cmpNo(a.num, b.num) || (a.team ?? a.members[0].ingame_name).localeCompare(b.team ?? b.members[0].ingame_name));
   }, [drivers]);
 
   function toggle(k: string) {

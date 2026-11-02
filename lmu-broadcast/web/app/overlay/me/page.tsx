@@ -6,10 +6,10 @@ import { useSearchParams } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
 import { OverlayVoice, type OverlayVoiceState } from "@/lib/voice";
 
-type Who = { name: string; num: number | null; team: string | null };
-type Pen = { id: string; name: string; num: number | null; team: string | null; lap: number | null; kind: string; amount: number | null; reason: string; createdAt: string; mine: boolean; persist: boolean; afterRace: boolean };
+type Who = { name: string; num: string | null; team: string | null };
+type Pen = { id: string; name: string; num: string | null; team: string | null; lap: number | null; kind: string; amount: number | null; reason: string; createdAt: string; mine: boolean; persist: boolean; afterRace: boolean };
 type Feed = {
-  me: { uid: string; name: string; num: number | null; cls: string | null; team: string | null };
+  me: { uid: string; name: string; num: string | null; cls: string | null; team: string | null };
   event: { id: string; name: string };
   penalties: Pen[];
   reviews: { id: string; kind: string; lap: number | null; drivers: Who[]; createdAt: string }[];
@@ -84,13 +84,13 @@ function Inner() {
     if (demo) {
       const t = new Date().toISOString();
       setFeed({
-        me: { uid: "demo", name: "Max Becker", num: 8, cls: "Hypercar", team: "Alpha" }, event: { id: "demo", name: "Demo" },
+        me: { uid: "demo", name: "Max Becker", num: "8", cls: "Hypercar", team: "Alpha" }, event: { id: "demo", name: "Demo" },
         penalties: [
-          { id: "p1", name: "Max Becker", num: 8, team: "Alpha", lap: 7, kind: "time", amount: 10, reason: "Causing contact — significant", createdAt: t, mine: true, persist: true, afterRace: false },
-          { id: "p2", name: "Sara Klein", num: 28, team: "Gamma", lap: 6, kind: "drive_through", amount: null, reason: "Track limits", createdAt: t, mine: false, persist: false, afterRace: false },
+          { id: "p1", name: "Max Becker", num: "8", team: "Alpha", lap: 7, kind: "time", amount: 10, reason: "Causing contact — significant", createdAt: t, mine: true, persist: true, afterRace: false },
+          { id: "p2", name: "Sara Klein", num: "28", team: "Gamma", lap: 6, kind: "drive_through", amount: null, reason: "Track limits", createdAt: t, mine: false, persist: false, afterRace: false },
         ],
-        reviews: [{ id: "i1", kind: "contact", lap: 9, drivers: [{ name: "Lena Vogt", num: 50, team: "Beta" }], createdAt: t }],
-        cleared: [{ id: "c1", lap: 5, drivers: [{ name: "Tom Weber", num: 12, team: "Delta" }], closedAt: t }],
+        reviews: [{ id: "i1", kind: "contact", lap: 9, drivers: [{ name: "Lena Vogt", num: "50", team: "Beta" }], createdAt: t }],
+        cleared: [{ id: "c1", lap: 5, drivers: [{ name: "Tom Weber", num: "12", team: "Delta" }], closedAt: t }],
       });
       setVoice({ talking: true, toMe: true, onlyMe: true, message: "Box this lap please", interview: { topic: "Incident lap 7, Turn 1", live: false, who: { k: "drivers", names: ["Max Becker", "Lena Vogt"] } } });
       return;

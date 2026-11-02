@@ -10,7 +10,7 @@ type Info = {
   track: string | null;
   classes: string[];
   is_team_event: boolean;
-  teams: { name: string; car_class: string | null; car_number: number | null }[];
+  teams: { name: string; car_class: string | null; car_number: string | null }[];
 };
 
 /**
@@ -62,7 +62,7 @@ export default function RegisterForm({ onDone }: { onDone: (eventId: string) => 
       p_code: code,
       p_ingame_name: knownName ? null : ingame.trim(),
       p_class: memberMode ? null : cls || null,
-      p_number: memberMode || !number ? null : Number(number),
+      p_number: memberMode || !number ? null : number,
       p_team_name: info.is_team_event && !memberMode ? teamName.trim() : null,
       p_members: info.is_team_event && !memberMode ? members.split(/[\n,;]/).map((m) => m.trim()).filter(Boolean) : [],
     });
@@ -150,7 +150,7 @@ export default function RegisterForm({ onDone }: { onDone: (eventId: string) => 
           )}
           {classSelect}
           <label>{info.is_team_event ? "Startnummer des Teams" : "Startnummer"}</label>
-          <input type="number" min={1} max={999} value={number} onChange={(e) => setNumber(e.target.value)} required style={{ width: 140 }} />
+          <input inputMode="numeric" pattern="[0-9]{1,3}" maxLength={3} title="1 bis 3 Ziffern. 7, 07 und 007 sind verschiedene Nummern." value={number} onChange={(e) => setNumber(e.target.value.replace(/\D/g, "").slice(0, 3))} required style={{ width: 140 }} />
           {info.is_team_event && (
             <>
               <label>Teammitglieder (In-Game-Namen, eine pro Zeile)</label>

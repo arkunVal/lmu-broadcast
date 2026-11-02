@@ -12,11 +12,13 @@ export type CleanHint = {
   sessionTime: number | null;
   lap: number | null;
   lapDist: number | null;
-  drivers: { name: string; num: number | null; role: (typeof ROLES)[number] }[];
+  drivers: { name: string; num: string | null; role: (typeof ROLES)[number] }[];
   details: Record<string, unknown>;
 };
 
 const num = (v: unknown): number | null => (typeof v === "number" && isFinite(v) ? v : null);
+/** Startnummer als Text (007, 07, 7 sind verschieden). Alte Reader schicken Zahlen. */
+const carNo = (v: unknown): string | null => { const t = typeof v === "number" && Number.isInteger(v) ? String(v) : typeof v === "string" ? v.trim() : ""; return /^\d{1,3}$/.test(t) ? t : null; };
 const str = (v: unknown, max: number): string => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
 export function cleanHints(body: unknown): { hints: CleanHint[]; error?: string } {
@@ -36,7 +38,7 @@ export function cleanHints(body: unknown): { hints: CleanHint[]; error?: string 
       .slice(0, 6)
       .map((d: Record<string, unknown>) => ({
         name: str(d?.name, 64),
-        num: num(d?.num),
+        num: carNo(d?.num),
         role: ROLES.find((r) => r === d?.role) ?? "involved",
       }))
       .filter((d) => d.name);

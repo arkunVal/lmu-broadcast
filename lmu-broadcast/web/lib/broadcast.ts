@@ -47,7 +47,11 @@ export function initialName(name: string): string {
   return parts.length > 1 ? `${parts[0][0]}. ${parts[parts.length - 1]}`.toUpperCase() : name.toUpperCase();
 }
 
-export function focusCar(snap: Snapshot, override: number | null): Car | null {
+/** Startnummern vergleichen: erst als Zahl, bei Gleichstand als Text (007, 07 und 7 bleiben verschieden). */
+export const cmpNo = (a: string | null | undefined, b: string | null | undefined) =>
+  a == null || b == null ? (a == null ? 1 : 0) - (b == null ? 1 : 0) : Number(a) - Number(b) || (a < b ? -1 : a > b ? 1 : 0);
+
+export function focusCar(snap: Snapshot, override: string | null): Car | null {
   const cars = snap.cars;
   if (override != null) { const c = cars.find((x) => x.num === override); if (c) return c; }
   const id = snap.session.focusId;
@@ -61,7 +65,7 @@ const classList = (cars: Car[], c: Car) => cars.filter((x) => sameClass(x, c)).s
  * Zwei Autos fuer Head to Head / Onboard Battle: [vorne, hinten].
  * Auto-Wahl: das Fokus-Auto mit dem Nachbarn (Klasse) mit dem kleineren Abstand. vs=Nummer erzwingt den Gegner.
  */
-export function pickPair(cars: Car[], focus: Car, vs: number | null): [Car, Car] | null {
+export function pickPair(cars: Car[], focus: Car, vs: string | null): [Car, Car] | null {
   if (vs != null) {
     const other = cars.find((c) => c.num === vs && c.id !== focus.id);
     if (other) return classPos(other) < classPos(focus) || (other.place < focus.place && !sameClass(other, focus)) ? [other, focus] : [focus, other];

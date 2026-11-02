@@ -31,14 +31,14 @@ export default function Broadcast() {
 
   const views = new Set(liveMode ? liveViews : viewParam.split(",").map((v) => v.trim()));
   const scale = num(params, "scale", 1);
-  const carNo = params?.get("car") ? num(params, "car", 0) : null;
-  const vsNo = params?.get("vs") ? num(params, "vs", 0) : null;
+  const carNo = params?.get("car")?.trim() || null;   // Text: 007, 07 und 7 sind verschiedene Autos
+  const vsNo = params?.get("vs")?.trim() || null;
   const max = num(params, "max", 18);
   const focus = focusCar(snapshot, carNo);
   const pair = focus && (views.has("h2h") || views.has("battle")) ? pickPair(snapshot.cars, focus, vsNo) : null;
   const battle = views.has("h2h") || views.has("battle");
   const mode: "energy" | "battle" | "normal" = views.has("energy") ? "energy" : battle && pair ? "battle" : "normal";
-  const listed = (params?.get("cars") ?? "").split(",").map(Number).filter(Boolean);
+  const listed = (params?.get("cars") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
 
   return (
     <div className="bc" style={{ fontSize: 16 * scale }}>
@@ -75,7 +75,7 @@ function useLapTimers(snap: Snapshot | null, receivedAt: number | null) {
   };
 }
 
-function cardCars(snap: Snapshot, focus: Car, listed: number[]): Car[] {
+function cardCars(snap: Snapshot, focus: Car, listed: string[]): Car[] {
   if (listed.length) return listed.map((n) => snap.cars.find((c) => c.num === n)).filter((c): c is Car => !!c).slice(0, 3);
   const list = [...snap.cars].sort((a, b) => a.place - b.place);
   const i = list.findIndex((c) => c.id === focus.id);

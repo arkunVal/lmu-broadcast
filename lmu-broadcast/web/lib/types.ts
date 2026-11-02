@@ -3,7 +3,7 @@ type Tire = { wheels?: (string | null)[]; front: string; rear: string; compound:
 
 export type Car = {
   id: number;
-  num: number | null;
+  num: string | null;
   driver: string;
   vehicle: string;
   cls: string;
@@ -67,6 +67,7 @@ type Session = {
   airTemp: number;
   cars: number;
   focusId?: number | null;
+  focusSrc?: "game" | "command" | "memory";
 };
 
 export type Snapshot = {

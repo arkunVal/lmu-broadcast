@@ -45,7 +45,7 @@ export default function DriversTab({
     const { error } = await supabase.from("event_drivers").insert({
       event_id: event.id,
       ingame_name: form.ingame_name.trim(),
-      car_number: form.car_number ? Number(form.car_number) : null,
+      car_number: form.car_number || null,
       car_class: form.car_class.trim() || null,
       team: form.team.trim() || null,
     });
@@ -66,7 +66,7 @@ export default function DriversTab({
         return {
           event_id: event.id,
           ingame_name: name,
-          car_number: nr && !isNaN(Number(nr)) ? Number(nr) : null,
+          car_number: nr && /^\d{1,3}$/.test(nr) ? nr : null,
           car_class: cls || null,
           team: team || null,
         };
@@ -114,7 +114,7 @@ export default function DriversTab({
           <form onSubmit={add}>
             <div className="grid2">
               <div><label>In-Game-Name</label><input required value={form.ingame_name} onChange={(e) => setForm({ ...form, ingame_name: e.target.value })} style={{ width: "100%" }} /></div>
-              <div><label>Startnummer</label><input type="number" value={form.car_number} onChange={(e) => setForm({ ...form, car_number: e.target.value })} style={{ width: "100%" }} /></div>
+              <div><label>Startnummer</label><input inputMode="numeric" pattern="[0-9]{1,3}" maxLength={3} value={form.car_number} onChange={(e) => setForm({ ...form, car_number: e.target.value.replace(/\D/g, "").slice(0, 3) })} style={{ width: "100%" }} /></div>
               <div><label>Klasse</label>{(event.classes ?? []).length > 0 ? (
                 <select value={form.car_class} onChange={(e) => setForm({ ...form, car_class: e.target.value })} style={{ width: "100%" }}>
                   <option value="">–</option>

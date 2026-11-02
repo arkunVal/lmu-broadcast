@@ -1,5 +1,6 @@
 "use client";
 
+import { cmpNo } from "@/lib/broadcast";
 import { useEffect, useState } from "react";
 import Roster from "./Roster";
 import CopyButton from "@/components/CopyButton";
@@ -26,7 +27,7 @@ export default function OverviewTab({
   }, [event.track_slug]);
 
   const rows = [...drivers].sort((a, b) =>
-    (a.car_class ?? "~").localeCompare(b.car_class ?? "~") || (a.car_number ?? 9999) - (b.car_number ?? 9999) || a.ingame_name.localeCompare(b.ingame_name));
+    (a.car_class ?? "~").localeCompare(b.car_class ?? "~") || cmpNo(a.car_number, b.car_number) || a.ingame_name.localeCompare(b.ingame_name));
   const registered = drivers.filter((d) => d.profile_id).length;
   const teams = new Set(drivers.map((d) => d.team_id ?? d.team).filter(Boolean)).size;
   const classes = new Set(drivers.map((d) => d.car_class).filter(Boolean)).size;

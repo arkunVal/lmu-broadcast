@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type CommandInput = { kind: "jump" | "focus" | "live" | "next" | "prev" | "transport"; command?: string | null; time?: number | null; car?: number | null; driver?: string | null };
+export type CommandInput = { kind: "jump" | "focus" | "live" | "next" | "prev" | "transport"; command?: string | null; time?: number | null; car?: string | null; driver?: string | null };
 export type CommandResult = { ok: boolean; text: string };
 
 /** Legt einen Befehl fuer den Reader an und wartet bis zu 10 s auf seine Antwort. */

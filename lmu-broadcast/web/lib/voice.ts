@@ -16,7 +16,7 @@
 
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 
-export type PeerMeta = { uid: string; name: string; role: string; team: string | null; cls: string | null; num: number | null };
+export type PeerMeta = { uid: string; name: string; role: string; team: string | null; cls: string | null; num: string | null };
 export type Scope = "all" | "group" | "one";
 type Kind = "hello" | "rc-here" | "bye" | "offer" | "answer" | "ice" | "talk" | "msg" | "dmsg" | "ack" | "alive" | "invite" | "accept" | "decline" | "end";
 export type Who = { k: "all" | "cls" | "team" | "drivers"; label?: string; names?: string[] };
