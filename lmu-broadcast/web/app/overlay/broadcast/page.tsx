@@ -282,11 +282,11 @@ function Transition({ tr }: { tr: { k: "replay" | "live"; id: number } | null })
     if (!tr || tr.id === last.current) return;
     last.current = tr.id;
     setCur(tr);
-    const t = setTimeout(() => setCur(null), 2300);
+    const t = setTimeout(() => setCur(null), 1600);
     return () => clearTimeout(t);
   }, [tr]);
   if (!cur) return null;
-  return <div key={cur.id} className={`bc-tr ${cur.k}`}><div className="bc-tr-word">{cur.k === "live" ? "LIVE" : "REPLAY"}</div><div className="bc-tr-bar" /></div>;
+  return <div key={cur.id} className={`bc-tr ${cur.k}`}><div className="bc-tr-band"><div className="bc-tr-word">{cur.k === "live" ? "LIVE" : "REPLAY"}</div></div></div>;
 }
 
 /** Meldungen der Rennleitung, wie sie auch die Fahrer sehen. */

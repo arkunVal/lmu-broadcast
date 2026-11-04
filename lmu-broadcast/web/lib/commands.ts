@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type CommandInput = { kind: "jump" | "focus" | "live" | "next" | "prev"; time?: number | null; car?: string | null; driver?: string | null };
+export type CommandInput = { kind: "jump" | "focus" | "live" | "next" | "prev"; time?: number | null; camera?: boolean; car?: string | null; driver?: string | null };
 export type CommandResult = { ok: boolean; text: string };
 
 const WAIT_MS = 12_000;
@@ -11,7 +11,7 @@ const WAIT_MS = 12_000;
  */
 export async function sendCommand(supabase: SupabaseClient, eventId: string, c: CommandInput): Promise<CommandResult> {
   const { data, error } = await supabase.from("replay_commands").insert({
-    event_id: eventId, kind: c.kind, target_time: c.time ?? null, car_number: c.car ?? null, driver: c.driver ?? null,
+    event_id: eventId, kind: c.kind, target_time: c.time ?? null, command: c.camera ? "camera" : null, car_number: c.car ?? null, driver: c.driver ?? null,
   }).select("id").single();
   if (error || !data) return { ok: false, text: error?.message ?? "Befehl konnte nicht angelegt werden" };
   const id = (data as { id: string }).id;

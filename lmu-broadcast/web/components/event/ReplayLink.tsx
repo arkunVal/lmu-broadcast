@@ -27,7 +27,7 @@ export default function ReplayLink({ event, sessionTime, small, focus, noCopy }:
     const supabase = getSupabase();
     if (!supabase || t == null) return;
     setState({ kind: "wait" });
-    const r = await sendCommand(supabase, event.id, { kind: "jump", time: t, car: focus?.num ?? null, driver: focus?.name ?? null });
+    const r = await sendCommand(supabase, event.id, { kind: "jump", camera: true, time: t, car: focus?.num ?? null, driver: focus?.name ?? null });
     if (r.ok) setLooked(sessionTime);
     setState(r.ok ? { kind: "idle" } : { kind: "fail", text: r.text });
   }

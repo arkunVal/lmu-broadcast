@@ -61,7 +61,7 @@ export default function HintButtons({ ids, keepId, summary, overtakeOnly, jump, 
     if (!supabase || !jump || t == null) return;
     setBusy(true);
     setError("");
-    const r = await sendCommand(supabase, jump.event.id, { kind: "jump", time: t, car: jump.focus?.num ?? null, driver: jump.focus?.name ?? null });
+    const r = await sendCommand(supabase, jump.event.id, { kind: "jump", camera: true, time: t, car: jump.focus?.num ?? null, driver: jump.focus?.name ?? null });
     if (r.ok) setLooked(jump.sessionTime);
     else setError(r.text);
     setBusy(false);
