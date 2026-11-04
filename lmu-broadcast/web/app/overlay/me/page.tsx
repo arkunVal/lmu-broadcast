@@ -1,6 +1,7 @@
 "use client";
 
 import { callText } from "@/lib/voice";
+import { KIND_EN, penEn } from "@/lib/penText";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getSupabase } from "@/lib/supabase";
@@ -17,25 +18,6 @@ type Feed = {
 };
 
 const SHOW_MS = 20000; // Strafe, "Under review" und "No further action" stehen je 20 s im Bild
-
-const KIND_EN: Record<string, string> = { contact: "Contact", offtrack: "Off track", track_limits: "Track limits", spin: "Spin", impact: "Impact", overtake: "Overtake", other: "Incident" };
-function penEn(kind: string, amount: number | null, afterRace = false): string {
-  const n = amount ?? 0;
-  const t = (() => {
-    switch (kind) {
-      case "warning": return "Warning";
-      case "time": return `${n} second time penalty`;
-      case "drive_through": return "Drive-through penalty";
-      case "stop_go": return `${n} second stop-and-go`;
-      case "grid": return `${n} place grid penalty`;
-      case "dq": return "Disqualification";
-      case "race_ban": return "Race ban";
-      case "quali_ban": return "Qualifying ban";
-      default: return kind;
-    }
-  })();
-  return afterRace ? `${t} (added after the race)` : t;
-}
 
 function Who({ who }: { who: Who[] }) {
   if (who.length === 0) return <div className="oc-who"><b>Race Director</b></div>;

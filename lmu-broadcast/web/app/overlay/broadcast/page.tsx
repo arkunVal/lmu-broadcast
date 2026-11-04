@@ -33,7 +33,7 @@ export default function Broadcast() {
   // Replay: das Spiel meldet es (Reader); sonst gilt der Schalter der Website. Dann alles ausblenden, nur das Banner zeigen.
   const replayOn = views.has("replay") || (snapshot.session.replay != null ? snapshot.session.replay : ctl.replay);
   const scale = num(params, "scale", 1);
-  const carNo = params?.get("car")?.trim() || null;   // Text: 007, 07 und 7 sind verschiedene Autos
+  const carNo = params?.get("car")?.trim() || (liveMode ? ctl.focus : null) || null;   // Text: 007, 07 und 7 sind verschiedene Autos
   const vsNo = params?.get("vs")?.trim() || null;
   const max = num(params, "max", 18);
   const focus = focusCar(snapshot, carNo);
@@ -46,6 +46,8 @@ export default function Broadcast() {
   return (
     <div className="bc" style={{ fontSize: 16 * scale }}>
       <ReplayBanner on={replayOn} />
+      {liveMode && <Transition tr={ctl.tr} />}
+      {liveMode && <Notes notes={ctl.notes} />}
       <Present show={show(views.has("tower"))} anim="left"><Tower snap={snapshot} mode={mode} pair={pair} max={max} /></Present>
       <Present show={show((views.has("telemetry") || views.has("battle")) && !!focus)} anim="drop">{focus && <TelemetryTop car={focus} />}</Present>
       <Present show={show(views.has("driver") && !battle && !views.has("telemetry") && !!focus)} anim="wipe">{focus && <DriverCard car={focus} red={mode === "energy"} />}</Present>
@@ -266,6 +268,38 @@ function SectorCards({ cars, snap, timers }: { cars: Car[]; snap: Snapshot; time
           <div className="bc-card-h"><span><Brand car={c} /> <b className="bc-num">{c.num ?? "–"}</b></span><em>{initialName(c.driver)}</em></div>
           <div className="bc-card-b"><b className="bc-num">{ordinal(classPos(c)).toLowerCase()}</b><span className="bc-num">{c.inPits ? "PIT" : fmtRun(timers(c) ?? 0)}</span></div>
           <Sectors st={sectorStates(c, overall)} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Wischer-Animation beim Wechsel Replay/Live. Das Spiel wird erst geschaltet, wenn sie das Bild verdeckt. */
+function Transition({ tr }: { tr: { k: "replay" | "live"; id: number } | null }) {
+  const [cur, setCur] = useState<typeof tr>(null);
+  const last = useRef(0);
+  useEffect(() => {
+    if (!tr || tr.id === last.current) return;
+    last.current = tr.id;
+    setCur(tr);
+    const t = setTimeout(() => setCur(null), 2300);
+    return () => clearTimeout(t);
+  }, [tr]);
+  if (!cur) return null;
+  return <div key={cur.id} className={`bc-tr ${cur.k}`}><div className="bc-tr-word">{cur.k === "live" ? "LIVE" : "REPLAY"}</div><div className="bc-tr-bar" /></div>;
+}
+
+/** Meldungen der Rennleitung, wie sie auch die Fahrer sehen. */
+function Notes({ notes }: { notes: import("@/lib/bcSwitch").BcNote[] }) {
+  if (notes.length === 0) return null;
+  return (
+    <div className="bc-notes" data-testid="bc-notes">
+      {notes.map((n) => (
+        <div key={n.id} className={`bc-note ${n.t}`}>
+          <div className="bc-note-top"><span>{n.tag}</span>{n.lap != null && <span>Lap {n.lap}</span>}</div>
+          {n.who && <div className="bc-note-who">{n.who}</div>}
+          <div className="bc-note-main">{n.main}</div>
+          {n.sub && <div className="bc-note-sub">{n.sub}</div>}
         </div>
       ))}
     </div>

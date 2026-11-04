@@ -16,6 +16,7 @@ import SessionTab from "@/components/event/SessionTab";
 import { useAuth } from "@/lib/auth";
 import { useEventData } from "@/lib/eventData";
 import { groupHints, isHint } from "@/lib/hints";
+import { BcProvider, BcNotices } from "@/lib/bcContext";
 import { LiveProvider } from "@/lib/liveContext";
 import { VoiceProvider, useVoice } from "@/lib/voiceContext";
 
@@ -57,7 +58,9 @@ function EventView() {
 
   return (
     <LiveProvider room={isTeam ? event.room : ""}>
+      <BcProvider room={isTeam ? event.room : ""}>
       <VoiceProvider event={event} drivers={drivers}>
+        <BcNotices ready={loaded} drivers={drivers} incidents={incidents} penalties={penalties} />
         <EventBar event={event} showLive={isTeam} />
         {error && <div className="err">{error}</div>}
         {slot && createPortal(
@@ -95,6 +98,7 @@ function EventView() {
           {current === "account" && <AccountTab />}
         </div>
       </VoiceProvider>
+      </BcProvider>
     </LiveProvider>
   );
 }

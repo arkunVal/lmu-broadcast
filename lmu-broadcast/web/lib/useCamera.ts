@@ -6,7 +6,7 @@ import { useLive } from "./liveContext";
 import { getSupabase } from "./supabase";
 import type { Car } from "./types";
 
-/** Kamera im Spiel steuern (über den Reader am Rennrechner). */
+/** Kamera im Spiel steuern (ueber den Reader am Rennrechner, nur lokale Spiel-Schnittstelle). */
 export function useCamera(eventId: string) {
   const { setWatching } = useLive();
   const [picked, setPicked] = useState<number | null>(null);
@@ -24,5 +24,10 @@ export function useCamera(eventId: string) {
     setMsg(r);
     setBusy(false);
   }
-  return { picked, msg, busy, control };
+  /** Nur Auswahl auf der Website (z. B. fuer die Tabelle), ohne das Spiel anzufassen. */
+  function pick(car: Car | null) {
+    setPicked(car ? car.id : null);
+    setWatching(car ? { num: car.num, name: car.driver } : null);
+  }
+  return { picked, msg, busy, control, pick };
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BC_VIEWS as VIEWS, useBcController } from "@/lib/bcSwitch";
+import { BC_VIEWS as VIEWS } from "@/lib/bcSwitch";
+import { useBc } from "@/lib/bcContext";
 import CopyButton from "@/components/CopyButton";
 import type { EventRow } from "@/lib/labels";
 
@@ -17,7 +18,7 @@ function BroadcastCard({ origin, room }: { origin: string; room: string }) {
   const [car, setCar] = useState("");
   const [vs, setVs] = useState("");
   const [fixed, setFixed] = useState(false);
-  const { on, toggle } = useBcController(room);
+  const { on, toggle } = useBc();
   const extra = `${car ? `&car=${car}` : ""}${vs ? `&vs=${vs}` : ""}`;
   const base = `${origin}/overlay/broadcast?room=${encodeURIComponent(room)}`;
   const url = fixed ? `${base}&view=${on.join(",")}${extra}` : `${base}&view=live${extra}`;

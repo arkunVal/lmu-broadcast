@@ -109,7 +109,7 @@
 .bc-card .bc-sec { padding: 0 .8em; }
 
 /* ---------- Ein-/Ausblenden (Presence) ---------- */
-.bc-pres { position: absolute; inset: 0; pointer-events: none; will-change: transform, opacity, clip-path; }
+.bc-pres { position: absolute; inset: 0; pointer-events: none; }
 .bc-a-left.in   { animation: bcLeftIn .75s cubic-bezier(.16,.9,.24,1) both; }
 .bc-a-left.out  { animation: bcLeftOut .5s cubic-bezier(.5,0,.9,.4) both; }
 .bc-a-drop.in   { animation: bcDropIn .7s cubic-bezier(.16,.9,.24,1) both; }
@@ -120,12 +120,12 @@
 .bc-a-wipe.out  { animation: bcWipeOut .5s cubic-bezier(.65,0,.35,1) both; }
 .bc-a-fade.in   { animation: bcFadeIn .3s ease-out both; }
 .bc-a-fade.out  { animation: bcFadeOut .45s ease-in both; }
-@keyframes bcLeftIn   { from { transform: translateX(-26em); opacity: 0; filter: blur(8px); } 60% { opacity: 1; filter: blur(0); } to { transform: none; opacity: 1; } }
-@keyframes bcLeftOut  { to { transform: translateX(-26em); opacity: 0; filter: blur(6px); } }
-@keyframes bcDropIn   { from { transform: translateY(-5em) scale(.96); opacity: 0; filter: blur(6px); } to { transform: none; opacity: 1; filter: blur(0); } }
-@keyframes bcDropOut  { to { transform: translateY(-4em) scale(.97); opacity: 0; filter: blur(5px); } }
-@keyframes bcRiseIn   { from { transform: translateY(5em) scale(.95); opacity: 0; filter: blur(6px); } to { transform: none; opacity: 1; filter: blur(0); } }
-@keyframes bcRiseOut  { to { transform: translateY(4em) scale(.96); opacity: 0; filter: blur(5px); } }
+@keyframes bcLeftIn   { from { transform: translateX(-26em); opacity: 0; } 60% { opacity: 1; } to { transform: none; opacity: 1; } }
+@keyframes bcLeftOut  { to { transform: translateX(-26em); opacity: 0; } }
+@keyframes bcDropIn   { from { transform: translateY(-5em) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes bcDropOut  { to { transform: translateY(-4em) scale(.97); opacity: 0; } }
+@keyframes bcRiseIn   { from { transform: translateY(5em) scale(.95); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes bcRiseOut  { to { transform: translateY(4em) scale(.96); opacity: 0; } }
 @keyframes bcWipeIn   { from { clip-path: inset(0 100% 0 0); opacity: .2; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
 @keyframes bcWipeOut  { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(0 0 0 100%); opacity: 0; } }
 @keyframes bcFadeIn   { from { opacity: 0; } to { opacity: 1; } }
@@ -144,9 +144,30 @@
 .bc-rp.intro .bc-rp-word { animation: bcSlam .6s cubic-bezier(.2,1.4,.3,1) both; }
 .bc-rp.intro .bc-rp-line { animation: bcLine .8s .1s cubic-bezier(.16,.9,.24,1) both; }
 .bc-rp.intro .bc-rp-sub { animation: bcFadeIn .5s .5s both; }
-@keyframes bcSlam { from { transform: scale(2.2); opacity: 0; filter: blur(14px); } to { transform: none; opacity: 1; filter: blur(0); } }
+@keyframes bcSlam { from { transform: scale(2.2); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes bcLine { from { width: 0; opacity: 0; } to { width: 26em; opacity: 1; } }
 /* danach: grosses Banner blendet aus, kleine Marke oben links ein */
 .bc-rp-badge { position: absolute; left: 2em; top: 1.6em; padding: .4em 1.4em; font-size: 1.5em; font-weight: 900; letter-spacing: .16em; font-style: italic; background: linear-gradient(100deg, rgba(228,18,43,.96), rgba(150,8,28,.96)); border-left: 4px solid #fff; box-shadow: 0 6px 20px rgba(0,0,0,.5); opacity: 0; transform: translateX(-1.5em); transition: opacity .5s .2s, transform .6s .2s cubic-bezier(.16,.9,.24,1); }
 .bc-rp.badge .bc-rp-badge { opacity: 1; transform: none; }
 .bc-rp.badge .bc-rp-word, .bc-rp.badge .bc-rp-line, .bc-rp.badge .bc-rp-sub { opacity: 0; transform: scale(.9); transition: opacity .45s, transform .45s; }
+
+/* ---------- Uebergang Replay/Live (Wischer ueber das ganze Bild) ---------- */
+.bc-tr { z-index: 50; position: absolute; inset: 0; pointer-events: none; display: grid; place-items: center; background: linear-gradient(100deg, #0a1030 0%, #14204f 60%, #0a1030 100%); animation: bcTrWipe 2.2s cubic-bezier(.65,0,.35,1) both; overflow: hidden; }
+.bc-tr::before { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(228,18,43,.35) 50%, transparent 70%); animation: bcTrShine 2.2s ease-in-out both; }
+.bc-tr-word { position: relative; font-size: 8em; font-weight: 900; font-style: italic; letter-spacing: .2em; padding-left: .2em; color: #fff; animation: bcTrWord 2.2s ease both; text-shadow: 0 0 .4em rgba(228,18,43,.7); }
+.bc-tr.live .bc-tr-word { text-shadow: 0 0 .4em rgba(60,220,120,.7); }
+.bc-tr-bar { position: absolute; left: 0; right: 0; height: 4px; background: #e4122b; box-shadow: 0 0 1em #e4122b; top: calc(50% + 5.2em); animation: bcFadeIn .3s .5s both; }
+.bc-tr.live .bc-tr-bar { background: #34d77a; box-shadow: 0 0 1em #34d77a; }
+@keyframes bcTrWipe { 0% { clip-path: inset(0 100% 0 0); } 30% { clip-path: inset(0 0 0 0); } 72% { clip-path: inset(0 0 0 0); } 100% { clip-path: inset(0 0 0 100%); } }
+@keyframes bcTrShine { from { transform: translateX(-60%); } to { transform: translateX(60%); } }
+@keyframes bcTrWord { 0%, 22% { opacity: 0; transform: scale(1.5); } 40% { opacity: 1; transform: none; } 66% { opacity: 1; } 78%, 100% { opacity: 0; } }
+
+/* ---------- Meldungen der Rennleitung (rechts) ---------- */
+.bc-notes { z-index: 40; position: absolute; right: 2.2em; top: 6.5em; width: 27em; display: flex; flex-direction: column; gap: .6em; pointer-events: none; }
+.bc-note { background: var(--navy); border-left: 5px solid #5b8cff; padding: .55em .9em .65em; box-shadow: 0 8px 22px rgba(0,0,0,.5); animation: bcNoteIn .55s cubic-bezier(.16,.9,.24,1) both; }
+.bc-note.pen { border-color: #e4122b; } .bc-note.rev { border-color: #ffb020; } .bc-note.ok { border-color: #34d77a; } .bc-note.iv { border-color: #b07bff; }
+.bc-note-top { display: flex; justify-content: space-between; font-size: .7em; letter-spacing: .14em; text-transform: uppercase; opacity: .8; font-weight: 800; }
+.bc-note-who { font-size: .85em; font-weight: 700; margin-top: .25em; opacity: .95; }
+.bc-note-main { font-size: 1.35em; font-weight: 900; font-style: italic; margin-top: .1em; }
+.bc-note-sub { font-size: .85em; opacity: .85; margin-top: .15em; }
+@keyframes bcNoteIn { from { transform: translateX(8em); opacity: 0; } to { transform: none; opacity: 1; } }

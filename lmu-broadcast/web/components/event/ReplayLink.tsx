@@ -11,17 +11,14 @@ import { sendCommand } from "@/lib/commands";
 import { getSupabase } from "@/lib/supabase";
 import { setLooked } from "@/lib/looked";
 
-type State = { kind: "idle" } | { kind: "wait" } | { kind: "ok"; text: string } | { kind: "fail"; text: string };
-
 /**
- * Zeitstempel fuers LMU-Replay (vom Reader aus dem Spiel gelesen) plus Knopf, der den Reader am Rennrechner
- * anweist, im Spiel-Replay an diese Stelle zu springen. Den Knopf sehen Admins und Rennleitung.
+ * Zeitstempel fuers LMU-Replay (vom Reader aus dem Shared Memory gelesen) plus Knopf, der den Reader am Rennrechner
+ * anweist, im Spiel-Replay an diese Stelle zu springen (lokale Schnittstelle). Den Knopf sehen Admins, Rennleitung und Kommentator.
  */
 export default function ReplayLink({ event, sessionTime, small, focus, noCopy }: { event: EventRow; sessionTime: number | null; small?: boolean; focus?: Focus | null; noCopy?: boolean }) {
   const { profile } = useAuth();
   const canJump = profile?.role === "admin" || profile?.role === "steward" || profile?.role === "broadcaster";
-  const [state, setState] = useState<State>({ kind: "idle" });
-
+  const [state, setState] = useState<{ kind: "idle" | "wait" | "fail"; text?: string }>({ kind: "idle" });
   const t = replayStamp(event, sessionTime);
   if (t == null) return null;
   const text = fmtClock(t);

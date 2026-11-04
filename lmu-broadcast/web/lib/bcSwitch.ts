@@ -10,7 +10,10 @@ export const BC_VIEWS: [string, string][] = [
   ["telemetry", "Onboard Telemetry"], ["energy", "Virtual Energy"],
 ];
 const ev = "views";
-type Msg = { views?: string[]; replay?: boolean; hello?: boolean };
+type Msg = { views?: string[]; replay?: boolean; focus?: string | null; hello?: boolean };
+/** Meldung fuer das Broadcast-Overlay (Strafen, Pruefungen, Entscheidungen, Funk, Anhoerung). Texte sind schon englisch fertig. */
+export type BcNote = { id: string; t: "pen" | "rev" | "ok" | "msg" | "iv" | "talk"; tag: string; main: string; sub?: string; who?: string; lap?: number | null; ms?: number; off?: boolean };
+export type BcTr = { k: "replay" | "live"; id: number };
 const chan = (room: string) => `bcv-${room}`;
 const REPLAY_MS = 60000;   // Sicherheitsnetz: Replay-Blende endet nach 60 s, falls "Live" nie gedrueckt wird
 
@@ -18,10 +21,11 @@ const REPLAY_MS = 60000;   // Sicherheitsnetz: Replay-Blende endet nach 60 s, fa
 export function useBcController(room: string) {
   const [on, setOn] = useState<string[]>(["tower", "driver"]);
   const [replay, setReplayState] = useState(false);
-  const st = useRef({ on, until: 0 });
+  const [focus, setFocusState] = useState<string | null>(null);
+  const st = useRef<{ on: string[]; until: number; focus: string | null }>({ on, until: 0, focus: null });
   const ch = useRef<RealtimeChannel | null>(null);
   const push = useCallback(() => {
-    void ch.current?.send({ type: "broadcast", event: ev, payload: { views: st.current.on, replay: Date.now() < st.current.until } satisfies Msg });
+    void ch.current?.send({ type: "broadcast", event: ev, payload: { views: st.current.on, replay: Date.now() < st.current.until, focus: st.current.focus } satisfies Msg });
   }, []);
 
   useEffect(() => {
@@ -53,14 +57,24 @@ export function useBcController(room: string) {
     push();
   }, [room, push]);
 
-  return { on, toggle, replay, setReplay };
+  /** Auto im Overlay (Fahrerkarte usw.) festlegen; null = Auto aus den Spieldaten. */
+  const setFocus = useCallback((num: string | null) => { st.current.focus = num; setFocusState(num); push(); }, [push]);
+
+  /** Einmalige Ereignisse (nicht wiederholt): Uebergangs-Animation und Meldungen. */
+  const transition = useCallback((k: BcTr["k"]) => { void ch.current?.send({ type: "broadcast", event: "tr", payload: { k, id: Date.now() } satisfies BcTr }); }, []);
+  const notify = useCallback((n: BcNote) => { void ch.current?.send({ type: "broadcast", event: "note", payload: n }); }, []);
+
+  return { on, toggle, replay, setReplay, focus, setFocus, transition, notify };
 }
 
 /** Empfaenger (Overlay): beim Link mit view=live. Letzter Stand bleibt im OBS-Browser gespeichert. */
-export function useLiveViews(room: string, enabled: boolean, fallback: string[]): { views: string[]; replay: boolean } {
+export function useLiveViews(room: string, enabled: boolean, fallback: string[]): { views: string[]; replay: boolean; focus: string | null; tr: BcTr | null; notes: BcNote[] } {
   const key = `bcv-${room}`;
   const [views, setViews] = useState<string[]>(fallback);
   const [replay, setReplay] = useState(false);
+  const [focus, setFocus] = useState<string | null>(null);
+  const [tr, setTr] = useState<BcTr | null>(null);
+  const [notes, setNotes] = useState<BcNote[]>([]);
   useEffect(() => {
     if (!enabled || !room) return;
     try { const s = localStorage.getItem(key); if (s) setViews(JSON.parse(s)); } catch {}
@@ -72,9 +86,21 @@ export function useLiveViews(room: string, enabled: boolean, fallback: string[])
         const p = m.payload as Msg;
         if (Array.isArray(p.views)) { const clean = p.views.filter((x) => typeof x === "string").slice(0, 12); setViews(clean); try { localStorage.setItem(key, JSON.stringify(clean)); } catch {} }
         if (typeof p.replay === "boolean") setReplay(p.replay);
+        if ("focus" in p) setFocus(typeof p.focus === "string" ? p.focus.slice(0, 8) : null);
+      })
+      .on("broadcast", { event: "tr" }, (m) => { const p = m.payload as BcTr; if (p && (p.k === "replay" || p.k === "live") && Math.abs(Date.now() - p.id) < 8000) setTr(p); })
+      .on("broadcast", { event: "note" }, (m) => {
+        const n = m.payload as BcNote;
+        if (!n || typeof n.id !== "string" || typeof n.main !== "string") return;
+        setNotes((cur) => {
+          if (n.off) return cur.filter((x) => x.id !== n.id);
+          const clean: BcNote = { id: n.id.slice(0, 60), t: n.t, tag: String(n.tag ?? "").slice(0, 60), main: n.main.slice(0, 160), sub: n.sub?.slice(0, 200), who: n.who?.slice(0, 160), lap: n.lap ?? null, ms: Math.min(Number(n.ms) || 20000, 40000) };
+          return [...cur.filter((x) => x.id !== clean.id), clean].slice(-4);
+        });
+        if (!n.off) { const ms = Math.min(Number(n.ms) || 20000, 40000); setTimeout(() => setNotes((cur) => cur.filter((x) => x.id !== n.id)), ms); }
       })
       .subscribe((s) => { if (s === "SUBSCRIBED") void c.send({ type: "broadcast", event: ev, payload: { hello: true } satisfies Msg }); });
     return () => { void supabase.removeChannel(c); };
   }, [enabled, room, key]);
-  return { views, replay };
+  return { views, replay, focus, tr, notes };
 }

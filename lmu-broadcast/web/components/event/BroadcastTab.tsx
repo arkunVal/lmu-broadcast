@@ -5,20 +5,23 @@ import CarNo from "@/components/CarNo";
 import Tires from "@/components/Tires";
 import TrackMap from "@/components/TrackMap";
 import { useAuth } from "@/lib/auth";
-import { BC_VIEWS, useBcController } from "@/lib/bcSwitch";
+import { BC_VIEWS } from "@/lib/bcSwitch";
+import { useBc } from "@/lib/bcContext";
+import { sendCommand } from "@/lib/commands";
+import { getSupabase } from "@/lib/supabase";
 import { focusCar } from "@/lib/broadcast";
 import { classColor, classLabel } from "@/lib/classes";
-import { sendCommand } from "@/lib/commands";
 import { FEED_KINDS, useEventFeed, type FeedItem, type FeedKind } from "@/lib/eventFeed";
 import { fmtClock, fmtGap, fmtTime } from "@/lib/format";
 import type { EventDriver, EventRow, Incident } from "@/lib/labels";
 import { flagInfo, useLive } from "@/lib/liveContext";
 import { replayStamp } from "@/lib/replay";
 import { buildGroups, sessionKind, sessionLabel } from "@/lib/standings";
-import { getSupabase } from "@/lib/supabase";
 import type { Car } from "@/lib/types";
 import { useCamera } from "@/lib/useCamera";
 
+const TR_COVER = 650, TR_HOLD = 900;   // ms: bis die Animation das Bild verdeckt / Spiel-Wechsel abwarten
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const IR = [{ s: 7, label: "Instant Replay" }, { s: 15, label: "−15 s" }, { s: 30, label: "−30 s" }, { s: 60, label: "−60 s" }];
 
 /** Broadcast: Rangliste, Event-Feed mit Replay, Instant Replay, Overlay-Schalter, Karte, Driver Focus, Cars Around. */
@@ -27,7 +30,7 @@ export default function BroadcastTab({ event, drivers, incidents }: { event: Eve
   const canControl = profile?.role === "admin" || profile?.role === "steward" || profile?.role === "broadcaster";
   const { snapshot, live, connection } = useLive();
   const { picked, control } = useCamera(event.id);
-  const bc = useBcController(canControl ? event.room : "");
+  const bc = useBc();
   const feed = useEventFeed(snapshot, live, incidents);
   const [cls, setCls] = useState<string>("all");
   const [kinds, setKinds] = useState<FeedKind[]>(FEED_KINDS);
@@ -49,20 +52,26 @@ export default function BroadcastTab({ event, drivers, incidents }: { event: Eve
     setMsg(await fn());
     setBusy(false);
   }
-  const db = () => getSupabase();
+  // Erst laeuft die Animation, dann (wenn sie das Bild verdeckt) bekommt das Spiel den Befehl: so gibt es keinen Versatz.
   const goReplay = (t: number, c: { num: string | null; name: string } | null) => run(async () => {
-    const supabase = db();
+    const supabase = getSupabase();
     if (!supabase) return { ok: false, text: "Keine Verbindung" };
+    bc.transition("replay");
+    await sleep(TR_COVER);
+    bc.setReplay(true);
     const r = await sendCommand(supabase, event.id, { kind: "jump", time: t, car: c?.num ?? null, driver: c?.name ?? null });
-    if (r.ok) bc.setReplay(true);
+    if (!r.ok) bc.setReplay(false);
     return r;
   });
   const goLive = (c?: { num: string | null; name: string } | null) => run(async () => {
-    const supabase = db();
+    const supabase = getSupabase();
     if (!supabase) return { ok: false, text: "Keine Verbindung" };
-    bc.setReplay(false);
+    bc.transition("live");
+    await sleep(TR_COVER);
     const r = await sendCommand(supabase, event.id, { kind: "live" });
-    if (r.ok && c) return sendCommand(supabase, event.id, { kind: "focus", car: c.num, driver: c.name });
+    if (r.ok && c) { const f = await sendCommand(supabase, event.id, { kind: "focus", car: c.num, driver: c.name }); await sleep(TR_HOLD); bc.setReplay(false); return f; }
+    await sleep(TR_HOLD);
+    bc.setReplay(false);
     return r;
   });
   const instant = (sec: number) => {
@@ -71,6 +80,7 @@ export default function BroadcastTab({ event, drivers, incidents }: { event: Eve
   };
   const openFeed = (f: FeedItem) => {
     if (!canControl) return;
+    if (f.num != null) bc.setFocus(f.num);
     if (f.kind === "PIT" || f.t == null) { void goLive({ num: f.num, name: f.name }); return; }   // Boxen: Live-Bild, keine Wiederholung
     const t = replayStamp(event, f.t);
     if (t != null) void goReplay(t, { num: f.num, name: f.name });
@@ -104,6 +114,7 @@ export default function BroadcastTab({ event, drivers, incidents }: { event: Eve
           <div className="bcv-cam" role="group" aria-label="Kamera">
             <button type="button" onClick={() => void control("prev")} title="Vorheriges Auto">◀</button>
             <button type="button" onClick={() => void control("next")} title="Nächstes Auto">▶</button>
+            <button type="button" disabled={bc.focus == null} onClick={() => bc.setFocus(null)} title="Overlay folgt wieder dem Auto aus dem Spiel">Auto: Spiel</button>
           </div>
         )}
         {msg && <span className={msg.ok ? "okmsg" : "err"} style={{ margin: 0 }}>{msg.ok ? "✓ " : ""}{msg.text}</span>}
@@ -144,7 +155,7 @@ export default function BroadcastTab({ event, drivers, incidents }: { event: Eve
                   </tr></thead>
                   <tbody>
                     {g.rows.map((r) => (
-                      <tr key={r.car.id} className={`${r.car.yellowCause ? "yellow" : ""}${canControl ? " pick" : ""}${sel?.id === r.car.id ? " picked" : ""}`} onClick={canControl ? () => void control("focus", r.car) : undefined} title={canControl ? "Kamera im Spiel auf dieses Auto stellen" : undefined}>
+                      <tr key={r.car.id} className={`${r.car.yellowCause ? "yellow" : ""}${canControl ? " pick" : ""}${sel?.id === r.car.id ? " picked" : ""}`} onClick={canControl ? () => { bc.setFocus(r.car.num); void control("focus", r.car); } : undefined} title={canControl ? "Kamera im Spiel auf dieses Auto stellen" : undefined}>
                         <td className="num">{r.classPos}</td>
                         <td className="ctr"><CarNo num={r.car.num} cls={r.car.cls} /></td>
                         <td>{r.car.driver}</td>

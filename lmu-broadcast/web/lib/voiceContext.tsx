@@ -1,5 +1,6 @@
 "use client";
 
+import { useBc } from "./bcContext";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "./auth";
 import type { EventDriver, EventRow } from "./labels";
@@ -42,10 +43,18 @@ const none: Ctx = {
 const VoiceCtx = createContext<Ctx>(none);
 export const useVoice = () => useContext(VoiceCtx);
 
+function callEn(w: Who): string {
+  if (w.k === "all") return "All drivers are called to a hearing";
+  if (w.k === "team") return `Team ${w.label ?? ""} is called to a hearing`;
+  if (w.k === "cls") return `Class ${w.label ?? ""} is called to a hearing`;
+  return `${(w.names ?? []).join(", ")} ${(w.names ?? []).length === 1 ? "is" : "are"} called to a hearing`;
+}
+
 /** Hält die Sprechfunk-Verbindung, solange man im Event ist (auch beim Wechsel der Tabs). */
 export function VoiceProvider({ event, drivers, children }: { event: EventRow; drivers: EventDriver[]; children: React.ReactNode }) {
   const { profile } = useAuth();
   const staff = profile?.role === "admin" || profile?.role === "steward";
+  const bc = useBc();
   const mode: Ctx["mode"] = staff || profile?.role === "broadcaster" ? "host" : profile?.role === "driver" ? "listener" : null;
   const host = useRef<VoiceHost | null>(null);
   const lis = useRef<VoiceListener | null>(null);
@@ -138,15 +147,15 @@ export function VoiceProvider({ event, drivers, children }: { event: EventRow; d
     peers: host.current?.list() ?? [],
     micOn: host.current?.micOn ?? false,
     talking: host.current?.isTalking ?? false,
-    talk: (m, sc) => host.current?.talk(m, sc) ?? 0,
-    message: (t, m) => host.current?.message(t, m) ?? 0,
+    talk: (m, sc) => { const n = host.current?.talk(m, sc) ?? 0; if (staff) bc.notify(m ? { id: "talk", t: "talk", tag: "Race Control · Radio", main: "Speaking", ms: 40000 } : { id: "talk", t: "talk", tag: "", main: "-", off: true }); return n; },
+    message: (t, m) => { const n = host.current?.message(t, m) ?? 0; if (staff && t.trim()) bc.notify({ id: `m:${Date.now()}`, t: "msg", tag: "Race Control · Message", main: t.trim(), ms: 15000 }); return n; },
     listener,
     setVolume: (v) => { setVol(v); lis.current?.setVolume(v); },
     volume, chime, beep, staff, myName: me?.name ?? "",
     inbox: host.current?.inbox ?? [],
     dismissInbox: (id) => host.current?.dismiss(id),
-    invite: (m, t, w) => host.current?.invite(m, t, w) ?? 0,
-    endInterview: () => host.current?.endInterview(),
+    invite: (m, t, w) => { const n = host.current?.invite(m, t, w) ?? 0; if (staff) bc.notify({ id: "iv", t: "iv", tag: "Race Control · Hearing", main: callEn(w), sub: t, ms: 40000 }); return n; },
+    endInterview: () => { host.current?.endInterview(); if (staff) bc.notify({ id: "iv", t: "iv", tag: "", main: "-", off: true }); },
     interview: host.current?.interview ?? null,
     sendToRC: (t) => lis.current?.sendToRC(t) ?? null,
     acceptInvite: async () => { try { await lis.current?.acceptInvite(); } catch (e) { setError(e instanceof Error && e.name === "NotAllowedError" ? "Mikrofon wurde nicht erlaubt." : "Mikrofon nicht verfügbar."); lis.current?.declineInvite(); } },

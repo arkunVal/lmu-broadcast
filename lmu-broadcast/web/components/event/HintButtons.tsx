@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { sendCommand } from "@/lib/commands";
+import { replayStamp } from "@/lib/replay";
 import type { Focus } from "@/lib/focus";
 import type { EventRow } from "@/lib/labels";
-import { replayStamp } from "@/lib/replay";
 import { setLooked } from "@/lib/looked";
 import { getSupabase } from "@/lib/supabase";
 
