@@ -21,11 +21,10 @@ from pathlib import Path
 
 from auto_track import AutoTrack
 from broadcast import BroadcastData
-from replay_control import ReplayControl, dump_commands, dump_endpoints, probe_commands
 from demo import demo_hint, demo_payload
 from hint_sender import HintSender
+from game_rest import FocusTracker, GameControl, dump_endpoints
 from hints import HintDetector
-from focus import FocusTracker
 from payload import build_payload
 from pylmu.lmu_data import LMUConstants, LMUObjectOut
 from reader_key import decode_key
@@ -158,9 +157,7 @@ def parse_args():
     p.add_argument("--room", help="Raumcode (ueberschreibt config.json)")
     p.add_argument("--rate", type=float, help="Sendungen pro Sekunde (ueberschreibt config.json)")
     p.add_argument("--record-track", action="store_true", help="Streckenverlauf fuer die Streckenkarte aufnehmen (eine Runde fahren)")
-    p.add_argument("--replay-commands", action="store_true", help="Zeigt die Replay-Befehle (Play, Pause ...) aus dem Schema des Spiels")
-    p.add_argument("--replay-probe", action="store_true", help="Replay-Befehle (Play, Pause ...) im Spiel durchprobieren und Antworten zeigen")
-    p.add_argument("--replay-endpoints", action="store_true", help="alle Replay-Endpunkte des Spiels anzeigen (fuer den Replay-Sprung-Knopf)")
+    p.add_argument("--game-endpoints", action="store_true", help="Replay-/Kamera-Endpunkte der lokalen Spiel-Schnittstelle anzeigen")
     p.add_argument("--hints-debug", action="store_true", help="Vorfall-Hinweise samt Rohwerten in der Konsole zeigen")
     p.add_argument("--demo-hints", action="store_true", help="im Demo-Modus gelegentlich einen Fake-Hinweis erzeugen")
     p.add_argument("--from-file", help="(Entwickler) Speicherabzug aus Datei lesen")
@@ -169,11 +166,7 @@ def parse_args():
 
 def main() -> int:
     args = parse_args()
-    if args.replay_commands:
-        return dump_commands()
-    if args.replay_probe:
-        return probe_commands()
-    if args.replay_endpoints:
+    if args.game_endpoints:
         return dump_endpoints()
     if args.record_track:
         return record_track(args)
@@ -235,11 +228,12 @@ def main() -> int:
     if site_url and ingest_token and not args.dry_run and not args.demo and not args.from_file:
         auto_track = AutoTrack(site_url, ingest_token)
 
-    # Replay-Sprung-Knopf der Website (nur mit echtem Spiel)
-    replay = None
-    if site_url and ingest_token and not args.dry_run and not args.demo and not args.from_file:
-        replay = ReplayControl(site_url, ingest_token, cfg.get("replay_jump"), focus_override=cfg.get("replay_focus"), transport=cfg.get("replay_transport"))
-        replay.start()
+    # Spiel-Befehle der Website (Replay-Sprung, Kamera, Auto waehlen): nur die lokale Spiel-Schnittstelle 127.0.0.1.
+    # Aus mit "game_rest": false in config.json.
+    game = None
+    if cfg.get("game_rest", True) and site_url and ingest_token and not args.dry_run and not args.demo and not args.from_file:
+        game = GameControl(site_url, ingest_token, jump=cfg.get("replay_jump"), camera=cfg.get("replay_camera"), camera_name=cfg.get("replay_camera_name", "Swingarm"))
+        game.start()
 
     interval = 1.0 / read_hz
     send_interval = 1.0 / send_hz
@@ -258,10 +252,10 @@ def main() -> int:
     payload = None
     bdata = BroadcastData()
     focus = None
-    if replay is not None:
+    if game is not None:
         focus = FocusTracker()
         focus.start()
-        replay.on_focus = focus.note_command
+        game.on_focus = focus.note_command
 
     try:
         while True:
@@ -275,8 +269,8 @@ def main() -> int:
                     payload = bdata.update(build_payload(data), now)
                     if focus is not None:
                         focus.apply(payload)
-                if replay is not None:
-                    replay.set_cars(payload["cars"])
+                if game is not None:
+                    game.set_cars(payload["cars"])
 
 
             # Vorfall-Hinweise: bei jedem Lese-Takt
