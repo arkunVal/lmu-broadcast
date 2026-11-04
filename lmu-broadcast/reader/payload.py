@@ -26,6 +26,7 @@ _SECTOR_MAP = {1: 1, 2: 2, 0: 3}
 # Heuristik fuer "loest Gelb aus": lokale Gelbe Flagge aktiv, Auto auf der Strecke
 # (nicht in der Box) und praktisch stehend.
 YELLOW_CAUSE_SPEED_KMH = 30.0
+RACE_SESSION_MIN = 10   # rF2/LMU: 0-3 Training, 4-8 Quali, 9 Warmup, 10-13 Rennen
 GAME_PHASE_GREEN = 5
 
 
@@ -118,6 +119,20 @@ def build_payload(data, now_ms: int | None = None) -> dict:
     sector_flags = [int(f) for f in info.mSectorFlag]
     phase = int(info.mGamePhase)
     local_yellow = any(sector_flags)
+    # Training/Quali: Das Spiel meldet dort oft Gelb, obwohl nur Autos in der Box stehen. Echtes Gelb braucht ein
+    # stehendes Auto auf der Strecke. Im Rennen bleibt die Meldung des Spiels unveraendert.
+    if local_yellow and int(info.mSession) < RACE_SESSION_MIN and phase == GAME_PHASE_GREEN:
+        stopped = False
+        for i in range(count):
+            v = data.scoring.vehScoringInfo[i]
+            vel = v.mLocalVel
+            slow = math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z) * 3.6 < YELLOW_CAUSE_SPEED_KMH
+            if slow and not bool(v.mInPits) and not bool(v.mInGarageStall) and int(v.mFinishStatus) == 0:
+                stopped = True
+                break
+        if not stopped:
+            sector_flags = [0] * len(sector_flags)
+            local_yellow = False
     track_len = float(info.mLapDist)
 
     session = {

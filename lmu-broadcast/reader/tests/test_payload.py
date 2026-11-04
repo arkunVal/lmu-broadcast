@@ -83,6 +83,19 @@ class PayloadTest(unittest.TestCase):
         self.assertTrue(cars[1]["yellowCause"])
         self.assertIsNone(cars[1]["tire"])
 
+    def test_training_yellow_needs_stopped_car_on_track(self):
+        d = make_data()
+        d.scoring.vehScoringInfo[1].mInPits = True          # steht nur in der Box
+        s = build_payload(d, now_ms=1)
+        self.assertEqual(s["session"]["sectorFlags"], [0, 0, 0])
+        self.assertFalse(s["cars"][1]["yellowCause"])
+        d = make_data()                                       # steht auf der Strecke: Gelb bleibt
+        self.assertEqual(build_payload(d, now_ms=1)["session"]["sectorFlags"], [0, 1, 0])
+        d = make_data()
+        d.scoring.vehScoringInfo[1].mInPits = True
+        d.scoring.scoringInfo.mSession = 10                   # Rennen: Meldung des Spiels bleibt
+        self.assertEqual(build_payload(d, now_ms=1)["session"]["sectorFlags"], [0, 1, 0])
+
     def test_idle(self):
         p = build_payload(LMUObjectOut(), now_ms=1)
         self.assertEqual(p["status"], "idle")

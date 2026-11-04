@@ -101,7 +101,7 @@ def guess_camera(spec: dict, want: str) -> dict | None:
         low = o["path"].lower()
         if "camera" not in low or o["method"] == "GET" or any(w in low for w in CAMERA_SKIP):
             continue
-        sc = 2 + (3 if "replay" in low else 0) + (1 if o["params"] or "{" in o["path"] else 0)
+        sc = 2 + (3 if "replay" in low else 0) + (1 if o["params"] or "{" in o["path"] else 0) + (2 if "byname" in low else 0)
         if sc > score:
             par = o["params"][0] if o["params"] else None
             if par:
@@ -111,6 +111,8 @@ def guess_camera(spec: dict, want: str) -> dict | None:
             else:
                 where, name, enum = "none", "", None
             value = next((e for e in (enum or []) if want.lower() in str(e).lower()), None)
+            if value is None and where in ("path", "query") and "name" in name.lower():
+                value = want   # z. B. .../setCameraByName/{cameraName}: der Name geht direkt hinein
             best, score = {"path": o["path"], "method": o["method"], "param": name, "where": where, "value": value, "enum": enum}, sc
     return best
 

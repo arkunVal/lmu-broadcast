@@ -42,6 +42,23 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(g.build_call({"path": "/a", "param": "t", "where": "body"}, 1)[2], {"t": 1})
 
 
+class RealSchemaTests(unittest.TestCase):
+    SPEC = {"paths": {
+        "/rest/liveryeditor/setCamera/{camera}": {"post": {"parameters": [{"name": "camera", "in": "path"}]}},
+        "/rest/replay/CameraController/setCamera": {"post": {}},
+        "/rest/replay/CameraController/setCameraByName/{cameraName}": {"post": {"parameters": [{"name": "cameraName", "in": "path"}]}},
+        "/rest/watch/replaytime/{time}": {"put": {"parameters": [{"name": "time", "in": "path"}]}},
+        "/rest/watch/replayCommand/{command}": {"put": {"parameters": [{"name": "command", "in": "path"}]}},
+    }}
+
+    def test_picks(self):
+        j = g.guess_jump(self.SPEC)
+        self.assertEqual((j["path"], j["where"]), ("/rest/watch/replaytime/{time}", "path"))
+        c = g.guess_camera(self.SPEC, "Swingarm")
+        self.assertEqual(c["value"], "Swingarm")
+        self.assertEqual(g.build_call(c, c["value"])[1], "/rest/replay/CameraController/setCameraByName/Swingarm")
+
+
 class FocusTests(unittest.TestCase):
     def test_parse_focus(self):
         text = json.dumps([{"slotID": 4, "focus": False}, {"slotID": 9, "focus": True}])
