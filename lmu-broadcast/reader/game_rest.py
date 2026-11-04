@@ -346,6 +346,8 @@ class GameControl(threading.Thread):
             if cid is not None:
                 time.sleep(0.4)
                 self.focus_car(cid)
+            if cmd.get("command") != "camera":   # nur bei Hinweisen/Strafen: Kamera bleibt sonst wie sie ist
+                return True, "Gesprungen"
             time.sleep(0.6)   # erst springen, dann die Kamera aendern, sonst greift sie nicht
             cam = self.set_camera()
             if cam:

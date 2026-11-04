@@ -97,7 +97,7 @@ class HandleTests(unittest.TestCase):
 
     def test_jump_order_jump_then_focus_then_camera(self):
         c, f = self.make({("GET", "/rest/replay/isActive"): (200, "false")})
-        ok, msg = c.handle({"kind": "jump", "target_time": 100.0, "car_number": "7"})
+        ok, msg = c.handle({"kind": "jump", "target_time": 100.0, "car_number": "7", "command": "camera"})
         self.assertTrue(ok, msg)
         paths = [p for _, p in f.calls]
         i_jump = next(i for i, p in enumerate(paths) if p.startswith("/rest/replay/seek"))
@@ -107,6 +107,14 @@ class HandleTests(unittest.TestCase):
         self.assertLess(i_focus, i_cam)
         self.assertIn(("PUT", "/rest/replay/camera?name=Swingarm"), f.calls)
         self.assertIn(("POST", "/rest/replay/toggleactive"), f.calls)
+
+    def test_camera_only_when_asked(self):
+        c, f = self.make({("GET", "/rest/replay/isActive"): (200, "true")})
+        self.assertTrue(c.handle({"kind": "jump", "target_time": 5.0, "car_number": "7"})[0])
+        self.assertFalse(any("CameraController" in p or "/rest/replay/camera" in p for _, p in f.calls))
+        c, f = self.make({("GET", "/rest/replay/isActive"): (200, "true")})
+        c.handle({"kind": "jump", "target_time": 5.0, "car_number": "7", "command": "camera"})
+        self.assertIn(("PUT", "/rest/replay/camera?name=Swingarm"), f.calls)
 
     def test_live_only_toggles_when_active(self):
         c, f = self.make({("GET", "/rest/replay/isActive"): (200, "false")})
