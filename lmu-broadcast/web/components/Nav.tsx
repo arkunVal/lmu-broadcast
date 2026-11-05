@@ -1,5 +1,6 @@
 "use client";
 
+import { APP_VERSION } from "@/lib/version";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -75,6 +76,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             >
               {I.out}<span>Abmelden</span>
             </button>
+            <div className="vstamp">v{APP_VERSION}</div>
           </aside>
           <div className="scrim" onClick={() => setMopen(false)} />
         </>
