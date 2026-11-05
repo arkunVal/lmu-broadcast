@@ -18,6 +18,7 @@ import { flagInfo, useLive } from "@/lib/liveContext";
 import { replayStamp } from "@/lib/replay";
 import { buildGroups, sessionKind, sessionLabel } from "@/lib/standings";
 import type { Car } from "@/lib/types";
+import CameraBar from "./CameraBar";
 import { useCamera } from "@/lib/useCamera";
 
 const TR_COVER = 600, TR_HOLD = 900;   // ms: bis die Animation das Bild verdeckt / Spiel-Wechsel abwarten
@@ -243,6 +244,8 @@ export default function BroadcastTab({ event, drivers, incidents }: { event: Eve
           {around.length === 0 && <div className="muted">–</div>}
         </section>
       </div>
+
+      {canControl && <CameraBar eventId={event.id} enabled={canControl} who={sel ? { num: sel.num, name: sel.driver, team: teamOf(sel) || sel.vehicle || "" } : null} />}
     </div>
   );
 }
