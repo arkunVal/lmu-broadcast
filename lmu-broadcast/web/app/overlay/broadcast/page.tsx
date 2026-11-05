@@ -11,7 +11,7 @@ import { fmtClock } from "@/lib/format";
 import { sessionKind, sessionLabel } from "@/lib/standings";
 import type { Car, Snapshot } from "@/lib/types";
 import { num, useOverlayData } from "@/lib/useOverlayData";
-import { useLiveViews } from "@/lib/bcSwitch";
+import { oneBottom, useLiveViews } from "@/lib/bcSwitch";
 
 /**
  * FLM Broadcast: Timing-Tower, Fahrerkarte, Head to Head, Onboard Battle, Onboard Telemetry, Virtual Energy, Replay.
@@ -29,7 +29,7 @@ export default function Broadcast() {
   const ctl = useLiveViews(params?.get("room") ?? "", liveMode, ["tower"]);
   if (!snapshot) return debug ? <div className="bc" style={{ padding: 20 }}>Broadcast: keine Live-Daten ({connection})</div> : null;
 
-  const views = new Set(liveMode ? ctl.views : viewParam.split(",").map((v) => v.trim()));
+  const views = new Set(oneBottom(liveMode ? ctl.views : viewParam.split(",").map((v) => v.trim())));
   // Replay: das Spiel meldet es (Reader); sonst gilt der Schalter der Website. Dann alles ausblenden, nur das Banner zeigen.
   const replayOn = views.has("replay") || (snapshot.session.replay != null ? snapshot.session.replay : ctl.replay);
   const scale = num(params, "scale", 1);
@@ -116,8 +116,8 @@ const Brand = ({ car }: { car: Car }) => <span className="bc-brand" style={{ ["-
 function Logo() {
   return (
     <div className="bc-logo">
-      <svg viewBox="0 0 24 24" width="1.6em" height="1.6em" aria-hidden><path d="M5 3l15 9-15 9z" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinejoin="round" /></svg>
-      <b><span style={{ color: "#FFE600" }}>FLM</span> BROADCAST</b>
+      <svg viewBox="0 0 24 24" width="1.6em" height="1.6em" aria-hidden><path d="M5 3l15 9-15 9z" fill="none" stroke="#fbbf24" strokeWidth="2.4" strokeLinejoin="round" /></svg>
+      <b><span style={{ color: "#fbbf24" }}>FLM</span> BROADCAST</b>
     </div>
   );
 }
@@ -186,7 +186,7 @@ function Sectors({ st, mini }: { st: SectorState[]; mini?: boolean }) {
 
 function DriverCard({ car, red }: { car: Car; red?: boolean }) {
   return (
-    <div className={`bc-driver${red ? " red" : ""}`} style={{ ["--c" as string]: red ? "#e4122b" : classColor(car.cls) }}>
+    <div className={`bc-driver${red ? " red" : ""}`} style={{ ["--c" as string]: red ? "#f87171" : classColor(car.cls) }}>
       <span className="bc-dpos">{ordinal(classPos(car)).toLowerCase().replace(/(\d+)(.*)/, "$1")}<sup>{ordinal(classPos(car)).slice(-2).toLowerCase()}</sup></span>
       <div><b>{initialName(car.driver)}</b><small>{car.vehicle}</small></div>
       <span className="bc-dno bc-num">#{car.num ?? "–"}</span>

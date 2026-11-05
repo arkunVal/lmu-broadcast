@@ -9,6 +9,14 @@ export const BC_VIEWS: [string, string][] = [
   ["tower", "Tower"], ["driver", "Fahrerkarte"], ["h2h", "Head to Head"], ["battle", "Onboard Battle"],
   ["telemetry", "Onboard Telemetry"], ["energy", "Virtual Energy"],
 ];
+/** Unten im Bild ist Platz fuer genau eine dieser Ansichten. Wer eingeschaltet wird, schaltet die anderen aus. */
+export const BC_BOTTOM = ["driver", "h2h", "battle", "telemetry"];
+export function oneBottom(list: string[]): string[] {
+  const b = list.filter((x) => BC_BOTTOM.includes(x));
+  if (b.length < 2) return list;
+  const keep = b[b.length - 1];   // zuletzt eingeschaltet gewinnt
+  return list.filter((x) => !BC_BOTTOM.includes(x) || x === keep);
+}
 const ev = "views";
 type Msg = { views?: string[]; replay?: boolean; focus?: string | null; hello?: boolean };
 /** Meldung fuer das Broadcast-Overlay (Strafen, Pruefungen, Entscheidungen, Funk, Anhoerung). Texte sind schon englisch fertig. */
@@ -32,7 +40,7 @@ export function useBcController(room: string) {
     const supabase = getSupabase();
     if (!supabase || !room) return;
     try { const u = Number(localStorage.getItem(`bcv-rp-${room}`)); if (u > Date.now()) { st.current.until = u; setReplayState(true); } } catch {}
-    try { const s = localStorage.getItem(`bcv-ctl-${room}`); if (s) { const v = JSON.parse(s); if (Array.isArray(v)) { st.current.on = v; setOn(v); } } } catch {}
+    try { const s = localStorage.getItem(`bcv-ctl-${room}`); if (s) { const v = JSON.parse(s); if (Array.isArray(v)) { const w = oneBottom(v); st.current.on = w; setOn(w); } } } catch {}
     const c = supabase
       .channel(chan(room), { config: { broadcast: { self: false } } })
       .on("broadcast", { event: ev }, (m) => { if ((m.payload as Msg).hello) push(); })
@@ -43,7 +51,7 @@ export function useBcController(room: string) {
   }, [room, push]);
 
   const toggle = useCallback((k: string) => {
-    const next = st.current.on.includes(k) ? st.current.on.filter((x) => x !== k) : [...st.current.on, k];
+    const next = oneBottom(st.current.on.includes(k) ? st.current.on.filter((x) => x !== k) : [...st.current.on, k]);
     st.current.on = next;
     setOn(next);
     try { localStorage.setItem(`bcv-ctl-${room}`, JSON.stringify(next)); } catch {}
@@ -77,14 +85,14 @@ export function useLiveViews(room: string, enabled: boolean, fallback: string[])
   const [notes, setNotes] = useState<BcNote[]>([]);
   useEffect(() => {
     if (!enabled || !room) return;
-    try { const s = localStorage.getItem(key); if (s) setViews(JSON.parse(s)); } catch {}
+    try { const s = localStorage.getItem(key); if (s) { const v = JSON.parse(s); if (Array.isArray(v)) setViews(oneBottom(v)); } } catch {}
     const supabase = getSupabase();
     if (!supabase) return;
     const c = supabase
       .channel(chan(room), { config: { broadcast: { self: false } } })
       .on("broadcast", { event: ev }, (m) => {
         const p = m.payload as Msg;
-        if (Array.isArray(p.views)) { const clean = p.views.filter((x) => typeof x === "string").slice(0, 12); setViews(clean); try { localStorage.setItem(key, JSON.stringify(clean)); } catch {} }
+        if (Array.isArray(p.views)) { const clean = oneBottom(p.views.filter((x) => typeof x === "string").slice(0, 12)); setViews(clean); try { localStorage.setItem(key, JSON.stringify(clean)); } catch {} }
         if (typeof p.replay === "boolean") setReplay(p.replay);
         if ("focus" in p) setFocus(typeof p.focus === "string" ? p.focus.slice(0, 8) : null);
       })
