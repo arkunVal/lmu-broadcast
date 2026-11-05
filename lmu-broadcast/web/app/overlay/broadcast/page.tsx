@@ -71,22 +71,11 @@ function Present({ show, anim, children }: { show: boolean; anim: "left" | "drop
   return <div className={`bc-pres bc-a-${anim} ${show ? "in" : "out"}`}>{last.current}</div>;
 }
 
-/** Grosses REPLAY-Banner (rote Linien, Schrift schlaegt ein), danach kleine Marke oben links. */
+/** Kleine REPLAY-Marke oben links. Die grosse Animation ist der Wischer (Transition). */
 function ReplayBanner({ on }: { on: boolean }) {
-  const [phase, setPhase] = useState<"off" | "intro" | "badge">("off");
-  useEffect(() => {
-    if (!on) { setPhase((p) => (p === "off" ? p : "off")); return; }
-    setPhase("intro");
-    const t = setTimeout(() => setPhase("badge"), 2600);
-    return () => clearTimeout(t);
-  }, [on]);
   return (
-    <Present show={on} anim="fade">
-      <div className={`bc-rp ${phase}`}>
-        <div className="bc-rp-line l" /><div className="bc-rp-word">REPLAY</div><div className="bc-rp-line r" />
-        <div className="bc-rp-sub">INSTANT REPLAY</div>
-        <div className="bc-rp-badge">REPLAY</div>
-      </div>
+    <Present show={on} anim="left">
+      <div className="bc-rp-badge">REPLAY</div>
     </Present>
   );
 }

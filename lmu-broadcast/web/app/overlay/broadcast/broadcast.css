@@ -6,7 +6,6 @@
 .bc i, .bc em { font-style: italic; }
 
 /* Replay */
-.bc-replay-old { position: absolute; left: 2em; top: 1.6em; padding: .45em 1.6em; background: var(--navy); border: 2px solid var(--cyan); font-weight: 900; letter-spacing: .12em; font-style: italic; box-shadow: 0 0 14px rgba(57,180,255,.5); }
 
 /* Tower */
 .bc-tower { position: absolute; left: 2em; top: 2em; width: 19.5em; background: linear-gradient(180deg, var(--navy), #090d3d); border: 2px solid var(--cyan); border-radius: .5em; box-shadow: 0 0 18px rgba(57,180,255,.4), 0 6px 20px rgba(0,0,0,.5); overflow: hidden; }
@@ -134,22 +133,8 @@
 .bc-a-left.in .bc-row { animation: bcRow .5s cubic-bezier(.16,.9,.24,1) both; animation-delay: calc(var(--i, 0) * 28ms + .2s); }
 @keyframes bcRow { from { transform: translateX(-2em); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* ---------- REPLAY-Banner ---------- */
-.bc-rp { position: absolute; inset: 0; display: grid; place-items: center; }
-.bc-rp-word { grid-area: 1 / 1; font-size: 9em; font-weight: 900; letter-spacing: .22em; padding-left: .22em; color: #fff; transition: all .7s cubic-bezier(.65,0,.2,1); }
-.bc-rp-line { grid-area: 1 / 1; height: 3px; width: 26em; background: linear-gradient(90deg, transparent, #e4122b 30%, #ff5a6b 50%, #e4122b 70%, transparent); align-self: center; }
-.bc-rp-line.l { transform: translateY(-4.4em); }
-.bc-rp-line.r { transform: translateY(4.4em); }
-.bc-rp-sub { grid-area: 1 / 1; align-self: center; transform: translateY(6.4em); letter-spacing: .5em; font-size: 1.1em; opacity: .8; font-weight: 700; transition: opacity .4s; }
-.bc-rp.intro .bc-rp-word { animation: bcSlam .6s cubic-bezier(.2,1.4,.3,1) both; }
-.bc-rp.intro .bc-rp-line { animation: bcLine .8s .1s cubic-bezier(.16,.9,.24,1) both; }
-.bc-rp.intro .bc-rp-sub { animation: bcFadeIn .5s .5s both; }
-@keyframes bcSlam { from { transform: scale(2.2); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes bcLine { from { width: 0; opacity: 0; } to { width: 26em; opacity: 1; } }
-/* danach: grosses Banner blendet aus, kleine Marke oben links ein */
-.bc-rp-badge { position: absolute; left: 2em; top: 1.6em; padding: .4em 1.4em; font-size: 1.5em; font-weight: 900; letter-spacing: .16em; font-style: italic; background: linear-gradient(100deg, rgba(228,18,43,.96), rgba(150,8,28,.96)); border-left: 4px solid #fff; box-shadow: 0 6px 20px rgba(0,0,0,.5); opacity: 0; transform: translateX(-1.5em); transition: opacity .5s .2s, transform .6s .2s cubic-bezier(.16,.9,.24,1); }
-.bc-rp.badge .bc-rp-badge { opacity: 1; transform: none; }
-.bc-rp.badge .bc-rp-word, .bc-rp.badge .bc-rp-line, .bc-rp.badge .bc-rp-sub { opacity: 0; transform: scale(.9); transition: opacity .45s, transform .45s; }
+/* ---------- REPLAY-Marke oben links (das grosse Banner gibt es nicht mehr, der Wischer uebernimmt) ---------- */
+.bc-rp-badge { position: absolute; left: 2em; top: 1.6em; padding: .4em 1.4em; font-size: 1.5em; font-weight: 900; letter-spacing: .16em; font-style: italic; background: linear-gradient(100deg, rgba(228,18,43,.96), rgba(150,8,28,.96)); border-left: 4px solid #fff; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
 
 /* ---------- Uebergang Replay/Live: schmales Band wischt ueber das Bild, der Rest bleibt durchsichtig ---------- */
 .bc-tr { z-index: 50; position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
