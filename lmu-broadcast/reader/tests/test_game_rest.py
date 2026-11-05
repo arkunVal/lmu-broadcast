@@ -116,6 +116,12 @@ class HandleTests(unittest.TestCase):
         c.handle({"kind": "jump", "target_time": 5.0, "car_number": "7", "command": "camera"})
         self.assertIn(("PUT", "/rest/replay/camera?name=Swingarm"), f.calls)
 
+    def test_camera_by_name(self):
+        c, f = self.make()
+        self.assertTrue(c.handle({"kind": "transport", "command": "camera:Hood Right"})[0])
+        self.assertIn(("PUT", "/rest/replay/camera?name=Hood%20Right"), f.calls)
+        self.assertFalse(c.handle({"kind": "transport", "command": "camera:"})[0])
+
     def test_live_only_toggles_when_active(self):
         c, f = self.make({("GET", "/rest/replay/isActive"): (200, "false")})
         self.assertTrue(c.handle({"kind": "live"})[0])

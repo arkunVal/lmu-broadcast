@@ -319,16 +319,19 @@ class GameControl(threading.Thread):
         st, text = self._req(m, path, body, 4.0)
         return None if st in (200, 204) else f"Sprung: Status {st} {text[:80]}"
 
-    def set_camera(self) -> str | None:
-        plan = self._cam_cfg or guess_camera(self.schema(), self._cam_name)
+    def set_camera(self, name: str | None = None) -> str | None:
+        name = name or self._cam_name
+        plan = self._cam_cfg or guess_camera(self.schema(), name)
         if not plan:
             return "Kamera-Endpunkt nicht gefunden"
-        value = plan.get("value")
+        if name != self._cam_name and plan.get("where") != "none":
+            plan = {**plan, "value": None}   # anderer Name als der eingestellte: Wert neu bestimmen
+        value = plan.get("value") or (name if "name" in str(plan.get("param", "")).lower() else None)
         if value is None and plan.get("where") != "none":
             st, text = self._req("GET", plan["path"].split("{")[0].rstrip("/"), None, 3.0)
-            value = lookup_value(_json(text) if st == 200 else None, self._cam_name)
+            value = lookup_value(_json(text) if st == 200 else None, name)
         if value is None and plan.get("where") != "none":
-            return f"Kamera '{self._cam_name}' nicht gefunden"
+            return f"Kamera '{name}' nicht gefunden"
         m, path, body = build_call(plan, value)
         st, _ = self._req(m, path, body, 3.0)
         return None if st in (200, 204) else f"Kamera: Status {st}"
@@ -362,6 +365,12 @@ class GameControl(threading.Thread):
                 return False, "Auto nicht in den Live-Daten gefunden"
             err = self.focus_car(cid)
             return (False, err) if err else (True, "Auto gewaehlt")
+        if kind == "transport" and str(cmd.get("command") or "").startswith("camera:"):
+            name = str(cmd["command"])[7:].strip()
+            if not name:
+                return False, "Kein Kameraname"
+            err = self.set_camera(name)
+            return (False, err) if err else (True, f"Kamera {name}")
         if kind in ("next", "prev"):
             st, _ = self._req("PUT", "/rest/watch/focusForward" if kind == "next" else "/rest/watch/focusBackward", None, 3.0)
             self.on_focus(None)
