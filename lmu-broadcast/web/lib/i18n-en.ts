@@ -240,6 +240,10 @@ export const EN: Record<string, string> = {
 "Löschen nicht erlaubt. Datenbank-Update fehlt: supabase/repair.sql ausführen.": "Delete not allowed. Database update missing: run supabase/repair.sql.",
 "Im Spiel-Replay an die Stelle springen": "Jump to this point in the in-game replay",
 "Angucken": "View",
+"OBS-Link: Tab „Controls“": "OBS link: Controls tab",
+"EIN": "ON",
+"AUS": "OFF",
+"Energie": "Energy",
 "KAMERA · BROADCASTING": "CAMERA · BROADCASTING",
 "Kamera-Leiste einstellen": "Camera bar settings",
 "Der Name muss genau so heißen wie die Kamera im Spiel. Auf die Taste klicken, dann die Tastenkombination drücken (Esc bricht ab, Entf löscht). Gespeichert wird in diesem Browser.": "The name must match the camera in the game exactly. Click the key button, then press the key combination (Esc cancels, Del clears). Saved in this browser.",
@@ -497,6 +501,7 @@ export const EN: Record<string, string> = {
 "Mikrofon nicht verfügbar.": "Microphone not available."
 };
 export const EN_PATTERNS: [RegExp, string][] = [
+  [/^Energie (.+?) · Runden (.+?) · Boxenstopps (.+)$/, "Energy {0} · Laps {1} · Pit stops {2}"],
   [/^Hotkey: (.+)$/, "Hotkey: {0}"],
   [/^Gespeichert \((.+?) % der Strecke, aufgenommen am (.+?)\)\. Ist sie schief oder lückenhaft, löschen und neu aufnehmen$/, "Saved ({0}% of the track, recorded on {1}). If it is skewed or has gaps, delete it and record again"],
   [/^Replay (.+?) Sekunden zurück, auf das Auto im Bild$/, "Replay {0} seconds back, on the car in view"],

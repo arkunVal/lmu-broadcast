@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import CarNo from "@/components/CarNo";
 import Tires from "@/components/Tires";
 import TrackMap from "@/components/TrackMap";
@@ -43,6 +43,16 @@ export default function BroadcastTab({ event, drivers, incidents }: { event: Eve
   const all = snapshot && live ? buildGroups(snapshot.cars, kind) : [];
   const groups = cls === "all" ? all : all.filter((g) => g.cls === cls);
   const flag = flagInfo(s);
+  // Schnitt der letzten 3 Runden: aus den Rundenzeiten, die diese Seite gesehen hat (ab dem Oeffnen)
+  const laps = useRef<Map<number, { last: number | null; list: number[] }>>(new Map());
+  if (snapshot && live) {
+    for (const c of snapshot.cars) {
+      const h = laps.current.get(c.id) ?? { last: null, list: [] };
+      if (c.lastLap != null && c.lastLap > 0 && c.lastLap !== h.last) { h.list = [...h.list, c.lastLap].slice(-3); h.last = c.lastLap; }
+      laps.current.set(c.id, h);
+    }
+  }
+  const avg3 = (id: number) => { const l = laps.current.get(id)?.list ?? []; return l.length ? fmtTime(l.reduce((a, b) => a + b, 0) / l.length) : "–"; };
   const sel: Car | null = snapshot && live ? (snapshot.cars.find((c) => c.id === picked) ?? focusCar(snapshot, null)) : null;
   const teamOf = (c: Car) => drivers.find((d) => (c.num != null && d.car_number === c.num) || d.ingame_name.toLowerCase() === String(c.driver).toLowerCase())?.team ?? "";
 
@@ -119,9 +129,27 @@ export default function BroadcastTab({ event, drivers, incidents }: { event: Eve
           </div>
         )}
         {msg && <span className={msg.ok ? "okmsg" : "err"} style={{ margin: 0 }}>{msg.ok ? "✓ " : ""}{msg.text}</span>}
+        {!live && <div className="notice bcv-note" style={{ flexBasis: "100%" }}>{connection === "subscribed" ? "Warte auf Live-Daten. Läuft der Reader mit dem Reader-Key dieses Events? Den Key findest du unter „Session“." : "Verbinde …"}</div>}
       </div>
 
-      {!live && <div className="notice bcv-note">{connection === "subscribed" ? "Warte auf Live-Daten. Läuft der Reader mit dem Reader-Key dieses Events? Den Key findest du unter „Session“." : "Verbinde …"}</div>}
+
+      {canControl && (
+        <section className="panel camtray ovbar" aria-label="FLM Broadcast Overlay">
+          <div className="camtray-who">
+            <small>FLM BROADCAST OVERLAY</small>
+            <b><span className={`bcv-rep${bc.replay ? " on" : ""}`}>{bc.replay ? "REPLAY" : "LIVE"}</span></b>
+            <span className="muted" style={{ fontSize: 11 }}>OBS-Link: Tab „Controls“</span>
+          </div>
+          <div className="camtray-btns" role="group" aria-label="Ansichten im Overlay">
+            {BC_VIEWS.map(([k, label]) => (
+              <button key={k} type="button" className={`camb${bc.on.includes(k) ? " on" : ""}`} aria-pressed={bc.on.includes(k)} onClick={() => bc.toggle(k)}>
+                <small>{bc.on.includes(k) ? "EIN" : "AUS"}</small>
+                <b>{label}</b>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="bcv-stand panel">
         <div className="bcv-ph"><h3>Standings</h3>
@@ -202,34 +230,31 @@ export default function BroadcastTab({ event, drivers, incidents }: { event: Eve
           </div>
         </section>
 
-        {canControl && (
-          <section className="panel bcv-ovl">
-            <div className="bcv-ph"><h3>FLM Broadcast Overlay</h3><span className={`bcv-rep${bc.replay ? " on" : ""}`}>{bc.replay ? "REPLAY" : "LIVE"}</span></div>
-            <div className="bcswitch" role="group" aria-label="Ansichten im Overlay">
-              {BC_VIEWS.map(([k, label]) => (
-                <button key={k} type="button" className={`bcsw${bc.on.includes(k) ? " on" : ""}`} aria-pressed={bc.on.includes(k)} onClick={() => bc.toggle(k)}><i />{label}</button>
-              ))}
-            </div>
-            <p className="muted" style={{ fontSize: 12, margin: "8px 0 0" }}>Link für OBS: Tab „Controls“. Bei Replay blendet das Overlay alles aus und zeigt nur das REPLAY-Banner.</p>
-          </section>
-        )}
       </aside>
 
       <div className="bcv-bottom">
         <section className="panel bcv-map"><div className="bcv-ph"><h3>Track Map</h3></div><div className="bcv-mapbox"><TrackMap snapshot={live ? snapshot : null} panel /></div></section>
         <section className="panel bcv-focus">
-          <div className="bcv-ph"><h3>Driver Focus</h3>{sel && <span className="muted">#{sel.num ?? "–"}</span>}</div>
+          <div className="bcv-ph"><h3>Driver Focus</h3>{sel && <span className="muted">SELECTED · #{sel.num ?? "–"}</span>}</div>
           {sel ? (
             <>
-              <div className="bcv-fhead"><span className="bcv-p" style={{ ["--c" as string]: classColor(sel.cls) }}>P{sel.place}</span><div><b>{sel.driver}</b><div className="muted">{teamOf(sel) || sel.vehicle} · {classLabel(sel.cls)}</div></div><Tires tire={sel.tire} /></div>
-              <div className="bcv-stats">
-                <div><small>LAST LAP</small><b>{fmtTime(sel.lastLap)}</b></div>
-                <div><small>BEST LAP</small><b>{fmtTime(sel.bestLap)}</b></div>
-                <div><small>CLASS POS</small><b>{around.find((r) => r.car.id === sel.id)?.classPos ?? "–"} / {all.find((g) => g.cls === sel.cls)?.rows.length ?? "–"}</b></div>
-                <div><small>ENERGY</small><b>{sel.energy != null ? `${Math.round(sel.energy * 100)}%` : "–"}</b></div>
-                <div><small>LAPS</small><b>{sel.laps}</b></div>
-                <div><small>PIT STOPS</small><b>{sel.pitStops}</b></div>
+              <div className="df-top">
+                <div className="df-p" style={{ ["--c" as string]: classColor(sel.cls) }}><b>P{sel.place}</b><small>OVERALL</small></div>
+                <div className="df-id">
+                  <div className="df-name"><b>{sel.driver}</b> <span className="muted">#{sel.num ?? "–"}</span></div>
+                  <div className="muted df-team">{teamOf(sel) || sel.vehicle}</div>
+                  <span className="df-cls" style={{ ["--c" as string]: classColor(sel.cls) }}>{classLabel(sel.cls)} · P{around.find((r) => r.car.id === sel.id)?.classPos ?? "–"} / {all.find((g) => g.cls === sel.cls)?.rows.length ?? "–"}</span>
+                </div>
               </div>
+              <div className="df-stats">
+                <div><small>LAST LAP</small><b className="hot">{fmtTime(sel.lastLap)}</b></div>
+                <div><small>BEST LAP</small><b>{fmtTime(sel.bestLap)}</b></div>
+                <div><small>LAST 3 AVG</small><b>{avg3(sel.id)}</b></div>
+                <div><small>CLASS POS</small><b>{around.find((r) => r.car.id === sel.id)?.classPos ?? "–"} / {all.find((g) => g.cls === sel.cls)?.rows.length ?? "–"}</b></div>
+                <div><small>FUEL</small><b>{sel.fuel != null ? `${Math.round(sel.fuel * 100)}%` : "–"}</b></div>
+                <div><small>TIRES</small><b><Tires tire={sel.tire} large /></b></div>
+              </div>
+              <div className="df-foot muted">Energie {sel.energy != null ? `${Math.round(sel.energy * 100)}%` : "–"} · Runden {sel.laps} · Boxenstopps {sel.pitStops}</div>
             </>
           ) : <div className="muted">Kein Auto gewählt.</div>}
         </section>

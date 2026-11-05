@@ -38,6 +38,7 @@ export type Car = {
   // Broadcast-Werte vom Reader (aeltere Reader liefern sie nicht)
   lapStart?: number;
   energy?: number | null;
+  fuel?: number | null;
   prevLap?: number | null;
   splits?: Record<string, (number | null)[]>;
   bestS1?: number | null;
