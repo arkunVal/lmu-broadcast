@@ -100,6 +100,18 @@ def _energy_by_id(telemetry) -> dict:
     return out
 
 
+def _fuel_by_id(telemetry) -> dict:
+    """Tankinhalt (0..1) je Auto-ID (Liter / Tankgroesse), wenn das Spiel ihn liefert."""
+    out = {}
+    count = min(int(telemetry.activeVehicles), MAX_CARS)
+    for i in range(count):
+        t = telemetry.telemInfo[i]
+        cap = float(t.mFuelCapacity)
+        if cap > 0:
+            out[int(t.mID)] = round(max(0.0, min(float(t.mFuel) / cap, 1.0)), 4)
+    return out
+
+
 def _focus_id(telemetry):
     """ID des Autos, das im Spiel gerade angeschaut/gefahren wird (Kamera-Fokus)."""
     try:
@@ -157,6 +169,7 @@ def build_payload(data, now_ms: int | None = None) -> dict:
 
     tires = _tires_by_id(data.telemetry)
     energy = _energy_by_id(data.telemetry)
+    fuel = _fuel_by_id(data.telemetry)
     session["focusId"] = _focus_id(data.telemetry)
     cars = []
     for i in range(count):
@@ -202,6 +215,7 @@ def build_payload(data, now_ms: int | None = None) -> dict:
                 "curS2": _diff(v.mCurSector2, v.mCurSector1),
                 "lapStart": round(float(v.mLapStartET), 3),
                 "energy": energy.get(int(v.mID)),
+                "fuel": fuel.get(int(v.mID)),
                 "gapNext": _time(v.mTimeBehindNext),
                 "gapLeader": _time(v.mTimeBehindLeader),
                 "inPits": in_pits,

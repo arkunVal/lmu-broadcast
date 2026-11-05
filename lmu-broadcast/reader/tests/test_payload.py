@@ -42,6 +42,8 @@ def make_data():
     t = d.telemetry.telemInfo[0]
     t.mID = 7
     t.mVirtualEnergy = 0.8
+    t.mFuel = 22.0
+    t.mFuelCapacity = 50.0
     d.telemetry.playerHasVehicle = True
     d.telemetry.playerVehicleIdx = 0
     t.mFrontTireCompoundName = b"Medium"
@@ -76,6 +78,11 @@ class PayloadTest(unittest.TestCase):
         self.assertIsNone(c["bestLap"])
         self.assertEqual(c["tire"]["compound"], "Medium")
         self.assertEqual(c["tire"]["wheels"], ["Medium", "Soft", "Medium", "Soft"])
+
+    def test_fuel(self):
+        c = build_payload(make_data(), now_ms=1)["cars"]
+        self.assertAlmostEqual(c[0]["fuel"], 0.44)
+        self.assertIsNone(c[1]["fuel"])
 
     def test_yellow_cause(self):
         cars = build_payload(make_data(), now_ms=1)["cars"]
