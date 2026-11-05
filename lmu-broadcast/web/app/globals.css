@@ -691,3 +691,21 @@ a { color: var(--cream); }
   .bcv { grid-template-rows: auto minmax(360px, 1fr) auto; }
   .bcv-stand, .bcv-side { overflow: hidden; }
 }
+
+/* Kamera-Leiste (Broadcast unten) */
+.camtray { grid-column: 1 / -1; display: flex; align-items: stretch; gap: 10px; position: relative; padding: 0 !important; overflow: visible; }
+.camtray-who { display: flex; flex-direction: column; justify-content: center; gap: 2px; min-width: 170px; padding: 8px 14px; border-right: 1px solid var(--line); }
+.camtray-who small { font-size: 10px; letter-spacing: .1em; color: var(--muted); }
+.camtray-btns { display: flex; flex: 1; min-width: 0; overflow-x: auto; }
+.camb { position: relative; flex: 1 1 0; min-width: 66px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 6px; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: transparent; white-space: nowrap; }
+.camb small { font-size: 10px; color: var(--muted); }
+.camb b { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+.camb.on { background: #c8121f; color: #fff; }
+.camb.on small { color: rgba(255,255,255,.8); }
+.camb i { position: absolute; top: 3px; right: 4px; font-size: 9px; font-style: normal; font-weight: 800; background: #fff; color: #c8121f; padding: 0 4px; border-radius: 3px; }
+.camtray-gear { border: 0; border-left: 1px solid var(--line); border-radius: 0; padding: 0 14px; background: transparent; }
+.camtray-msg { position: absolute; left: 190px; bottom: -22px; margin: 0; }
+.camset { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 20; max-height: 60vh; overflow: auto; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2, #1c1c26); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.camset h4 { margin: 0 0 4px; }
+.camset-row { display: grid; grid-template-columns: minmax(0, 1fr) 170px 40px; gap: 8px; margin: 6px 0; }
+.camset-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
