@@ -1,5 +1,6 @@
 "use client";
 
+import { apiUrl } from "@/lib/config";
 import { callText } from "@/lib/voice";
 import { KIND_EN, penEn } from "@/lib/penText";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -81,7 +82,7 @@ function Inner() {
     let stop = false;
     async function load() {
       try {
-        const r = await fetch(`/api/driver-feed?k=${encodeURIComponent(k)}&e=${encodeURIComponent(e)}`, { cache: "no-store" });
+        const r = await fetch(`${apiUrl("/driver-feed")}?k=${encodeURIComponent(k)}&e=${encodeURIComponent(e)}`, { cache: "no-store" });
         const j = await r.json();
         if (stop) return;
         if (!r.ok) { setError(j.error ?? `Fehler ${r.status}`); return; }

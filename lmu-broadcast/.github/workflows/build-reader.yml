@@ -1,0 +1,22 @@
+# Baut FLM-Reader.exe automatisch bei GitHub (Reiter "Actions" > "Build Reader EXE" > Artifact herunterladen).
+# Wichtig: Wenn dein Repo nur den web-Ordner enthaelt, ersetze "reader" unten durch den Pfad zum Reader-Ordner.
+name: Build Reader EXE
+on:
+  workflow_dispatch:
+  push:
+    tags: ["reader-v*"]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pyinstaller
+      - run: python -m PyInstaller --noconfirm --onefile --console --name FLM-Reader --icon flm.ico --collect-submodules pylmu lmu_reader.py
+        working-directory: reader
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FLM-Reader
+          path: reader/dist/FLM-Reader.exe

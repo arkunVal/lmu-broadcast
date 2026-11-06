@@ -15,7 +15,7 @@ export function useEventData(eventId: string) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase || !eventId) return;
     const [ev, dr, inc, pen] = await Promise.all([
       supabase.from("events").select("*").eq("id", eventId).maybeSingle(),
       supabase.from("event_drivers").select("*").eq("event_id", eventId).order("car_number", { nullsFirst: false }),

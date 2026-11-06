@@ -1,7 +1,9 @@
 "use client";
 
+import { FUNCTIONS_URL } from "@/lib/config";
 import { useCallback, useEffect, useState } from "react";
 import DeleteEvent from "./DeleteEvent";
+import DesktopReader from "./DesktopReader";
 import { useRouter } from "next/navigation";
 import CopyButton from "@/components/CopyButton";
 import type { EventRow } from "@/lib/labels";
@@ -101,7 +103,7 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
           supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
           anon_key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
           room: event.room,
-          site_url: window.location.origin,
+          site_url: FUNCTIONS_URL,
           ingest_token: token,
         })
       : "";
@@ -182,6 +184,8 @@ export default function SettingsTab({ event, onSaved }: { event: EventRow; onSav
         </div>
         {showKey && <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all" }}>{readerKey || "(nicht lesbar)"}</pre>}
       </div>
+
+      <DesktopReader readerKey={readerKey} />
 
       <div className="panel">
         <h3>Event löschen</h3>

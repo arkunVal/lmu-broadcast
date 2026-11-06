@@ -1,0 +1,48 @@
+# Baut den Windows-Installer der Desktop-App (FLM-Broadcast-Setup.exe) bei GitHub, kostenlos.
+# Start: Reiter "Actions" > "Build Desktop App" > "Run workflow". Ergebnis: unter "Artifacts" herunterladen.
+# Einmalig einrichten: Repo > Settings > Secrets and variables > Actions > "New repository secret":
+#   NEXT_PUBLIC_SUPABASE_URL       (Supabase > Project Settings > API > Project URL)
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY  (Supabase > Project Settings > API > anon public key)
+name: Build Desktop App
+on:
+  workflow_dispatch:
+  push:
+    tags: ["app-v*"]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Reader bauen
+        run: |
+          python -m pip install pyinstaller
+          python -m PyInstaller --noconfirm --onefile --console --name FLM-Reader --icon flm.ico --collect-submodules pylmu lmu_reader.py
+        working-directory: reader
+      - name: Website bauen (statisch)
+        run: |
+          npm install
+          npm run build
+        working-directory: web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - name: Installer bauen
+        run: |
+          npm install
+          npm run dist
+        working-directory: desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FLM-Broadcast-Setup
+          path: desktop/dist/*.exe
+      - name: Release (nur bei Tag app-v*)
+        if: startsWith(github.ref, 'refs/tags/app-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop/dist/*.exe

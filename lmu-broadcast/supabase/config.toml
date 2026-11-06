@@ -1,0 +1,4 @@
+# Supabase-Projekteinstellungen fuer die Edge Function "api".
+# verify_jwt = false: Der Reader und die Overlays haben keinen Login, sie weisen sich mit dem Event-Token bzw. Fahrer-Schluessel aus.
+[functions.api]
+verify_jwt = false

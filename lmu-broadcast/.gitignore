@@ -1,0 +1,16 @@
+*.tsbuildinfo
+.env*
+.next
+__pycache__
+desktop/dist/
+desktop/node_modules/
+node_modules
+reader/*.spec
+reader/build
+reader/build/
+reader/config.json
+reader/dist
+reader/dist/
+reader/lmu-api.json
+web/out/
+!.env.example

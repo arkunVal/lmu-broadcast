@@ -1,4 +1,31 @@
-# LMU Rennleitung: Schnellstart
+# LMU Rennleitung: Desktop-App (NEU, ersetzt Schritt 2 "Vercel")
+
+Die Website läuft jetzt **in einer Windows-App** (Electron). Auf GitHub liegt nur noch der Quellcode, später eine Vertriebsseite.
+Die Server-Teile (Reader-Eingang, Befehle, Fahrer-Feed, Streckenkarten) laufen als **Supabase Edge Function `api`**, kostenlos.
+Vercel brauchst du nicht mehr (Projekt dort kannst du löschen).
+
+**Einmal einrichten (ca. 15 Minuten):**
+1. **GitHub-Repo mit ALLEN Ordnern** (`web`, `reader`, `desktop`, `supabase`, `.github`). Früher nur `web`, jetzt alles.
+2. **Funktion hochladen:** Supabase > Account > Access Tokens > neuen Token erzeugen. In GitHub: Repo > Settings > Secrets and variables > Actions, zwei Secrets anlegen: `SUPABASE_ACCESS_TOKEN` (der Token) und `SUPABASE_PROJECT_REF` (Supabase > Project Settings > General > Reference ID). Dann Actions > **Deploy Supabase Function** > Run workflow. Grün = fertig.
+3. **Installer bauen:** zwei weitere Secrets: `NEXT_PUBLIC_SUPABASE_URL` und `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Supabase > Project Settings > API). Dann Actions > **Build Desktop App** > Run workflow. Nach ca. 10 Minuten unter *Artifacts* die **FLM-Broadcast-Setup.exe** laden und installieren.
+4. **Login freigeben:** Supabase > Authentication > URL Configuration: *Site URL* = `http://127.0.0.1:47821`, und bei *Redirect URLs* `http://127.0.0.1:47821/**` hinzufügen. (Discord-Login geht weiter über denselben Weg.)
+5. **Reader-Key neu kopieren:** Der Key enthält jetzt die neue Server-Adresse. Im Event unter Session ein neuer Key (alter Key aus Vercel-Zeit zeigt noch auf die alte Adresse).
+
+**Benutzen:**
+- App starten. Fester lokaler Link für OBS: `http://127.0.0.1:47821/overlay/...` (die Links in den Controls zeigen ihn schon richtig an). Die App muss dafür laufen.
+- Rennrechner: Session-Tab > **Reader in der App > Reader starten**. Kein extra Fenster, kein Key einfügen. Der Reader steckt in der App.
+- SimHub Fahrer-Overlay: gleicher Link `http://127.0.0.1:47821/overlay/me?...`, die App läuft beim Fahrer.
+- Alte Links mit `lmu-broadcast.vercel.app` gehen nicht mehr.
+
+**Was neu liegt wo:**
+- `desktop/`: Electron (Fenster, lokaler Server mit festem Port 47821, Reader-Start).
+- `supabase/functions/api/`: Server-Funktion (früher `web/app/api`).
+- `web/`: jetzt statischer Export (`npm run build` erzeugt `web/out`). Event-Seite heißt jetzt `/events/view?id=...`.
+- Entwickeln: `cd web && npm run build`, dann `cd desktop && npm install && npm start`.
+
+---
+
+# LMU Rennleitung: Schnellstart (Teile davon sind alt, oben zuerst lesen)
 
 Drei Teile arbeiten zusammen:
 
@@ -271,3 +298,87 @@ Feste linke Sidebar: oben globale Navigation (Alle Events, Admin, Profil), darun
 - **Palette:** #1A1A1F, #2D2B55, #6A5ACD, #A678B9, #F0D9B5, #F4A62A (Orange = Hauptknöpfe/Auswahl). Status-Farben (Gelb/FCY, Rot, Grün) bleiben. Neue Anmeldeseite mit Glas-Karte.
 - **Alte "Livetest"-Seite:** `web/app/page.tsx` ersetzt die alte Startseite. Falls im GitHub-Repo noch alte Ordner aus Phase 1/2 liegen (z. B. `web/app/obs`, `web/app/rennleitung`), dort löschen.
 - **Logo:** gelbes FLM mit Linien + weißes BROADCAST (App-Icon aus deinem Bild: `web/public/icons`, `reader/flm.ico`).
+
+## Sicherheit (Stand Prüfung)
+- **API-Routen** (`/api/ingest`, `/api/commands`, `/api/tracks`, `/api/driver-feed`): gemeinsamer Helfer `web/lib/server.ts`. Token-Format wird geprüft, 30 falsche Versuche pro Minute und IP sperren (429), Anfragen sind pro IP begrenzt, JSON hat eine Größengrenze, Antworten sind `no-store`. Der Service-Key liegt nur auf dem Server (Vercel-Variable).
+- **Header** (`web/next.config.ts`): Content-Security-Policy, kein Einbetten in fremde Seiten, nosniff, kein Referrer, HSTS, Mikrofon nur für die eigene Seite.
+- **Datenbank:** Fehlversuche bei Event-Code und Key werden um 1,5 s verzögert, neue Event-Codes sind länger (48 Bit). Dafür `supabase/repair.sql` einmal ausführen. Alle Funktionen setzen `search_path`, Zugriff nur über RLS (116 Prüfungen laufen grün).
+- **Reader:** sendet den geheimen Token nur über https (sonst Abbruch mit Meldung).
+- **Bewusst offen:** Der Funk-Signalkanal ist öffentlich, geschützt nur dadurch, dass die Event-ID nicht erratbar ist. Das Limit ist pro Server-Instanz (Vercel). Event-Codes können Admins jederzeit neu erzeugen.
+
+## Fahrer-Nachricht und Interview (neu)
+- **Nachricht an die Rennleitung:** Fahrer im Tab „Funk“ (nach „Funk beitreten“) → Feld „Nachricht an die Rennleitung“. Erscheint bei Admin, Steward und Broadcaster in **Controls → Nachrichten der Fahrer** (mit „Erledigt“). Der Fahrer sieht „Angekommen“. Geht nur, solange Rennleitung oder Broadcaster im Funk ist (Broadcaster: Controls → „Mitlesen starten“).
+- **Interview:** Rennleitung wählt Fahrer/Team/Klasse, Thema eintippen, „ins Interview bitten“. Der Fahrer sieht im Funk-Tab „Annehmen / Ablehnen“. Nach Annehmen sprechen beide frei miteinander (Mikrofon). Im **Fahrer-Overlay** erscheint die Karte „Race Control · Interview“ nur bei den Gerufenen. „Interview beenden“ schließt alles.
+- Kein neues SQL nötig. Der Ton läuft wie der Sprechfunk direkt im Browser.
+- Lila ist jetzt dunkler und bläulicher (#3F51C7 / #7B8CD8).
+
+## Broadcast-Overlay live umschalten (neu)
+- Controls → FLM Broadcast: **ein Link** (`view=live`), eine OBS-Quelle. Die Knöpfe (Tower, Fahrerkarte, Head to Head, Battle, Telemetry, Energy, Replay-Marke) schalten Ansichten sofort an und aus. Grün = sichtbar.
+- Die Controls-Seite muss offen sein. Wird OBS neu geladen, behält das Overlay den letzten Stand. Wer feste Links will: Haken „Fester Link“.
+- Fahrer-Overlay (`/overlay/me`) ist jetzt komplett unsichtbar, wenn nichts angezeigt wird (kein Hintergrundeffekt mehr). Das gilt für alle Overlays.
+- Interview-Anfrage erscheint im Fahrer-Overlay nur bei den Gerufenen (Karte „Race Control · Interview“).
+
+## Anhörung, Sprache, Funk-Ton (neu)
+- „Interview“ heißt jetzt **Anhörung** (Englisch: Hearing). Die Rennleitung wählt alle Fahrer, eine Klasse, ein Team oder mehrere Fahrer (Mehrfachauswahl). Der Gerufene sieht, wen es betrifft: „Alle Fahrer …“, „Du wirst …“, „Du und Lena Vogt …“, „Dein Team (Alpha) …“. Wer nicht gerufen wird, sieht nichts.
+- **Sprache Deutsch / English:** Umschalter auf der Login-Seite und unter Account. Wird im Browser gemerkt. Die Übersetzung steht in `web/lib/i18n-en.ts` (Deutsch → Englisch). Fehlt ein Text, bleibt er Deutsch: dort einfach eine Zeile ergänzen.
+- Fahrer-Overlay ist englisch. Deutsch mit `&lang=de` am Link.
+- Funk-Signalton: zwei weiche Töne statt einem schrillen Piepton.
+
+## Broadcast-Fokus und Startnummern (neu)
+- **Fokus:** Das Broadcast-Overlay folgt dem Auto, das du im Spiel anschaust, nicht deinem eigenen. Der Reader fragt dafür das Spiel (REST) und merkt sich Kamerawechsel von der Website (Klick in Live Timings). Beim Start schreibt der Reader `[Fokus] Quelle: game / command / memory` (game = vom Spiel gemeldet, command = per Website gewählt, memory = nur dein eigenes Auto). Steht dort „memory“, dann klick einmal ein Auto in Live Timings an. Mit `car=NUM` am Link kannst du es immer festlegen.
+- **Startnummern sind Text:** 7, 07 und 007 sind verschiedene Autos (Reader, Datenbank, Website, Overlays). Anmeldung: 1 bis 3 Ziffern.
+- **Wichtig: `supabase/repair.sql` einmal neu ausführen** (stellt die Nummern-Spalten auf Text um, vorhandene Einträge bleiben). Reader bitte durch die neue Version ersetzen (alte Reader schicken Zahlen, das geht noch, aber ohne Nullen).
+
+## Neue Seite „Broadcast“, Instant Replay, Overlay-Animationen (neu)
+- Der Tab „Live Timings“ heißt jetzt **Broadcast** und ist die Schaltzentrale: Standings (nach Klasse filterbar, Klick = Kamera im Spiel), **Event Feed** (CON, IMP, SPN, OFF, OVT, PIT, FL), Track Map, Driver Focus, Cars Around, und rechts die **Overlay-Schalter** (Tower, Fahrerkarte, Head to Head, Battle, Telemetry, Energy).
+- **Instant Replay:** Knöpfe „Instant Replay“ (7 s), −15 s, −30 s, −60 s springen im Spiel-Replay zurück, auf das Auto im Bild. „● Live“ geht zurück zum Live-Bild. Klick auf einen Eintrag im Event Feed springt ca. 7 Sekunden vor das Ereignis. **PIT-Einträge** zeigen dagegen kein Replay: die Kamera geht aufs Auto, Live-Bild.
+- **Overlay bei Replay:** Sobald ein Replay startet, blendet das FLM-Broadcast-Overlay (Link mit `view=live`) alles aus und zeigt nur das REPLAY-Banner. Bei „Live“ kommt alles wieder. Sicherheitsnetz: nach 60 s endet die Blende von selbst.
+- **Animationen:** Jede Ansicht fährt beim Ein- und Ausblenden animiert ein und aus (Tower von links, Fahrerkarte als Wisch, Telemetry/Battle von unten oder oben).
+- Pit- und Fastest-Lap-Einträge erkennt die Seite live aus den Daten, solange sie offen ist. Kontakte, Dreher usw. kommen aus den Auto-Hinweisen.
+
+## Replay/Live-Animation, Meldungen im Broadcast, Kamera Swingarm
+
+- **Animation zuerst, dann das Spiel:** Bei Replay und bei Live läuft erst ein Wischer über das ganze Overlay (REPLAY / LIVE). Erst wenn er das Bild verdeckt (ca. 0,65 s), geht der Befehl ans Spiel. Der Sprung ist so nicht zu sehen. Dafür muss die Event-Seite (Tab Broadcast) beim Rennleiter/Caster offen bleiben.
+- **Meldungen im Broadcast-Overlay** (rechts oben, Link mit `view=live`): Strafen, "Incident – Under review", "No further action", Funk ("Speaking"), Nachricht und Anhörung. Sie kommen vom Browser der Rennleitung (Admin/Steward muss die Event-Seite offen haben). Beim Laden schon vorhandene Strafen werden nicht noch einmal gezeigt.
+- (ENTFÄLLT, siehe unten „Nur Shared Memory“) **Kamera "Swingarm" beim Replay:** Der Reader springt erst an die Stelle, setzt dann das Auto und dann die Kamera. Anderer Name: `"replay_camera_name": "…"` in der Reader-Config. Findet der Reader den Kamera-Befehl nicht, `lmu_reader.py --replay-endpoints` ausführen und die Zeilen "Kamera" schicken.
+- Der Navy-Fleck im OBS kam von weichgezeichneten Animationen (blur). Entfernt.
+
+## Spiel-Befehle wieder da (lokale Schnittstelle), Stand 4. November 2026
+
+Studio 397 hat im Discord bestätigt: Alles Lokale ist erlaubt, solange nichts an deren Dienste (RaceControl) geschickt wird. Darum sind Replay-Sprung, Kamera und Auto wählen zurück. Der Abschnitt „Nur Shared Memory“ oben gilt nicht mehr, so ist es jetzt:
+
+- **Daten** kommen weiter nur aus dem Shared Memory.
+- **Befehle** (Sprung, Kamera, Auto, Live) gehen vom Reader nur an `127.0.0.1:6397` auf deinem PC. Kein Steam, kein Token, kein Studio-397-Server. Befehle laufen nur auf Knopfdruck, der Zustand (Fokus/Replay) wird alle 3 s lokal gelesen.
+- **Aus:** `"game_rest": false` in `config.json` stellt alles ab (dann nur Shared Memory).
+- **Sprung:** Replay öffnen (falls nötig) → an die Zeit springen → Auto wählen → erst danach Kamera **„Swingarm“** (andere Kamera: `"replay_camera_name": "…"`).
+- **Animation zuerst:** Bei Replay und Live läuft erst der Wischer im Overlay, dann geht der Befehl ans Spiel.
+- **Endpunkte nicht offiziell:** Der Reader sucht sie im Schema des Spiels. Klappt Sprung oder Kamera nicht: `py lmu_reader.py --game-endpoints` ausführen und die Ausgabe schicken, oder `replay_jump` / `replay_camera` in `config.json` eintragen (Beispiele oben in `reader/game_rest.py`).
+- **Auto im Overlay:** Klick auf eine Zeile in „Broadcast“ stellt Spiel-Kamera und Overlay auf dieses Auto. „Auto: Spiel“ geht zurück zum Auto aus den Spieldaten.
+- Nicht zurückgekommen: die Replay-Knöpfe Play/Pause/Zeitlupe.
+
+## Kamera-Leiste (Tab Broadcast, ganz unten)
+
+- Ein Knopf pro Kamera (Standard: Cockpit, Bonnet, Splitter, Chase, TV, Hood, Dash Far, Hood Right, Hood Left, F. Splitter, R. Splitter, Rearwing, Rearwing Far). Links steht das Auto, das du gerade anschaust. Die aktive Kamera ist rot mit „LIVE“.
+- Klick oder Hotkey schickt den Namen an den Reader, der ihn über die lokale Spiel-Schnittstelle setzt (`setCameraByName`). Der Name muss genau so heißen wie im Spiel.
+- **Hotkeys einstellen:** Zahnrad rechts in der Leiste. Auf die Taste neben dem Kameranamen klicken und die Kombination drücken (Esc bricht ab, Entf löscht). Kameras lassen sich umbenennen, hinzufügen, entfernen. Alles wird in diesem Browser gespeichert.
+- Hotkeys gelten nur, solange der Reiter „Broadcast“ offen ist und nicht in einem Eingabefeld getippt wird. Browser-eigene Kombinationen (z. B. Strg+F5) fängt die Seite ab, so gut es geht. Klappt eine nicht, eine andere Kombination wählen.
+- Ob die Kameras im Live-Bild genauso heißen wie im Replay, ist ungeprüft. Wenn eine nicht greift: Namen im Spiel nachsehen und hier anpassen, oder `py lmu_reader.py --game-endpoints` laufen lassen.
+
+## Neues Design und Live-Seite (Broadcast)
+
+- **Look wie die Studium-App:** ruhiges Dunkel, abgerundete Karten, Amber nur als Akzent. Dazu Standards für gute Bedienung: sichtbarer Fokus-Rahmen, Cursor auf Knöpfen, weniger Animation, wenn das System das wünscht, größere Tippflächen auf Touch-Geräten.
+- **Broadcast-Seite:** Die Leiste „FLM Broadcast Overlay“ (Tower, Fahrerkarte, Head to Head …) sitzt jetzt oben unter Instant Replay, gebaut wie die Kamera-Leiste. Grün = im Overlay an. Die Standings sind niedriger, Track Map, Driver Focus und Cars Around unten größer.
+- **Driver Focus:** Platz gesamt, Name, Nummer, Team, Klasse mit Platz, Letzte/Beste Runde, Schnitt der letzten 3 Runden (nur Runden, die die Seite seit dem Öffnen gesehen hat), Klassenplatz, Tank (neu vom Reader, in %), und alle vier Reifen einzeln. Delta, Predicted und Pace vs Class fehlen mit Absicht. Die Standings zeigen die vier Reifen auch einzeln.
+- Der Reader liefert jetzt `fuel` (Tankinhalt in Prozent der Tankgröße). Dafür Reader ersetzen.
+
+## Version, Overlay-Leiste, Wischer (05.11.)
+- Links unten in der Seitenleiste steht ein Versions-Stempel (`v2026-11-05.3-slim-overlay`). Steht da etwas anderes, laeuft noch alter Code: alle Dateien kopieren (auch `app/globals.css`), pushen, Vercel-Deploy abwarten, Strg+F5.
+- OBS: Browser-Quelle -> "Cache der aktuellen Seite aktualisieren". `/overlay/*` wird jetzt ohne Cache ausgeliefert.
+- Das grosse REPLAY-Banner ist weg. Es gibt nur noch den Wischer plus kleine REPLAY-Marke.
+- Overlay-Leiste ist so schmal wie die Kamera-Leiste (max 64px).
+
+## Overlay im Website-Look, eine Karte unten (06.11.)
+- FLM Broadcast Overlay hat jetzt den gleichen Stil wie die Website: ruhiges Dunkel (#13151a), runde Karten, Amber als Akzent (Fokus-Auto in der Tabelle = Amber, Gegner = hellgrau).
+- Unten im Bild ist Platz fuer EINE Ansicht: Fahrerkarte, Head to Head, Onboard Battle, Onboard Telemetry. Wer eingeschaltet wird, schaltet die anderen aus (Stream und Leiste auf der Broadcast-Seite). Tower und Virtual Energy bleiben frei schaltbar.
+- Test (Playwright, 1920x1080): kein Teil des Overlays ueberlappt ein anderes, auch mit 4 Meldungen rechts.
+- Dateien neu/geaendert: `web/lib/bcSwitch.ts`, `web/app/overlay/broadcast/{page.tsx,broadcast.css}`, `web/lib/version.ts`.

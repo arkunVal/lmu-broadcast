@@ -171,10 +171,10 @@ function EventList() {
                       <span className={`badge ${ev.status === "live" ? "live" : ""}`}>{STATUS[ev.status]}</span>
                       <span>{ev.starts_at ? new Date(ev.starts_at).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "ohne Termin"}</span>
                     </div>
-                    <Link href={`/events/${ev.id}`} className="evname">{ev.name}</Link>
+                    <Link href={`/events/view?id=${ev.id}`} className="evname">{ev.name}</Link>
                     <div className="muted">{ev.track ?? "Strecke noch offen"}</div>
                     <div className="evfoot">
-                      <Link href={`/events/${ev.id}`} className="btn primary">Öffnen</Link>
+                      <Link href={`/events/view?id=${ev.id}`} className="btn primary">Öffnen</Link>
                       {isAdmin && <DeleteEvent id={ev.id} name={ev.name} compact onDeleted={load} />}
                     </div>
                   </div>

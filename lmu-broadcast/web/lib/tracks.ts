@@ -1,3 +1,4 @@
+import { apiUrl } from "./config";
 // Muss mit track_slug() in reader/track_recorder.py uebereinstimmen.
 export function trackSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -23,5 +24,5 @@ async function fetchJson(url: string): Promise<StoredTrack | null> {
 export async function loadStoredTrack(name: string): Promise<StoredTrack | null> {
   const slug = trackSlug(name);
   if (!slug) return null;
-  return (await fetchJson(`/api/tracks/${slug}`)) ?? (await fetchJson(`/tracks/${slug}.json`));
+  return (await fetchJson(apiUrl(`/tracks/${slug}`))) ?? (await fetchJson(`/tracks/${slug}.json`));
 }
